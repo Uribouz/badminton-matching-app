@@ -1,0 +1,95 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+.body {
+  font-family: sans-serif;
+  font-size: small;
+  /* margin: 0 auto; */
+  /* background-color: #f6f0e4; */
+  padding: 5px;
+}
+.btn {
+  height: 25px;
+  width: auto;
+}
+.btn-small {
+  height: 17.5%;
+  width: 17.5%;
+  padding: 0 0;
+  border: none;
+  background: none;
+}
+
+.inputContainer {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 35px;
+}
+
+.playerListContainer {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.playerContainer {
+  position: relative;
+  display: inline-block;
+  width: 100px;
+  border: solid black;
+  padding: 5px;
+}
+.playerContainerHighlight {
+  background-color:#A5E9E8;
+}
+
+.playerHeader {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  justify-content: start;
+  margin-top: 5px;
+  border-bottom: solid black;
+}
+.playerHeader h2 {
+  overflow-wrap: anywhere;
+}
+.btn-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  margin: 2px;
+  border: none;
+  background: none;
+  height: 10px;
+  width: 10px;
+}
+.playerBody {
+  height: 30%;
+  font-size: large;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+}
+.playerBody h2 {
+  margin: 0;
+  padding-right: 5px;
+}
+/* https://www.schemecolor.com/roaming-on-the-campus.php */
+.leastPlayedPlayer {
+  color: #C32B42;
+}
+.mostPlayedPlayer {
+  color: #F7A007;
+}
+.Player {
+  color:  #262E57;
+}
+
+
+
+

@@ -222,5 +222,3 @@ Example Output:
 This approach combines **randomization** with **history-based constraints** to ensure that the matches are varied, fair, and engaging. By enforcing constraints (like no same-team pairings and no repeated opponents), we enhance the experience for players and avoid repetitiveness.
 
 Let me know if you need further clarifications or want additional features!
-#   b a d m i n t o n - m a t c h i n g - a p p  
- 
