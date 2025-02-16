@@ -3,6 +3,7 @@ import { Player } from '../player/player';
 import { CommonModule, KeyValue } from '@angular/common';
 import { max } from 'rxjs';
 import { Status } from '../status/status';
+import { PlayerService } from '../player.service';
 @Component({
   selector: 'app-player-list',
   standalone: true,
@@ -16,8 +17,10 @@ export class PlayerListComponent {
   maximumInteractPlayers = this.playersPerCourt*2;
   status = new Status();
   playersMap = new Map();
+  playerService = new PlayerService();
   constructor() {
     // this.clearLocalStorage();
+    
     this.loadLocalStorage();
   }
   clearLocalStorage() {
@@ -25,17 +28,11 @@ export class PlayerListComponent {
     localStorage.removeItem('players-status');
   }
   saveLocalStorage() {
-    this.savePlayerLlist();
+    this.playerService.savePlayerLlist(this.playersMap);
     this.savePlayerStatus();
   }
   savePlayerStatus() {
     localStorage.setItem('players-status', JSON.stringify(this.status));
-  }
-  savePlayerLlist() {
-    localStorage.setItem(
-      'player-list',
-      JSON.stringify(Array.from(this.playersMap.entries()))
-    );
   }
   revalidateMaximumInteractPlayers() {
     return;
@@ -44,18 +41,9 @@ export class PlayerListComponent {
     console.log("this.maximumInteractPlayers: ", this.maximumInteractPlayers)
   }
   loadLocalStorage() {
-    this.loadPlayerList();
-    this.loadPlayerStatus();
-  }
-  loadPlayerList() {
-    let playerList = localStorage.getItem('player-list');
-    if (!playerList) {
-      return;
-    }
-    this.playersMap = new Map(JSON.parse(playerList));
-    //Temp fixed: Clear save data on load from cached.
-    this.playersMap.forEach((value,key,playerMap) => value.isPreviouslyInteracted = false);
+    this.playersMap = this.playerService.loadPlayerList();
     this.revalidateMaximumInteractPlayers();
+    this.loadPlayerStatus();
   }
   loadPlayerStatus() {
     let status = localStorage.getItem('players-status');
