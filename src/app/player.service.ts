@@ -11,10 +11,10 @@ export class PlayerService {
       JSON.stringify(Array.from(playersMap.entries()))
     );
   }
-  loadPlayerList() {
+  loadPlayerList():Map<string,Player> {
     let playerList = localStorage.getItem('player-list');
     if (!playerList) {
-      return;
+      return new Map<string,Player>();
     }
     var playersMap:Map<string,Player>
     playersMap = new Map(JSON.parse(playerList));
