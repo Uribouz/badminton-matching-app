@@ -12,52 +12,27 @@ import { PlayerService } from '../player.service';
   styleUrl: './player-list.component.css',
 })
 export class PlayerListComponent {
-  lastInteractPlayers: Map<String,String> = new Map<String,String>;
+  lastInteractPlayers: Map<string, string> = new Map<string, string>();
   playersPerCourt = 4;
-  maximumInteractPlayers = this.playersPerCourt*2;
+  maximumInteractPlayers = this.playersPerCourt * 2;
   status = new Status();
-  playersMap = new Map();
+  playersMap = new Map<string, Player>();
   playerService = new PlayerService();
   constructor() {
-    // this.clearLocalStorage();
-    
-    this.loadLocalStorage();
+    // this.playerService.clearAllData();
+    this.loadPlayerData();
   }
-  clearLocalStorage() {
-    localStorage.removeItem('player-list');
-    localStorage.removeItem('players-status');
+  getPlayerList(): Player[] {
+    return Array.from(this.playersMap.values());
   }
-  saveLocalStorage() {
-    this.playerService.savePlayerLlist(this.playersMap);
-    this.savePlayerStatus();
+  savePlayerData() {
+    this.playerService.savePlayerList(this.playersMap);
+    this.playerService.savePlayerStatus(this.status);
   }
-  savePlayerStatus() {
-    localStorage.setItem('players-status', JSON.stringify(this.status));
-  }
-  revalidateMaximumInteractPlayers() {
-    return;
-    //No need to run for now
-    this.maximumInteractPlayers = Math.floor(this.playersMap.size / 2);
-    console.log("this.maximumInteractPlayers: ", this.maximumInteractPlayers)
-  }
-  loadLocalStorage() {
+  loadPlayerData() {
     this.playersMap = this.playerService.loadPlayerList();
-    this.revalidateMaximumInteractPlayers();
-    this.loadPlayerStatus();
+    this.status = this.playerService.loadPlayerStatus();
   }
-  loadPlayerStatus() {
-    let status = localStorage.getItem('players-status');
-    if (!status) {
-      return;
-    }
-    this.status = JSON.parse(status);
-  }
-  originalOrder = (
-    a: KeyValue<string, Player>,
-    b: KeyValue<string, Player>
-  ): number => {
-    return 0;
-  };
   addPlayerList(newPlayers: string) {
     newPlayers.split(',').forEach((player) => {
       if (!this.playersMap.has(player)) {
@@ -67,18 +42,27 @@ export class PlayerListComponent {
         this.playersMap.set(player, newPlayer);
       }
     });
-    this.saveLocalStorage();
-    this.revalidateMaximumInteractPlayers();
+    this.savePlayerData();
   }
   deletePlayer(playerName: string) {
     console.log('deletePlayer: ' + playerName);
     this.playersMap.delete(playerName);
     this.revalidateStatus();
-    this.saveLocalStorage();
-    this.lastInteractPlayers.delete(playerName)
-    this.revalidateMaximumInteractPlayers();
+    this.savePlayerData();
+    this.lastInteractPlayers.delete(playerName);
   }
 
+  addRoundsPlayed(playerName: string) {
+    this.updatePlayerRoundsPlayed(playerName, 1);
+    this.savePlayerData();
+  }
+
+  subtractRoundsPlayed(playerName: string) {
+    this.updatePlayerRoundsPlayed(playerName, -1);
+    this.savePlayerData();
+  }
+
+  //Internal ----------------------------------------------------------------
   updatePlayerRoundsPlayed(playerName: string, value: number) {
     console.log('updatePlayerRoundsPlayed: ' + playerName + ': ' + value);
     let player = this.playersMap.get(playerName);
@@ -96,24 +80,45 @@ export class PlayerListComponent {
     console.log('player:');
     console.log(player);
   }
-
+  checkLastInteractivePlayer(playerName: string) {
+    console.log(
+      'this.lastInteractPlayers.size: ',
+      this.lastInteractPlayers.size
+    );
+    console.log('this.maximumInteractPlayers: ', this.maximumInteractPlayers);
+    this.lastInteractPlayers.set(playerName, playerName);
+    // this.setInteractivePlayer(playerName, true);
+    if (this.lastInteractPlayers.size <= this.maximumInteractPlayers) {
+      return;
+    }
+    const popPlayerName = this.lastInteractPlayers.keys().next().value ?? '';
+    this.lastInteractPlayers.delete(popPlayerName);
+    this.setInteractivePlayer(popPlayerName, false);
+  }
   revalidateStatus() {
     if (this.playersMap.size <= 0) {
       this.status = new Status();
       return;
     }
-    console.log('this.playersMap.values().next().value: ' + this.playersMap.values().next().value)
-    this.status.leastPlayed = this.playersMap.values().next().value.totalRoundsPlayed;
-    this.status.mostPlayed = this.playersMap.values().next().value.totalRoundsPlayed;
-    this.playersMap.forEach((value, player) => {
-      if (this.status.leastPlayed > value.totalRoundsPlayed) {
-        this.status.leastPlayed = value.totalRoundsPlayed;
-      }
-      if (this.status.mostPlayed < value.totalRoundsPlayed) {
-        this.status.mostPlayed = value.totalRoundsPlayed;
-      }
-      // console.log('player:' + player + ': ' + value.totalRoundsPlayed);
-    });
+    console.log(
+      'this.playersMap.values().next().value: ' +
+        this.playersMap.values().next().value
+    );
+    if (this.playersMap) {
+      this.status.leastPlayed =
+        this.playersMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
+      this.status.mostPlayed =
+        this.playersMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
+      this.playersMap.forEach((value, player) => {
+        if (this.status.leastPlayed > value.totalRoundsPlayed) {
+          this.status.leastPlayed = value.totalRoundsPlayed;
+        }
+        if (this.status.mostPlayed < value.totalRoundsPlayed) {
+          this.status.mostPlayed = value.totalRoundsPlayed;
+        }
+        // console.log('player:' + player + ': ' + value.totalRoundsPlayed);
+      });
+    }
     console.log(
       'validateStatus: ' +
         this.status.leastPlayed +
@@ -121,49 +126,15 @@ export class PlayerListComponent {
         this.status.mostPlayed
     );
   }
-  addRoundsPlayed(playerName: string) {
-    this.updatePlayerRoundsPlayed(playerName, 1);
-    this.saveLocalStorage();
-  }
-
-  subtractRoundsPlayed(playerName: string) {
-    this.updatePlayerRoundsPlayed(playerName, -1);
-    this.saveLocalStorage();
-  }
-  getPlayerBodyClass(totalRoundsPlayed: number) {
-    if (totalRoundsPlayed === this.status.leastPlayed)
-      return 'leastPlayedPlayer';
-    if (totalRoundsPlayed === this.status.mostPlayed) return 'mostPlayedPlayer';
-    return 'Player';
-  }
-  checkLastInteractivePlayer(playerName: string) {
-    console.log('this.lastInteractPlayers.size: ',this.lastInteractPlayers.size);
-    console.log('this.maximumInteractPlayers: ',this.maximumInteractPlayers)
-    this.lastInteractPlayers.set(playerName,playerName);
-    // this.setInteractivePlayer(playerName, true);
-    if (this.lastInteractPlayers.size <= this.maximumInteractPlayers) {
-      return;
-    }
-    const popPlayerName = this.lastInteractPlayers.keys().next().value
-    this.lastInteractPlayers.delete(popPlayerName)
-    this.setInteractivePlayer(popPlayerName, false);
-  }
-  setInteractivePlayer(playerName:string|undefined, status: boolean) {
+  setInteractivePlayer(playerName: string | undefined, status: boolean) {
     if (!playerName) {
       return;
     }
-    let player = this.playersMap.get(playerName)
+    let player = this.playersMap.get(playerName);
     if (!player) {
       return;
     }
     player.isPreviouslyInteracted = status;
     this.playersMap.set(playerName, player);
-  }
-
-  getPlayerClass(player: Player) {
-    if (player.isPreviouslyInteracted) {
-      return 'playerContainer playerContainerHighlight'
-    }
-    return 'playerContainer';
   }
 }
