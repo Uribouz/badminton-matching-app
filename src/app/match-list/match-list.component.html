@@ -1,1 +1,38 @@
-<p>match-list works!</p>
+<div class="body">
+
+    <div class="courtContainer" *ngFor="let match of matchList">
+        <h1> Court {{match.courtNumber}}</h1>
+        <div class="court">
+            <div class="team">
+                <div class="player">
+                <h3> {{match.teamA.player1.name}} </h3>
+                </div>
+                <div class="player">
+                <h3> {{match.teamA.player2.name}} </h3>
+                </div>
+            </div>
+            <div class="vl"></div>
+            <div class="team">
+                <div class="player">
+                <h3> {{match.teamB.player1.name}} </h3>
+                </div>
+                <div class="player">
+                <h3> {{match.teamB.player2.name}} </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="btnContainer">
+        <button class="btn btn_shuffle"> Shuffle </button>
+        <button class="btn btn_confirm"> Confirm </button>
+    </div>
+    <div class="standbyContainer">
+        <h2>Standby</h2>
+        <div class="playerStandby" *ngFor="let player of standbyList">
+            <div class="player">
+            <h4> {{player.name}} </h4>
+            </div>
+        </div>
+    </div>
+
+</div>
