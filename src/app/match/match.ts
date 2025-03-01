@@ -6,7 +6,7 @@ class teammate {
 }
 
 export class Match {
-    courtNumber: Number= 0
+    status: string = 'available'
     teamA: teammate = new teammate;
     teamB: teammate = new teammate;
 }

@@ -12,6 +12,9 @@ Objective
 
 ## Bug:
 
+# 1. need to save match state, so when swap tab it will still show
+# 2. When one court is locked, shuffle needed to minus players from that court
+
 ## Backlog:
 
 ### 3. Can create a randomly match with another 3 player, 1 on the same team, 2 on the opposite team

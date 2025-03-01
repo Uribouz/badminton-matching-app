@@ -1,7 +1,7 @@
 <div class="body">
 
-    <div class="courtContainer" *ngFor="let match of matchList">
-        <h1> Court {{match.courtNumber}}</h1>
+    <div class="courtContainer" *ngFor="let match of matchList; index as i">
+        <h1> Court {{i+1}}</h1>
         <div class="court">
             <div class="team">
                 <div class="player">
@@ -21,11 +21,12 @@
                 </div>
             </div>
         </div>
+        <button class="btn btn_confirm" (click)="confirmCourt(i)"> Confirm </button>
+        <button class="btn btn_end" (click)="freeCourt(i)"> Free </button>
     </div>
     <div class="btnContainer">
-        <button class="btn btn_shuffle"> Shuffle </button>
-        <button class="btn btn_confirm"> Confirm </button>
-    </div>
+    <button class="btn btn_shuffle" (click)="shuffleWithPriority()"> Shuffle </button>
+</div>
     <div class="standbyContainer">
         <h2>Standby</h2>
         <div class="playerStandby" *ngFor="let player of standbyList">
