@@ -3,6 +3,7 @@ import { Match } from '../match/match';
 import { Player } from '../player/player';
 import { CommonModule } from '@angular/common';
 import { PlayerService } from '../player.service';
+import { MatchService } from '../match.service';
 
 @Component({
   selector: 'app-match-list',
@@ -16,9 +17,16 @@ export class MatchListComponent {
   standbyList: Player[] = []
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
+  matchService = new MatchService();
 
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
+    this.matchList = this.matchService.loadMatchList();
+    //TODO: make standbyList came from playerList with status ??
+    this.standbyList = this.matchService.loadStandbyList();
+    if (this.matchList.length > 0) {
+      return
+    }
     let firstMatch = new Match
     firstMatch.teamA.player1 = new Player('');
     firstMatch.teamA.player2 = new Player('');
@@ -31,6 +39,7 @@ export class MatchListComponent {
     secondMatch.teamB.player1 = new Player('');
     secondMatch.teamB.player2 = new Player('');
     this.matchList.push(secondMatch)
+    
   }
 
   confirmCourt(i:number) {
@@ -43,11 +52,13 @@ export class MatchListComponent {
     this.addNewTotalRoundPlayed(currentCourt.teamB.player2.name)
 
     this.playerService.savePlayerList(this.playersMap);
+    this.matchService.saveMatchList(this.matchList)
   }
 
   freeCourt(i:number) {
     let currentCourt = this.matchList[i]
     currentCourt.status = 'available'
+    this.matchService.saveMatchList(this.matchList)
   }
 
   addNewTotalRoundPlayed(name:string) {
@@ -95,5 +106,7 @@ export class MatchListComponent {
     playerList.forEach((each) => {
       this.standbyList.push(each)
     })
+    this.matchService.saveMatchList(this.matchList)
+    this.matchService.saveStandbyList(this.standbyList)
   }
 }
