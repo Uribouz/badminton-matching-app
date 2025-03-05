@@ -9,6 +9,7 @@ enum COURT_STATUS {
   AVAILABLE = 'available',
   PLAYING = 'playing'
 }
+const PLAYERS_PER_COURT = 4
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -25,10 +26,9 @@ export class MatchListComponent {
 
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
+    console.log('playersMap: ', this.playersMap)
     this.matchList = this.matchService.loadMatchList();
-    let playerNames = this.matchList.flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
-    this.standbyList = Array.from(this.playersMap.values()).filter(each => !playerNames.includes(each.name))
-    console.log('standbyList: ', this.standbyList)
+    this.loadStandbyList();
     if (this.matchList.length > 0) {
       return
     }
@@ -46,7 +46,7 @@ export class MatchListComponent {
     this.matchList.push(secondMatch)
     
   }
-  
+
   confirmCourt(i:number) {
     let court = this.matchList[i]
     this.matchList[i].status = COURT_STATUS.PLAYING
@@ -63,6 +63,11 @@ export class MatchListComponent {
     this.playerService.savePlayerList(this.playersMap);
   }
 
+  loadStandbyList() {
+    let playerNames = this.matchList.flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+    this.standbyList = Array.from(this.playersMap.values()).filter(each => !playerNames.includes(each.name))
+    console.log('standbyList: ', this.standbyList)
+  }
   freeCourt(i:number) {
     let currentCourt = this.matchList[i]
     currentCourt.status = COURT_STATUS.AVAILABLE
@@ -91,30 +96,37 @@ export class MatchListComponent {
   }
 
 
-  randomPlayer(arr: Player[]) {
-    for (let i = arr.length - 1; i > 0; i--) {
+  randomPlayer(arr: Player[], length: number) {
+    if (length > arr.length) {
+      length = arr.length
+    }
+    for (let i = length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]]; // Swap elements
     }
     return arr;
   }
+  //Fuzzy Logic
+  calculatePoint(player: Player): number {
+    const multiplier_rounds_played = 1;
+    const multiplier_rounds_waited = 0.5;
+    return (multiplier_rounds_played*player.totalRoundsPlayed) - (multiplier_rounds_waited*player.roundsWaited)
+  }
   shuffleWithPriority() {
-    let mapStandbyList = new Map(this.standbyList.map((each) => [each.name, each]));
-    let playerList = this.randomPlayer(Array.from(this.playersMap.values()))
+    let playerList = Array.from(this.playersMap.values())
     .sort((a, b) => {
-      let aIsStandBy = mapStandbyList.has(a.name)
-      let bIsStandBy = mapStandbyList.has(b.name)
-
-      if (aIsStandBy && !bIsStandBy) {
-        return -1
-      }
-      if (!aIsStandBy && bIsStandBy) {
-        return 1
-      }
-      return 0
+      return this.calculatePoint(a) - this.calculatePoint(b)
     })
-    .sort((a, b) => a.totalRoundsPlayed - b.totalRoundsPlayed )
+
+    let totalAvailablePlayers = 0;
+    this.matchList.forEach(each => {
+      if (each.status === COURT_STATUS.AVAILABLE) {
+        totalAvailablePlayers += PLAYERS_PER_COURT
+      }
+    })
+    console.log('totalAvailablePlayers: ',totalAvailablePlayers)
     this.matchList.map((each) => {
+      playerList = this.randomPlayer(playerList, totalAvailablePlayers)
       if (each.status === COURT_STATUS.PLAYING)
         return
       each.teamA.player1 = playerList[0]
@@ -122,11 +134,11 @@ export class MatchListComponent {
       each.teamB.player1 = playerList[2]
       each.teamB.player2 = playerList[3]
       playerList.splice(0, 4);
+      totalAvailablePlayers -= PLAYERS_PER_COURT
     })
-    this.standbyList = []
-    playerList.forEach((each) => {
-      this.standbyList.push(each)
-    })
+
+
+    this.loadStandbyList();
     this.matchService.saveMatchList(this.matchList)
   }
 }

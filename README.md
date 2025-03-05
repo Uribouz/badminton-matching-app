@@ -12,9 +12,7 @@ Objective
 
 ## Bug:
 
-# 1. need to save match state, so when swap tab it will still show
-# 2. When one court is locked, shuffle needed to minus players from that court
-# 3. shuffle logic still doesn't work properly
+# 1. shuffle logic still doesn't work properly
 
 ## Backlog:
 
