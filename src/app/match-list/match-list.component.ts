@@ -5,6 +5,10 @@ import { CommonModule } from '@angular/common';
 import { PlayerService } from '../player.service';
 import { MatchService } from '../match.service';
 
+enum COURT_STATUS {
+  AVAILABLE = 'available',
+  PLAYING = 'playing'
+}
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -22,8 +26,9 @@ export class MatchListComponent {
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
     this.matchList = this.matchService.loadMatchList();
-    //TODO: make standbyList came from playerList with status ??
-    this.standbyList = this.matchService.loadStandbyList();
+    let playerNames = this.matchList.flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+    this.standbyList = Array.from(this.playersMap.values()).filter(each => !playerNames.includes(each.name))
+    console.log('standbyList: ', this.standbyList)
     if (this.matchList.length > 0) {
       return
     }
@@ -41,34 +46,50 @@ export class MatchListComponent {
     this.matchList.push(secondMatch)
     
   }
-
+  
   confirmCourt(i:number) {
-    let currentCourt = this.matchList[i]
-    currentCourt.status = 'playing'
-    
-    this.addNewTotalRoundPlayed(currentCourt.teamA.player1.name)
-    this.addNewTotalRoundPlayed(currentCourt.teamA.player2.name)
-    this.addNewTotalRoundPlayed(currentCourt.teamB.player1.name)
-    this.addNewTotalRoundPlayed(currentCourt.teamB.player2.name)
+    let court = this.matchList[i]
+    this.matchList[i].status = COURT_STATUS.PLAYING
+   
+    let confirmedPlayerNames = [court.teamA.player1.name, court.teamA.player2.name, court.teamB.player1.name, court.teamB.player2.name]
+    this.addTotalRoundPlayed(confirmedPlayerNames)
+    this.matchService.saveMatchList(this.matchList);
+
+    let playingPlayersName = this.matchList.filter(each => each.status = COURT_STATUS.PLAYING)
+    .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+    let currentStandbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
+    this.addTotalRoundWaited(currentStandbyList)
 
     this.playerService.savePlayerList(this.playersMap);
-    this.matchService.saveMatchList(this.matchList)
   }
 
   freeCourt(i:number) {
     let currentCourt = this.matchList[i]
-    currentCourt.status = 'available'
+    currentCourt.status = COURT_STATUS.AVAILABLE
     this.matchService.saveMatchList(this.matchList)
   }
 
-  addNewTotalRoundPlayed(name:string) {
-    let player = this.playersMap.get(name);
-    if (!player) {
-      player = new Player(name)
-    }
-    player.totalRoundsPlayed += 1;
-    this.playersMap.set(name, player)
+  addTotalRoundPlayed(names:string[]) {
+    names.forEach((name) => {
+      let player = this.playersMap.get(name);
+      if (!player) {
+        player = new Player(name)
+      }
+      player.totalRoundsPlayed += 1;
+      this.playersMap.set(name, player)
+    })
   }
+  addTotalRoundWaited(names:string[]) {
+    names.forEach((name) => {
+      let player = this.playersMap.get(name);
+      if (!player) {
+        player = new Player(name)
+      }
+      player.roundsWaited += 1;
+      this.playersMap.set(name, player)
+    })
+  }
+
 
   randomPlayer(arr: Player[]) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -80,7 +101,6 @@ export class MatchListComponent {
   shuffleWithPriority() {
     let mapStandbyList = new Map(this.standbyList.map((each) => [each.name, each]));
     let playerList = this.randomPlayer(Array.from(this.playersMap.values()))
-    .sort((a, b) => a.totalRoundsPlayed - b.totalRoundsPlayed )
     .sort((a, b) => {
       let aIsStandBy = mapStandbyList.has(a.name)
       let bIsStandBy = mapStandbyList.has(b.name)
@@ -93,8 +113,9 @@ export class MatchListComponent {
       }
       return 0
     })
+    .sort((a, b) => a.totalRoundsPlayed - b.totalRoundsPlayed )
     this.matchList.map((each) => {
-      if (each.status === 'playing')
+      if (each.status === COURT_STATUS.PLAYING)
         return
       each.teamA.player1 = playerList[0]
       each.teamA.player2 = playerList[1]
@@ -107,6 +128,5 @@ export class MatchListComponent {
       this.standbyList.push(each)
     })
     this.matchService.saveMatchList(this.matchList)
-    this.matchService.saveStandbyList(this.standbyList)
   }
 }

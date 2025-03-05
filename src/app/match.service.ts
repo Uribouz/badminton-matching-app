@@ -21,16 +21,7 @@ export class MatchService {
      matchList = JSON.parse(data)
     return matchList
   }
-  saveStandbyList(standbyList: Player[]) {
-    localStorage.setItem('standby-list', JSON.stringify(standbyList))
-  }
-  loadStandbyList():Player[] {
-     var standbyList: Player[] = []
-     let data = localStorage.getItem('standby-list')
-     if (!data) {
-      return standbyList
-     }
-     standbyList = JSON.parse(data)
-    return standbyList
+  clearCache() {
+    localStorage.removeItem('match-list');
   }
 }

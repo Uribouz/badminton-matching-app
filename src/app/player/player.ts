@@ -5,7 +5,7 @@ export class Player {
 
   teamateHistory: string[] = [];
   // totalRoundsWon: number = 0;
-  // isBreaking: boolean = false;
+  roundsWaited: number = 0;
 
   constructor(name: string) {
     this.name = name;
