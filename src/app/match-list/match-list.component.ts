@@ -96,27 +96,25 @@ export class MatchListComponent {
   }
 
 
-  randomPlayer(arr: Player[], length: number) {
-    if (length > arr.length) {
-      length = arr.length
-    }
-    for (let i = length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]]; // Swap elements
-    }
-    return arr;
-  }
   //Fuzzy Logic
   calculatePoint(player: Player): number {
     const multiplier_rounds_played = 1;
     const multiplier_rounds_waited = 0.5;
-    return (multiplier_rounds_played*player.totalRoundsPlayed) - (multiplier_rounds_waited*player.roundsWaited)
+    return (multiplier_rounds_played*player.totalRoundsPlayed||0) - (multiplier_rounds_waited*player.roundsWaited||0)
   }
   shuffleWithPriority() {
     let playerList = Array.from(this.playersMap.values())
     .sort((a, b) => {
+      let aPoint = this.calculatePoint(a)
+      let bPoint = this.calculatePoint(b)
+      if (aPoint == bPoint) {
+        return Math.random() - Math.random()
+      }
       return this.calculatePoint(a) - this.calculatePoint(b)
     })
+    console.log('shuffleWithPriority:', playerList.map((each) => {
+      return `${each.name}: ${this.calculatePoint(each)} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`
+    }))
 
     let totalAvailablePlayers = 0;
     this.matchList.forEach(each => {
@@ -125,15 +123,22 @@ export class MatchListComponent {
       }
     })
     console.log('totalAvailablePlayers: ',totalAvailablePlayers)
+    if (totalAvailablePlayers <= 0 ){
+      return
+    }
+    let selectedPlayerList = playerList.splice(0,totalAvailablePlayers )
+    .sort((a, b) => {
+      //WIP: check player playedHistory
+      return Math.random() - Math.random()
+    })
     this.matchList.map((each) => {
-      playerList = this.randomPlayer(playerList, totalAvailablePlayers)
       if (each.status === COURT_STATUS.PLAYING)
         return
-      each.teamA.player1 = playerList[0]
-      each.teamA.player2 = playerList[1]
-      each.teamB.player1 = playerList[2]
-      each.teamB.player2 = playerList[3]
-      playerList.splice(0, 4);
+      each.teamA.player1 = selectedPlayerList[0]
+      each.teamA.player2 = selectedPlayerList[1]
+      each.teamB.player1 = selectedPlayerList[2]
+      each.teamB.player2 = selectedPlayerList[3]
+      selectedPlayerList.splice(0, PLAYERS_PER_COURT);
       totalAvailablePlayers -= PLAYERS_PER_COURT
     })
 
