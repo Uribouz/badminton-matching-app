@@ -12,7 +12,7 @@ Objective
 
 ## Bug:
 
-# 1. shuffle logic still doesn't work properly
+https://dev.to/kapi1/how-to-fix-page-not-found-on-netlify-a4i
 
 ## Backlog:
 
