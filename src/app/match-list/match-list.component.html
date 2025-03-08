@@ -21,12 +21,12 @@
                 </div>
             </div>
         </div>
-        <button class="btn btn_confirm" (click)="confirmCourt(i)"> Confirm </button>
         <button class="btn btn_end" (click)="freeCourt(i)"> Free </button>
     </div>
     <div class="btnContainer">
-    <button class="btn btn_shuffle" (click)="shuffleWithPriority()"> Shuffle </button>
-</div>
+        <button class="btn btn_confirm" (click)="confirmCourt()"> Confirm </button>
+        <button class="btn btn_shuffle" (click)="shuffleWithPriority()"> Shuffle </button>
+    </div>
     <div class="standbyContainer">
         <h2>Standby</h2>
         <div class="playerStandby" *ngFor="let player of standbyList">

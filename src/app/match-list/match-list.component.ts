@@ -25,6 +25,7 @@ export class MatchListComponent {
   matchService = new MatchService();
 
   constructor() {
+    // this.matchService.clearCache();
     this.playersMap = this.playerService.loadPlayerList();
     console.log('playersMap: ', this.playersMap)
     this.matchList = this.matchService.loadMatchList();
@@ -33,58 +34,67 @@ export class MatchListComponent {
       return
     }
     let firstMatch = new Match
-    firstMatch.teamA.player1 = new Player('');
-    firstMatch.teamA.player2 = new Player('');
-    firstMatch.teamB.player1 = new Player('');
-    firstMatch.teamB.player2 = new Player('');
+    this.clearCourt(firstMatch)
     this.matchList.push(firstMatch)
     let secondMatch = new Match
-    secondMatch.teamA.player1 = new Player('');
-    secondMatch.teamA.player2 = new Player('');
-    secondMatch.teamB.player1 = new Player('');
-    secondMatch.teamB.player2 = new Player('');
+    this.clearCourt(secondMatch)
     this.matchList.push(secondMatch)
     
   }
+  clearCourt(currentCourt: Match) {
+    currentCourt.teamA.player1 = new Player('');
+    currentCourt.teamA.player2 = new Player('');
+    currentCourt.teamB.player1 = new Player('');
+    currentCourt.teamB.player2 = new Player('');
+  }
 
-  confirmCourt(i:number) {
-    let court = this.matchList[i]
-    this.matchList[i].status = COURT_STATUS.PLAYING
-   
-    let confirmedPlayerNames = [court.teamA.player1.name, court.teamA.player2.name, court.teamB.player1.name, court.teamB.player2.name]
-    this.addTotalRoundPlayed(confirmedPlayerNames)
-    this.matchService.saveMatchList(this.matchList);
+  confirmCourt() {
+    this.matchList.forEach(court => {
+      if (court.status == COURT_STATUS.PLAYING) {
+        return
+      }
+      court.status = COURT_STATUS.PLAYING
+    
+      let confirmedPlayerNames = [court.teamA.player1.name, court.teamA.player2.name, court.teamB.player1.name, court.teamB.player2.name]
+      this.confirmedPlayerPlayed(confirmedPlayerNames)
+      this.matchService.saveMatchList(this.matchList);
 
-    let playingPlayersName = this.matchList.filter(each => each.status = COURT_STATUS.PLAYING)
-    .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
-    let currentStandbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
-    this.addTotalRoundWaited(currentStandbyList)
+      let playingPlayersName = this.matchList.filter(each => each.status = COURT_STATUS.PLAYING)
+      .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+      let currentStandbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
+      this.confirmedPlayerWaited(currentStandbyList)
 
-    this.playerService.savePlayerList(this.playersMap);
+      this.playerService.savePlayerList(this.playersMap);
+    })
   }
 
   loadStandbyList() {
-    let playerNames = this.matchList.flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
-    this.standbyList = Array.from(this.playersMap.values()).filter(each => !playerNames.includes(each.name))
+    let playingPlayers = this.matchList.flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+    console.log(`loadStandbyList: ${this.matchList[0]}: ${this.matchList[1]}`)
+    this.standbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayers.includes(each.name))
     console.log('standbyList: ', this.standbyList)
   }
   freeCourt(i:number) {
     let currentCourt = this.matchList[i]
     currentCourt.status = COURT_STATUS.AVAILABLE
+    this.clearCourt(currentCourt)
     this.matchService.saveMatchList(this.matchList)
+    this.loadStandbyList();
   }
 
-  addTotalRoundPlayed(names:string[]) {
+
+  confirmedPlayerPlayed(names:string[]) {
     names.forEach((name) => {
       let player = this.playersMap.get(name);
       if (!player) {
         player = new Player(name)
       }
       player.totalRoundsPlayed += 1;
+      player.roundsWaited = 0;
       this.playersMap.set(name, player)
     })
   }
-  addTotalRoundWaited(names:string[]) {
+  confirmedPlayerWaited(names:string[]) {
     names.forEach((name) => {
       let player = this.playersMap.get(name);
       if (!player) {
@@ -103,7 +113,13 @@ export class MatchListComponent {
     return (multiplier_rounds_played*player.totalRoundsPlayed||0) - (multiplier_rounds_waited*player.roundsWaited||0)
   }
   shuffleWithPriority() {
+    let playingPlayers = this.matchList
+    .filter(each => each.status==COURT_STATUS.PLAYING)
+    .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+
+    console.log('playingPlayers:', playingPlayers)
     let playerList = Array.from(this.playersMap.values())
+    .filter(each => !playingPlayers.includes(each.name))
     .sort((a, b) => {
       let aPoint = this.calculatePoint(a)
       let bPoint = this.calculatePoint(b)
