@@ -18,19 +18,24 @@ export class PlayerListComponent {
   status = new Status();
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
+  players$ = this.playerService.players$;
   constructor() {
-    // this.playerService.clearAllData();
+    this.playerService.clearAllData();
+    this.players$.subscribe(data => {
+      console.log('players$.subscribe: ', data[0])
+      this.playersMap = new Map(data.map(each => [each.name, each]));
+    })
     this.loadPlayerData();
   }
   getPlayerList(): Player[] {
     return Array.from(this.playersMap.values());
-  }
+  }  
   savePlayerData() {
-    this.playerService.savePlayerList(this.playersMap);
+    // this.playerService.savePlayerList(this.getPlayerList());
     this.playerService.savePlayerStatus(this.status);
   }
   loadPlayerData() {
-    this.playersMap = this.playerService.loadPlayerList();
+    // this.playersMap = this.playerService.loadPlayerList();
     this.status = this.playerService.loadPlayerStatus();
   }
   addPlayerList(newPlayers: string) {
@@ -39,14 +44,14 @@ export class PlayerListComponent {
         console.log('New player: ' + player);
         let newPlayer = new Player(player);
         newPlayer.totalRoundsPlayed = this.status.leastPlayed;
-        this.playersMap.set(player, newPlayer);
+        this.playerService.addPlayer(newPlayer)
       }
     });
     this.savePlayerData();
   }
   deletePlayer(playerName: string) {
     console.log('deletePlayer: ' + playerName);
-    this.playersMap.delete(playerName);
+    this.playerService.removePlayer(playerName);
     this.revalidateStatus();
     this.savePlayerData();
     this.lastInteractPlayers.delete(playerName);
@@ -54,12 +59,12 @@ export class PlayerListComponent {
 
   addRoundsPlayed(playerName: string) {
     this.updatePlayerRoundsPlayed(playerName, 1);
-    this.savePlayerData();
+    // this.savePlayerData();
   }
 
   subtractRoundsPlayed(playerName: string) {
     this.updatePlayerRoundsPlayed(playerName, -1);
-    this.savePlayerData();
+    // this.savePlayerData();
   }
 
   //Internal ----------------------------------------------------------------
@@ -75,7 +80,8 @@ export class PlayerListComponent {
     }
     this.revalidateStatus();
     player.isPreviouslyInteracted = true;
-    this.playersMap.set(playerName, player);
+    // this.playersMap.set(playerName, player);
+    this.playerService.updatePlayer(player)
     this.checkLastInteractivePlayer(playerName);
     console.log('player:');
     console.log(player);
@@ -135,6 +141,7 @@ export class PlayerListComponent {
       return;
     }
     player.isPreviouslyInteracted = status;
-    this.playersMap.set(playerName, player);
+    this.playerService.updatePlayer(player)
+    // this.playersMap.set(playerName, player);
   }
 }

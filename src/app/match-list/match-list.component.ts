@@ -20,14 +20,17 @@ const PLAYERS_PER_COURT = 4
 export class MatchListComponent {
   matchList: Match[] = []
   standbyList: Player[] = []
+  players: Player[] = [];
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
   matchService = new MatchService();
+  players$ = this.playerService.players$;
 
   constructor() {
     // this.matchService.clearCache();
-    this.playersMap = this.playerService.loadPlayerList();
-    console.log('playersMap: ', this.playersMap)
+    this.players$.subscribe(data => {
+      this.playersMap = new Map(data.map(each => [each.name, each]));
+    })
     this.matchList = this.matchService.loadMatchList();
     this.loadStandbyList();
     if (this.matchList.length > 0) {
@@ -40,6 +43,9 @@ export class MatchListComponent {
     this.clearCourt(secondMatch)
     this.matchList.push(secondMatch)
     
+  }
+  getPlayerList(): Player[] {
+    return Array.from(this.playersMap.values());
   }
   clearCourt(currentCourt: Match) {
     currentCourt.teamA.player1 = new Player('');
@@ -61,17 +67,18 @@ export class MatchListComponent {
 
       let playingPlayersName = this.matchList.filter(each => each.status = COURT_STATUS.PLAYING)
       .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
-      let currentStandbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
+      let currentStandbyList = this.players
+      .filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
       this.confirmedPlayerWaited(currentStandbyList)
 
-      this.playerService.savePlayerList(this.playersMap);
+      this.playerService.savePlayerList(this.getPlayerList());
     })
   }
 
   loadStandbyList() {
     let playingPlayers = this.matchList.flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
     console.log(`loadStandbyList: ${this.matchList[0]}: ${this.matchList[1]}`)
-    this.standbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayers.includes(each.name))
+    this.standbyList = this.players.filter(each => !playingPlayers.includes(each.name))
     console.log('standbyList: ', this.standbyList)
   }
   freeCourt(i:number) {
