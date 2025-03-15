@@ -11,6 +11,7 @@ enum COURT_STATUS {
 }
 const PLAYERS_PER_COURT = 4
 const TEAMS_PER_COURT = 2
+const TOTAL_COURT = 2
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -134,12 +135,13 @@ export class MatchListComponent {
   }
 
   //Fuzzy Logic
-  calculatePriorityPoint(player: Player): number {
+  calculatePriorityPoint(player: Player, multiplier_rounds_waited: number): number {
     const multiplier_rounds_played = 1;
-    const multiplier_rounds_waited = 0.5;
     return (multiplier_rounds_played*player.totalRoundsPlayed||0) - (multiplier_rounds_waited*player.roundsWaited||0)
   }
   shuffleWithPriority() {
+    const multiplier_rounds_waited = 1/(this.playersMap.size-(TOTAL_COURT*PLAYERS_PER_COURT));
+    console.log('multiplier_rounds_waited: ', multiplier_rounds_waited)
     let playingPlayers = this.matchList
     .filter(each => each.status === COURT_STATUS.PLAYING)
     .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
@@ -148,15 +150,15 @@ export class MatchListComponent {
     let playerList = Array.from(this.playersMap.values())
     .filter(each => !playingPlayers.includes(each.name))
     .sort((a, b) => {
-      let aPoint = this.calculatePriorityPoint(a)
-      let bPoint = this.calculatePriorityPoint(b)
+      let aPoint = this.calculatePriorityPoint(a, multiplier_rounds_waited)
+      let bPoint = this.calculatePriorityPoint(b, multiplier_rounds_waited)
       if (aPoint == bPoint) {
         return Math.random() - Math.random()
       }
       return aPoint - bPoint
     })
     console.log('shuffleWithPriority:', playerList.map((each) => {
-      return `${each.name}: ${this.calculatePriorityPoint(each)} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`
+      return `${each.name}: ${this.calculatePriorityPoint(each, multiplier_rounds_waited)} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`
     }))
 
     let totalAvailablePlayers = 0;
@@ -201,7 +203,7 @@ export class MatchListComponent {
       otherPlayers.sort((a, b) => {
         let aPoint = this.calculateTeamatePoint(currentPlayer, a);
         let bPoint = this.calculateTeamatePoint(currentPlayer, b);
-        if (aPoint == bPoint) {
+        if (aPoint === bPoint) {
           return Math.random() - Math.random()
         }
         return aPoint - bPoint
