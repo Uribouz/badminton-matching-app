@@ -36,8 +36,8 @@
             </div>
         </div>
     </div>
-    <div class="playersHitory">
-        <h2>Players Hisory</h2>
+    <div class="playersHistory">
+        <h2>Players History</h2>
         <div class="playerHistory" *ngFor="let player of getPlayerList()">
             <h4> {{player.name}}[{{player.totalRoundsPlayed}}]: {{player.teamateHistory.join(', ')}} </h4>
         </div>
