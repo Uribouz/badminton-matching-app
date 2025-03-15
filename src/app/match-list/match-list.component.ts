@@ -10,6 +10,7 @@ enum COURT_STATUS {
   PLAYING = 'playing'
 }
 const PLAYERS_PER_COURT = 4
+const TEAMS_PER_COURT = 2
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -133,7 +134,7 @@ export class MatchListComponent {
   }
 
   //Fuzzy Logic
-  calculatePoint(player: Player): number {
+  calculatePriorityPoint(player: Player): number {
     const multiplier_rounds_played = 1;
     const multiplier_rounds_waited = 0.5;
     return (multiplier_rounds_played*player.totalRoundsPlayed||0) - (multiplier_rounds_waited*player.roundsWaited||0)
@@ -147,15 +148,15 @@ export class MatchListComponent {
     let playerList = Array.from(this.playersMap.values())
     .filter(each => !playingPlayers.includes(each.name))
     .sort((a, b) => {
-      let aPoint = this.calculatePoint(a)
-      let bPoint = this.calculatePoint(b)
+      let aPoint = this.calculatePriorityPoint(a)
+      let bPoint = this.calculatePriorityPoint(b)
       if (aPoint == bPoint) {
         return Math.random() - Math.random()
       }
-      return this.calculatePoint(a) - this.calculatePoint(b)
+      return aPoint - bPoint
     })
     console.log('shuffleWithPriority:', playerList.map((each) => {
-      return `${each.name}: ${this.calculatePoint(each)} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`
+      return `${each.name}: ${this.calculatePriorityPoint(each)} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`
     }))
 
     let totalAvailablePlayers = 0;
@@ -168,24 +169,54 @@ export class MatchListComponent {
     if (totalAvailablePlayers <= 0 ){
       return
     }
-    let selectedPlayerList = playerList.splice(0,totalAvailablePlayers )
-    .sort((a, b) => {
-      //WIP: check player playedHistory
-      return Math.random() - Math.random()
-    })
+    let teamateList = this.calculateTeamates(playerList.slice(0,totalAvailablePlayers ))
     this.matchList.map((each) => {
       if (each.status === COURT_STATUS.PLAYING)
         return
-      each.teamA.player1 = selectedPlayerList[0]
-      each.teamA.player2 = selectedPlayerList[1]
-      each.teamB.player1 = selectedPlayerList[2]
-      each.teamB.player2 = selectedPlayerList[3]
-      selectedPlayerList.splice(0, PLAYERS_PER_COURT);
-      totalAvailablePlayers -= PLAYERS_PER_COURT
+      each.teamA.player1 = teamateList[0].player1
+      each.teamA.player2 = teamateList[0].player2
+      each.teamB.player1 = teamateList[1].player1
+      each.teamB.player2 = teamateList[1].player2
+      teamateList.splice(0, TEAMS_PER_COURT);
     })
-
-
     this.loadStandbyList();
     this.matchService.saveMatchList(this.matchList)
+  }
+
+  //Fuzzy Logic
+  calculateTeamates(players: Player[]): {player1: Player; player2: Player}[] {
+   let teamates: {player1: Player; player2: Player}[] = []
+   let selectedPlayers: string[] = [];
+   for (let i =0; i < players.length; i++) {
+    const currentPlayer = players[i]
+    if (selectedPlayers.includes(currentPlayer.name)) {
+      continue;
+    }
+    let teamate:Player
+    if (players.length === i+1) {
+      teamate = players[i]
+    }
+    else {
+      let otherPlayers = players.slice(i+1)
+      otherPlayers.sort((a, b) => {
+        let aPoint = this.calculateTeamatePoint(currentPlayer, a);
+        let bPoint = this.calculateTeamatePoint(currentPlayer, b);
+        if (aPoint == bPoint) {
+          return Math.random() - Math.random()
+        }
+        return aPoint - bPoint
+      })
+      teamate = otherPlayers[0]
+    }
+    teamates = [...teamates, {player1:currentPlayer, player2: teamate}]
+    selectedPlayers = [...selectedPlayers, currentPlayer.name,  teamate.name]
+   }
+    return teamates
+  }
+  calculateTeamatePoint(playerA: Player, playerB: Player): number {
+    if (!playerA.teamateHistory.includes(playerB.name)) {
+      return 0;
+    }
+    return playerA.teamateHistory.lastIndexOf(playerB.name) +1
   }
 }
