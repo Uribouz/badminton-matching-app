@@ -8,8 +8,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 ## TODO:
 3. Can create a randomly match with another 3 player, 1 on the same team, 2 on the opposite team
 
-3.1 need to know how many players and divided by 4 to get total number of fields to play
-
+3.1 can add courts depends on how many players
 3.2 logic should be balanced, every person should play equal amount of games
 
 4. Have partner history, you can see which players one already played with.

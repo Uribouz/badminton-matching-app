@@ -1,12 +1,12 @@
 import { Player } from "../player/player"
 
-class teammate {
+export class Teammate {
     player1: Player = new Player('');
     player2: Player = new Player('');
 }
 
 export class Match {
     status: string = 'available'
-    teamA: teammate = new teammate;
-    teamB: teammate = new teammate;
+    teamA: Teammate = new Teammate;
+    teamB: Teammate = new Teammate;
 }

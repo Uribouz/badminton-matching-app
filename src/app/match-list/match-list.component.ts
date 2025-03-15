@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Match } from '../match/match';
+import { Match, Teammate } from '../match/match';
 import { Player } from '../player/player';
 import { CommonModule } from '@angular/common';
 import { PlayerService } from '../player.service';
@@ -25,6 +25,7 @@ export class MatchListComponent {
   matchService = new MatchService();
 
   constructor() {
+    // this.playerService.clearAllData();
     // this.matchService.clearCache();
     this.playersMap = this.playerService.loadPlayerList();
     console.log('playersMap: ', this.playersMap)
@@ -41,7 +42,12 @@ export class MatchListComponent {
     this.matchList.push(secondMatch)
     
   }
+
+  getPlayerList(): Player[] {
+    return Array.from(this.playersMap.values())
+  }
   clearCourt(currentCourt: Match) {
+    currentCourt.status = 'available'
     currentCourt.teamA.player1 = new Player('');
     currentCourt.teamA.player2 = new Player('');
     currentCourt.teamB.player1 = new Player('');
@@ -49,17 +55,21 @@ export class MatchListComponent {
   }
 
   confirmCourt() {
+    // console.log('confirmCourt:', this.matchList)
     this.matchList.forEach(court => {
-      if (court.status == COURT_STATUS.PLAYING) {
+      console.log('court.status:', court)
+      if (court.status === COURT_STATUS.PLAYING) {
         return
       }
       court.status = COURT_STATUS.PLAYING
+      console.log('set court.status to playing', court)
     
-      let confirmedPlayerNames = [court.teamA.player1.name, court.teamA.player2.name, court.teamB.player1.name, court.teamB.player2.name]
+      let confirmedPlayerNames = [court.teamA.player1?.name||'', court.teamA.player2?.name||'', court.teamB.player1?.name||'', court.teamB.player2?.name||'']
       this.confirmedPlayerPlayed(confirmedPlayerNames)
+      this.confirmedCourt(court)
       this.matchService.saveMatchList(this.matchList);
 
-      let playingPlayersName = this.matchList.filter(each => each.status = COURT_STATUS.PLAYING)
+      let playingPlayersName = this.matchList.filter(each => each.status === COURT_STATUS.PLAYING)
       .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
       let currentStandbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
       this.confirmedPlayerWaited(currentStandbyList)
@@ -69,7 +79,7 @@ export class MatchListComponent {
   }
 
   loadStandbyList() {
-    let playingPlayers = this.matchList.flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+    let playingPlayers = this.matchList.flatMap(each => [each.teamA.player1?.name||'', each.teamA.player2?.name||'', each.teamB.player1?.name||'', each.teamB.player2?.name||''])
     console.log(`loadStandbyList: ${this.matchList[0]}: ${this.matchList[1]}`)
     this.standbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayers.includes(each.name))
     console.log('standbyList: ', this.standbyList)
@@ -104,7 +114,23 @@ export class MatchListComponent {
       this.playersMap.set(name, player)
     })
   }
-
+  confirmedCourt(court: Match) {
+    this.confirmedTeamate(court.teamA)
+    this.confirmedTeamate(court.teamB)
+  }
+  confirmedTeamate(team: Teammate) {
+    console.log('confirmedTeamate: ', team)
+    this.confirmedTeamatePlayer(team.player1.name, team.player2.name)
+    this.confirmedTeamatePlayer(team.player2.name, team.player1.name)
+  }
+  confirmedTeamatePlayer(playerName1: string, playerName2: string) {
+    let player1 = this.playersMap.get(playerName1)
+    if (!player1) {
+      return
+    }
+    player1.teamateHistory = [...player1.teamateHistory, playerName2]
+    this.playersMap.set(player1.name, player1)
+  }
 
   //Fuzzy Logic
   calculatePoint(player: Player): number {
@@ -114,7 +140,7 @@ export class MatchListComponent {
   }
   shuffleWithPriority() {
     let playingPlayers = this.matchList
-    .filter(each => each.status==COURT_STATUS.PLAYING)
+    .filter(each => each.status === COURT_STATUS.PLAYING)
     .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
 
     console.log('playingPlayers:', playingPlayers)

@@ -1,38 +1,45 @@
 <div class="body">
-
-    <div class="courtContainer" *ngFor="let match of matchList; index as i">
-        <h1> Court {{i+1}}</h1>
-        <div class="court">
-            <div class="team">
-                <div class="player">
-                <h3> {{match.teamA.player1.name}} </h3>
+    <div class="matchList">
+        <div class="courtContainer" *ngFor="let match of matchList; index as i">
+            <h1> Court {{i+1}}</h1>
+            <div class="court">
+                <div class="team">
+                    <div class="player">
+                    <h3> {{match.teamA.player1?.name}} </h3>
+                    </div>
+                    <div class="player">
+                    <h3> {{match.teamA.player2?.name}} </h3>
+                    </div>
                 </div>
-                <div class="player">
-                <h3> {{match.teamA.player2.name}} </h3>
+                <div class="vl"></div>
+                <div class="team">
+                    <div class="player">
+                    <h3> {{match.teamB.player1?.name}} </h3>
+                    </div>
+                    <div class="player">
+                    <h3> {{match.teamB.player2?.name}} </h3>
+                    </div>
                 </div>
             </div>
-            <div class="vl"></div>
-            <div class="team">
+            <button class="btn btn_end" (click)="freeCourt(i)"> Free </button>
+        </div>
+        <div class="btnContainer">
+            <button class="btn btn_confirm" (click)="confirmCourt()"> Confirm </button>
+            <button class="btn btn_shuffle" (click)="shuffleWithPriority()"> Shuffle </button>
+        </div>
+        <div class="standbyContainer">
+            <h2>Standby</h2>
+            <div class="playerStandby" *ngFor="let player of standbyList">
                 <div class="player">
-                <h3> {{match.teamB.player1.name}} </h3>
-                </div>
-                <div class="player">
-                <h3> {{match.teamB.player2.name}} </h3>
+                <h4> {{player.name}} </h4>
                 </div>
             </div>
         </div>
-        <button class="btn btn_end" (click)="freeCourt(i)"> Free </button>
     </div>
-    <div class="btnContainer">
-        <button class="btn btn_confirm" (click)="confirmCourt()"> Confirm </button>
-        <button class="btn btn_shuffle" (click)="shuffleWithPriority()"> Shuffle </button>
-    </div>
-    <div class="standbyContainer">
-        <h2>Standby</h2>
-        <div class="playerStandby" *ngFor="let player of standbyList">
-            <div class="player">
-            <h4> {{player.name}} </h4>
-            </div>
+    <div class="playersHitory">
+        <h2>Players Hisory</h2>
+        <div class="playerHistory" *ngFor="let player of getPlayerList()">
+            <h4> {{player.name}}[{{player.totalRoundsPlayed}}]: {{player.teamateHistory.join(', ')}} </h4>
         </div>
     </div>
 
