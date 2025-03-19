@@ -6,12 +6,10 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 ## Objectives
 
 ## TODO:
-3. Can create a randomly match with another 3 player, 1 on the same team, 2 on the opposite team
+6. show "console.log" somewhere, or let user can export log for debugging purpose...
+7. can move players around, as box
+8. can add courts depends on how many players
 
-3.1 can add courts depends on how many players
-3.2 logic should be balanced, every person should play equal amount of games
-
-4. Have partner history, you can see which players one already played with.
 
 
 ## Bugs:
@@ -30,4 +28,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 
 1. Can add players
 2. Can See list of players
-Bugs fixed https://dev.to/kapi1/how-to-fix-page-not-found-on-netlify-a4i
+x. Bugs fixed https://dev.to/kapi1/how-to-fix-page-not-found-on-netlify-a4i
+3. Can create a randomly match with another 3 player, 1 on the same team, 2 on the opposite team
+3.1  logic should be balanced, every person should play equal amount of games (Acceptable need feedback from friends)
+4. Have partner history, you can see which players one already played with.
