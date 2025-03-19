@@ -33,7 +33,7 @@ describe('MatchListComponent', () => {
     const originalRandom = Math.random;
     try {
       // First call will return 0.3, second call 0.7
-      const mockRandomValues = [0.3, 0.7, 0.4, 0.6];
+      const mockRandomValues = [1, 0.9, 1, 0.8];
       let callCount = 0;
       Math.random = jasmine.createSpy().and.callFake(() => mockRandomValues[callCount++]);
       
@@ -44,6 +44,14 @@ describe('MatchListComponent', () => {
         {player1:data[0], player2:data[2]},
         {player1:data[1], player2:data[3]},
       ]
+      )
+      expect(data).toEqual(
+        [
+          NewPlayer('ball', 1, ['nice']),
+          NewPlayer('nice', 1, ['ball']),
+          NewPlayer('win', 1, ['gato']),
+          NewPlayer('gato', 1, ['win']),
+        ]
       )
       // The sort function behavior with Math.random can be complex to predict
       // We're mainly checking the function doesn't crash with equal points

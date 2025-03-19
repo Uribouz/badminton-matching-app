@@ -188,30 +188,28 @@ export class MatchListComponent {
   //Fuzzy Logic
   calculateTeamates(players: Player[]): {player1: Player; player2: Player}[] {
    let teamates: {player1: Player; player2: Player}[] = []
-   let selectedPlayers: string[] = [];
-   for (let i =0; i < players.length; i++) {
-    const currentPlayer = players[i]
-    if (selectedPlayers.includes(currentPlayer.name)) {
-      continue;
-    }
+   let remainingPlayers: Player[] = players.slice();
+   while (remainingPlayers.length > 0) {
+    const currentPlayer = remainingPlayers[0]
     let teamate:Player
-    if (players.length === i+1) {
-      teamate = players[i]
+    let otherPlayers = remainingPlayers.slice(1)
+    // console.log("otherPlayers: ", otherPlayers)
+    if (otherPlayers.length <= 0) {
+      break;
     }
-    else {
-      let otherPlayers = players.slice(i+1)
-      otherPlayers.sort((a, b) => {
-        let aPoint = this.calculateTeamatePoint(currentPlayer, a);
-        let bPoint = this.calculateTeamatePoint(currentPlayer, b);
-        if (aPoint === bPoint) {
-          return Math.random() - Math.random()
-        }
-        return aPoint - bPoint
-      })
-      teamate = otherPlayers[0]
-    }
+    otherPlayers.sort((a, b) => {
+      let aPoint = this.calculateTeamatePoint(currentPlayer, a);
+      let bPoint = this.calculateTeamatePoint(currentPlayer, b);
+      if (aPoint === bPoint) {
+        return Math.random() - Math.random()
+      }
+      return aPoint - bPoint
+    })
+    teamate = otherPlayers[0]
     teamates = [...teamates, {player1:currentPlayer, player2: teamate}]
-    selectedPlayers = [...selectedPlayers, currentPlayer.name,  teamate.name]
+    remainingPlayers = remainingPlayers.filter(each => currentPlayer.name != each.name && teamate.name != each.name)
+    console.log("teamates: ", teamates)
+    console.log("remainingPlayers: ", remainingPlayers)
    }
     return teamates
   }
