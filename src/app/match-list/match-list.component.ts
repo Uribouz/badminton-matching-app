@@ -188,12 +188,20 @@ export class MatchListComponent {
   //Fuzzy Logic
   calculateTeamates(players: Player[]): {player1: Player; player2: Player}[] {
    let teamates: {player1: Player; player2: Player}[] = []
-   let remainingPlayers: Player[] = players.slice();
+   let remainingPlayers: Player[] = players.slice().sort((a,b) => {
+    let aPoint = this.calculateFirstPriorityPlayer(a, players);
+    let bPoint = this.calculateFirstPriorityPlayer(b, players);
+    if (aPoint === bPoint) {
+      return Math.random() - Math.random()
+    }
+    return aPoint - bPoint
+   });
+   console.log("first: remainingPlayers: ", remainingPlayers)
+
    while (remainingPlayers.length > 0) {
     const currentPlayer = remainingPlayers[0]
     let teamate:Player
     let otherPlayers = remainingPlayers.slice(1)
-    // console.log("otherPlayers: ", otherPlayers)
     if (otherPlayers.length <= 0) {
       break;
     }
@@ -208,15 +216,34 @@ export class MatchListComponent {
     teamate = otherPlayers[0]
     teamates = [...teamates, {player1:currentPlayer, player2: teamate}]
     remainingPlayers = remainingPlayers.filter(each => currentPlayer.name != each.name && teamate.name != each.name)
-    console.log("teamates: ", teamates)
-    console.log("remainingPlayers: ", remainingPlayers)
+    // console.log("teamates: ", teamates)
+    // console.log("remainingPlayers: ", remainingPlayers)
    }
     return teamates
   }
+
   calculateTeamatePoint(playerA: Player, playerB: Player): number {
     if (!playerA.teamateHistory.includes(playerB.name)) {
       return 0;
     }
     return playerA.teamateHistory.lastIndexOf(playerB.name) +1
+  }
+
+  calculateFirstPriorityPlayer(currentPlayer: Player, otherPlayers: Player[]): number {
+    let leastPoint = 999
+    console.log(`currentPlayer ${currentPlayer.name} each: ${currentPlayer.teamateHistory}`)
+    console.log(`otherPlayers ${otherPlayers.flatMap(each => each.name)}`)
+    otherPlayers.filter(each => each.name != currentPlayer.name).forEach(each => {
+      let currentPoint = 999;
+      if (currentPlayer.teamateHistory.includes(each.name)) {
+        currentPoint = currentPlayer.teamateHistory.length - currentPlayer.teamateHistory.lastIndexOf(each.name)
+      }
+      console.log(`currentPoint = ${currentPoint}`)
+      if (currentPoint < leastPoint) {
+        leastPoint = currentPoint
+      }
+    })
+    console.log(`name: ${currentPlayer.name} = ${leastPoint}`)
+    return leastPoint
   }
 }
