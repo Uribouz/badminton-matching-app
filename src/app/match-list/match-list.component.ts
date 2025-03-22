@@ -8,6 +8,10 @@ enum COURT_STATUS {
   AVAILABLE = 'available',
   PLAYING = 'playing'
 }
+enum PLAYER_STATUS {
+  READY = 'READY',
+  BREAK = 'BREAK'
+}
 const PLAYERS_PER_COURT = 4
 const TEAMS_PER_COURT = 2
 const TOTAL_COURT = 2
@@ -67,21 +71,27 @@ export class MatchListComponent {
       if (court.status === COURT_STATUS.PLAYING) {
         return
       }
+      if (!court.teamA.player1.name ||
+         !court.teamA.player2.name ||
+         !court.teamB.player1.name ||
+         !court.teamB.player2.name ) {
+        this.log('error: court is not full')
+        return
+      }
       court.status = COURT_STATUS.PLAYING
       this.log('set court.status to playing', court)
-    
+
       let confirmedPlayerNames = [court.teamA.player1?.name||'', court.teamA.player2?.name||'', court.teamB.player1?.name||'', court.teamB.player2?.name||'']
       this.confirmedPlayerPlayed(confirmedPlayerNames)
       this.confirmedCourt(court)
       this.matchService.saveMatchList(this.matchList);
-
-      let playingPlayersName = this.matchList.filter(each => each.status === COURT_STATUS.PLAYING)
-      .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
-      let currentStandbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
-      this.confirmedPlayerWaited(currentStandbyList)
-
-      this.playerService.savePlayerList(this.playersMap);
     })
+    let playingPlayersName = this.matchList.filter(each => each.status === COURT_STATUS.PLAYING)
+    .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
+    let currentStandbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayersName.includes(each.name)).map(each => each.name)
+    this.confirmedPlayerWaited(currentStandbyList)
+
+    this.playerService.savePlayerList(this.playersMap);
     this.log('CONFIRM_COURT end...')
   }
 
@@ -112,16 +122,24 @@ export class MatchListComponent {
       player.roundsWaited = 0;
       this.playersMap.set(name, player)
     })
+    this.log(`players played: \n`, names.join(', '))
   }
   confirmedPlayerWaited(names:string[]) {
+    let logData: string[] = []
     names.forEach((name) => {
       let player = this.playersMap.get(name);
       if (!player) {
         player = new Player(name)
       }
-      player.roundsWaited += 1;
+      if (player.status === PLAYER_STATUS.BREAK) {
+        player.roundsWaited = 0;
+      } else {
+        player.roundsWaited += 1;
+      }
+      logData.push(`${name}:${player.roundsWaited}`)
       this.playersMap.set(name, player)
     })
+    this.log(`player waited: \n`, logData.join(', '))
   }
   confirmedCourt(court: Match) {
     this.confirmedTeamate(court.teamA)
@@ -157,6 +175,7 @@ export class MatchListComponent {
     this.log('playingPlayers:', playingPlayers)
     let playerList = Array.from(this.playersMap.values())
     .filter(each => !playingPlayers.includes(each.name))
+    .filter(each => each.status !== PLAYER_STATUS.BREAK)
     .sort((a, b) => {
       let aPoint = this.calculatePriorityPoint(a, multiplier_rounds_waited)
       let bPoint = this.calculatePriorityPoint(b, multiplier_rounds_waited)
@@ -247,7 +266,7 @@ export class MatchListComponent {
       if (currentPlayer.teamateHistory.includes(each.name)) {
         currentPoint = currentPlayer.teamateHistory.length - currentPlayer.teamateHistory.lastIndexOf(each.name)
       }
-      this.log(`currentPoint = ${currentPoint}`)
+      // this.log(`currentPoint = ${currentPoint}`)
       if (currentPoint < leastPoint) {
         leastPoint = currentPoint
       }
@@ -264,5 +283,25 @@ export class MatchListComponent {
     link.download = 'badminton-debug.log'
     link.click();
     window.URL.revokeObjectURL(url);
+  }
+
+  changePlayerStatus(name:string) {
+    // this.log('CHANGE_PLAYER_STATUS start...')
+    let player = this.playersMap.get(name)
+    if (!player) {
+      this.log(`error not found player ${name}`)
+      return
+    }
+    if (player.status !== PLAYER_STATUS.BREAK) {
+      player.status = PLAYER_STATUS.BREAK;
+      this.log(`player: ${name} break`)
+    }
+    else {
+      player.status = PLAYER_STATUS.READY;
+      this.log(`player: ${name} ready`)
+    }
+    this.playersMap.set(player.name,player)
+    this.playerService.savePlayerList(this.playersMap);
+    // this.log('CHANGE_PLAYER_STATUS end ...')
   }
 }

@@ -52,3 +52,11 @@
 .matchList {
     padding-bottom: 100px;
 }
+
+.playerStatusBreak {
+    background-color: red;
+}
+
+.playerStatusReady {
+
+}

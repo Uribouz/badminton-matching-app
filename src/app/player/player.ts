@@ -4,8 +4,8 @@ export class Player {
   isPreviouslyInteracted: boolean = false;
 
   teamateHistory: string[] = [];
-  // totalRoundsWon: number = 0;
   roundsWaited: number = 0;
+  status: string = 'ready';
 
   constructor(name: string) {
     this.name = name;

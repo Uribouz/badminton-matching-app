@@ -30,7 +30,11 @@
         <div class="standbyContainer">
             <h2>Standby</h2>
             <div class="playerStandby" *ngFor="let player of standbyList">
-                <div class="player">
+                <div class="player" [ngClass]="{
+                    playerStatusBreak: player.status === 'BREAK',
+                    playerStatusReady: true
+                  }"
+                   (click)="changePlayerStatus(player.name)">
                 <h4> {{player.name}} </h4>
                 </div>
             </div>
