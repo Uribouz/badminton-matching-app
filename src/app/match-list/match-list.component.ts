@@ -202,6 +202,8 @@ export class MatchListComponent {
     this.matchList.map((each) => {
       if (each.status === COURT_STATUS.PLAYING)
         return
+      if (teamateList.length < TEAMS_PER_COURT)
+        return
       each.teamA.player1 = teamateList[0].player1
       each.teamA.player2 = teamateList[0].player2
       each.teamB.player1 = teamateList[1].player1
