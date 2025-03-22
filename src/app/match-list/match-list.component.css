@@ -60,3 +60,8 @@
 .playerStatusReady {
 
 }
+.playerHistory {
+    font-family: monospace;
+    border-collapse: collapse;
+    text-wrap: nowrap;
+}
