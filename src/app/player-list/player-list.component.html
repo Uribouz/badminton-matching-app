@@ -4,9 +4,6 @@
     <button class="btn btnAddPlayer" (click)="addPlayerList(playerList.value)">
       Add Players
     </button>
-    <!-- <button class="btn btnClear" (click)="clearLocalStorage()">
-      Clear Data
-    </button> -->
   </div>
   <div class="playerListContainer">
     <div *ngFor="let player of getPlayerList()">
@@ -157,4 +154,7 @@
       <!-- <h3>Total Rounds Wons: {{ player.totalRoundsWon }}</h3> -->
     </div>
   </div>
+  <button class="btn btnClearAllData" (click)="clearAllData()">
+    Reset All Data
+  </button>
 </div>
