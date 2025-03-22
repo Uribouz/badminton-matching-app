@@ -4,7 +4,6 @@ import { Player } from '../player/player';
 import { CommonModule } from '@angular/common';
 import { PlayerService } from '../player.service';
 import { MatchService } from '../match.service';
-
 enum COURT_STATUS {
   AVAILABLE = 'available',
   PLAYING = 'playing'
@@ -25,12 +24,12 @@ export class MatchListComponent {
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
   matchService = new MatchService();
-
+  logData :String[] = []
   constructor() {
     // this.playerService.clearAllData();
     // this.matchService.clearCache();
     this.playersMap = this.playerService.loadPlayerList();
-    console.log('playersMap: ', this.playersMap)
+    this.log('playersMap: ', this.playersMap)
     this.matchList = this.matchService.loadMatchList();
     this.loadStandbyList();
     if (this.matchList.length > 0) {
@@ -42,9 +41,13 @@ export class MatchListComponent {
     let secondMatch = new Match
     this.clearCourt(secondMatch)
     this.matchList.push(secondMatch)
-    
   }
-
+  log(...args:any[]) {
+    console.log(...args)
+    this.logData.push(args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' '));
+  }
   getPlayerList(): Player[] {
     return Array.from(this.playersMap.values())
   }
@@ -57,14 +60,15 @@ export class MatchListComponent {
   }
 
   confirmCourt() {
-    // console.log('confirmCourt:', this.matchList)
+    this.log('CONFIRM_COURT start...')
+    // this.log('confirmCourt:', this.matchList)
     this.matchList.forEach(court => {
-      console.log('court.status:', court)
+      this.log('court.status:', court)
       if (court.status === COURT_STATUS.PLAYING) {
         return
       }
       court.status = COURT_STATUS.PLAYING
-      console.log('set court.status to playing', court)
+      this.log('set court.status to playing', court)
     
       let confirmedPlayerNames = [court.teamA.player1?.name||'', court.teamA.player2?.name||'', court.teamB.player1?.name||'', court.teamB.player2?.name||'']
       this.confirmedPlayerPlayed(confirmedPlayerNames)
@@ -78,20 +82,23 @@ export class MatchListComponent {
 
       this.playerService.savePlayerList(this.playersMap);
     })
+    this.log('CONFIRM_COURT end...')
   }
 
   loadStandbyList() {
     let playingPlayers = this.matchList.flatMap(each => [each.teamA.player1?.name||'', each.teamA.player2?.name||'', each.teamB.player1?.name||'', each.teamB.player2?.name||''])
-    console.log(`loadStandbyList: ${this.matchList[0]}: ${this.matchList[1]}`)
+    this.log(`loadStandbyList: ${this.matchList[0]}: ${this.matchList[1]}`)
     this.standbyList = Array.from(this.playersMap.values()).filter(each => !playingPlayers.includes(each.name))
-    console.log('standbyList: ', this.standbyList)
+    this.log('standbyList: ', this.standbyList)
   }
   freeCourt(i:number) {
+    this.log('FREE_COURT start...')
     let currentCourt = this.matchList[i]
     currentCourt.status = COURT_STATUS.AVAILABLE
     this.clearCourt(currentCourt)
     this.matchService.saveMatchList(this.matchList)
     this.loadStandbyList();
+    this.log('FREE_COURT end...')
   }
 
 
@@ -121,7 +128,7 @@ export class MatchListComponent {
     this.confirmedTeamate(court.teamB)
   }
   confirmedTeamate(team: Teammate) {
-    console.log('confirmedTeamate: ', team)
+    this.log('confirmedTeamate: ', team)
     this.confirmedTeamatePlayer(team.player1.name, team.player2.name)
     this.confirmedTeamatePlayer(team.player2.name, team.player1.name)
   }
@@ -140,13 +147,14 @@ export class MatchListComponent {
     return (multiplier_rounds_played*player.totalRoundsPlayed||0) - (multiplier_rounds_waited*player.roundsWaited||0)
   }
   shuffleWithPriority() {
+    this.log('SHUFFLE start ...')
     const multiplier_rounds_waited = 1/(this.playersMap.size-(TOTAL_COURT*PLAYERS_PER_COURT));
-    console.log('multiplier_rounds_waited: ', multiplier_rounds_waited)
+    this.log('multiplier_rounds_waited: ', multiplier_rounds_waited)
     let playingPlayers = this.matchList
     .filter(each => each.status === COURT_STATUS.PLAYING)
     .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
 
-    console.log('playingPlayers:', playingPlayers)
+    this.log('playingPlayers:', playingPlayers)
     let playerList = Array.from(this.playersMap.values())
     .filter(each => !playingPlayers.includes(each.name))
     .sort((a, b) => {
@@ -157,7 +165,7 @@ export class MatchListComponent {
       }
       return aPoint - bPoint
     })
-    console.log('shuffleWithPriority:', playerList.map((each) => {
+    this.log('shuffleWithPriority:', playerList.map((each) => {
       return `${each.name}: ${this.calculatePriorityPoint(each, multiplier_rounds_waited)} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`
     }))
 
@@ -167,7 +175,7 @@ export class MatchListComponent {
         totalAvailablePlayers += PLAYERS_PER_COURT
       }
     })
-    console.log('totalAvailablePlayers: ',totalAvailablePlayers)
+    this.log('totalAvailablePlayers: ',totalAvailablePlayers)
     if (totalAvailablePlayers <= 0 ){
       return
     }
@@ -183,6 +191,7 @@ export class MatchListComponent {
     })
     this.loadStandbyList();
     this.matchService.saveMatchList(this.matchList)
+    this.log('SHUFFLE end ...')
   }
 
   //Fuzzy Logic
@@ -196,7 +205,7 @@ export class MatchListComponent {
     }
     return aPoint - bPoint
    });
-   console.log("first: remainingPlayers: ", remainingPlayers)
+   this.log("first: remainingPlayers: ", remainingPlayers)
 
    while (remainingPlayers.length > 0) {
     const currentPlayer = remainingPlayers[0]
@@ -216,8 +225,8 @@ export class MatchListComponent {
     teamate = otherPlayers[0]
     teamates = [...teamates, {player1:currentPlayer, player2: teamate}]
     remainingPlayers = remainingPlayers.filter(each => currentPlayer.name != each.name && teamate.name != each.name)
-    // console.log("teamates: ", teamates)
-    // console.log("remainingPlayers: ", remainingPlayers)
+    // this.log("teamates: ", teamates)
+    // this.log("remainingPlayers: ", remainingPlayers)
    }
     return teamates
   }
@@ -231,19 +240,29 @@ export class MatchListComponent {
 
   calculateFirstPriorityPlayer(currentPlayer: Player, otherPlayers: Player[]): number {
     let leastPoint = 999
-    console.log(`currentPlayer ${currentPlayer.name} each: ${currentPlayer.teamateHistory}`)
-    console.log(`otherPlayers ${otherPlayers.flatMap(each => each.name)}`)
+    this.log(`currentPlayer ${currentPlayer.name} each: ${currentPlayer.teamateHistory}`)
+    this.log(`otherPlayers ${otherPlayers.flatMap(each => each.name)}`)
     otherPlayers.filter(each => each.name != currentPlayer.name).forEach(each => {
       let currentPoint = 999;
       if (currentPlayer.teamateHistory.includes(each.name)) {
         currentPoint = currentPlayer.teamateHistory.length - currentPlayer.teamateHistory.lastIndexOf(each.name)
       }
-      console.log(`currentPoint = ${currentPoint}`)
+      this.log(`currentPoint = ${currentPoint}`)
       if (currentPoint < leastPoint) {
         leastPoint = currentPoint
       }
     })
-    console.log(`name: ${currentPlayer.name} = ${leastPoint}`)
+    this.log(`name: ${currentPlayer.name} = ${leastPoint}`)
     return leastPoint
+  }
+  downloadLog() {
+    const logData = this.logData.join('\n');
+    const blob = new Blob([logData], { type: 'text'});
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'badminton-debug.log'
+    link.click();
+    window.URL.revokeObjectURL(url);
   }
 }
