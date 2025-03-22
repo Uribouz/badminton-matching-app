@@ -13,6 +13,9 @@
     display: flex;
     gap: 2px;
 }
+.courtStatusPlaying {
+    background-color:#A5E9E8;
+}
 
 .team {
     display: flex;

@@ -3,7 +3,10 @@
         <div class="courtContainer" *ngFor="let match of matchList; index as i">
             <h1> Court {{i+1}}</h1>
             <div class="court">
-                <div class="team">
+                <div class="team" [ngClass]="{
+                    courtStatusPlaying: match.status === 'playing',
+                    courtStatusAvailable: true
+                }">
                     <div class="player">
                     <h3> {{match.teamA.player1?.name}} </h3>
                     </div>
@@ -12,7 +15,10 @@
                     </div>
                 </div>
                 <div class="vl"></div>
-                <div class="team">
+                <div class="team" [ngClass]="{
+                    courtStatusPlaying: match.status === 'playing',
+                    courtStatusAvailable: true
+                }">
                     <div class="player">
                     <h3> {{match.teamB.player1?.name}} </h3>
                     </div>
