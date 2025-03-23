@@ -68,3 +68,6 @@
     border-collapse: collapse;
     text-wrap: nowrap;
 }
+.playerHistory :first-child {
+    text-align: right;
+}
