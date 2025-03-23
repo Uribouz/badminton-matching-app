@@ -49,7 +49,7 @@ export class PlayerListComponent {
         this.playersMap.set(player, newPlayer);
       }
     });
-    this.savePlayerData();
+    this.playerService.savePlayerList(this.playersMap);
   }
   deletePlayer(playerName: string) {
     console.log('deletePlayer: ' + playerName);
