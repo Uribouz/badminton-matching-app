@@ -21,7 +21,29 @@ export class MatchService {
      matchList = JSON.parse(data)
     return matchList
   }
-  clearCache() {
+  clearMatchList() {
     localStorage.removeItem('match-list');
+  }
+
+
+  addMatchHistory(match:Match) {
+    let matchHistory: Match[] = []
+    let data = localStorage.getItem('match-history')
+    if (data) {
+      matchHistory = JSON.parse(data)
+    }
+    matchHistory.push(match)
+    localStorage.setItem('match-history', JSON.stringify(matchHistory))
+  }
+
+  loadMatchHistory():Match[]{
+    let data = localStorage.getItem('match-history')
+    if (!data) {
+      return []
+    }
+    return JSON.parse(data)
+  }
+  clearMatchHistory() {
+    localStorage.removeItem('match-history')
   }
 }

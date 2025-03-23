@@ -24,6 +24,7 @@ const TOTAL_COURT = 2
 })
 export class MatchListComponent {
   matchList: Match[] = []
+  matchHistory: Match[] = []
   standbyList: Player[] = []
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
@@ -35,6 +36,7 @@ export class MatchListComponent {
     this.playersMap = this.playerService.loadPlayerList();
     this.log('playersMap: ', this.playersMap)
     this.matchList = this.matchService.loadMatchList();
+    this.matchHistory = this.matchService.loadMatchHistory();
     this.loadStandbyList();
     if (this.matchList.length > 0) {
       return
@@ -47,7 +49,7 @@ export class MatchListComponent {
     this.matchList.push(secondMatch)
   }
   log(...args:any[]) {
-    console.log(...args)
+    console.log('log['+new Date().toLocaleTimeString()+']: ',...args)
     this.logData.push(args.map(arg => 
       typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
     ).join(' '));
@@ -78,13 +80,16 @@ export class MatchListComponent {
         this.log('error: court is not full')
         return
       }
+      court.matchTime = new Date();
       court.status = COURT_STATUS.PLAYING
       this.log('set court.status to playing', court)
 
       let confirmedPlayerNames = [court.teamA.player1?.name||'', court.teamA.player2?.name||'', court.teamB.player1?.name||'', court.teamB.player2?.name||'']
       this.confirmedPlayerPlayed(confirmedPlayerNames)
-      this.confirmedCourt(court)
+      this.confirmePlayerCourt(court)
       this.matchService.saveMatchList(this.matchList);
+      this.matchService.addMatchHistory(court)
+      this.matchHistory = this.matchService.loadMatchHistory();
     })
     let playingPlayersName = this.matchList.filter(each => each.status === COURT_STATUS.PLAYING)
     .flatMap(each => [each.teamA.player1.name, each.teamA.player2.name, each.teamB.player1.name, each.teamB.player2.name])
@@ -93,6 +98,10 @@ export class MatchListComponent {
 
     this.playerService.savePlayerList(this.playersMap);
     this.log('CONFIRM_COURT end...')
+  }
+
+  getMatchTime(match: Match): String {
+    return new Date(match.matchTime).toLocaleTimeString()
   }
 
   loadStandbyList() {
@@ -141,7 +150,7 @@ export class MatchListComponent {
     })
     this.log(`player waited: \n`, logData.join(', '))
   }
-  confirmedCourt(court: Match) {
+  confirmePlayerCourt(court: Match) {
     this.confirmedTeamate(court.teamA)
     this.confirmedTeamate(court.teamB)
   }

@@ -71,3 +71,9 @@
 .playerHistory :first-child {
     text-align: right;
 }
+.matchHistory :first-child {
+    text-align: right;
+}
+.matchHistory :nth-child(2) {
+    text-align: right;
+}

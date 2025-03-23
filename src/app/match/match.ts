@@ -6,7 +6,8 @@ export class Teammate {
 }
 
 export class Match {
-    status: string = 'available'
+    matchTime: Date = new Date();
+    status: string = 'available';
     teamA: Teammate = new Teammate;
     teamB: Teammate = new Teammate;
 }

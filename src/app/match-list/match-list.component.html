@@ -47,14 +47,24 @@
             </div>
         </div>
     </div>
-    <table class="playersHistory">
+    <div class="playerHistoryContainer">
         <h2>Players History</h2>
-        <tr class="playerHistory" *ngFor="let player of getPlayerList()">
-            <td> {{player.name}}[P:{{player.totalRoundsPlayed}}][W:{{player.roundsWaited}}]:</td><td>{{player.teamateHistory.join(', ')}} </td>
-        </tr>
-    </table>
+        <table>
+            <tr class="playerHistory" *ngFor="let player of getPlayerList()">
+                <td> {{player.name}}[P:{{player.totalRoundsPlayed}}][W:{{player.roundsWaited}}]:</td><td>{{player.teamateHistory.join(', ')}} </td>
+            </tr>
+        </table>
+    </div>
     <div class="btnDownloadLog">
         <button class="btn btn_download_log" (click)="downloadLog()"> Download Log </button>
+    </div>
+    <div class="matchHistoryContainer">
+        <h2>Match History</h2>
+        <table>
+            <tr class="matchHistory" *ngFor="let match of matchHistory; index as i">
+                <td> {{i}}):{{getMatchTime(match)}} </td> <td>[{{match.teamA.player1.name}}, {{match.teamA.player2.name}}]</td> : <td>[{{match.teamB.player1.name}}, {{match.teamB.player2.name}}]</td>
+            </tr>
+        </table>
     </div>
 
 </div>

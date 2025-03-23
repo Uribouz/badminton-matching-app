@@ -25,7 +25,8 @@ export class PlayerListComponent {
   }
   clearAllData() {
     this.playerService.clearAllData();
-    this.matchService.clearCache();
+    this.matchService.clearMatchList();
+    this.matchService.clearMatchHistory();
     this.loadPlayerData();
   }
   getPlayerList(): Player[] {
