@@ -6,7 +6,6 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 ## Objectives
 
 ## TODO:
-7. can move players around, as box
 
 ## Bugs:
 
@@ -14,6 +13,13 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 
 5. Have matched history, you can see which matched you already play with which players.
 8. can add courts depends on how many players
+9. Add API servers to be able to use this website multiple device at the same time while sharing data usage
+10. Add shuffle logic when selecting players to play:
+    see players match history and prepare a match with previously player's played matched in mind.
+    (pending task #5.)
+11. Logic when shuffle Female players should not be in the same team...
+
+
 
 
 ## Reference:
@@ -30,3 +36,5 @@ x. Bugs fixed https://dev.to/kapi1/how-to-fix-page-not-found-on-netlify-a4i
 3.1  logic should be balanced, every person should play equal amount of games (Acceptable need feedback from friends)
 4. Have partner history, you can see which players one already played with.
 6. show "console.log" somewhere, or let user can export log for debugging purpose...
+7. can move players around, as box
+or swap players around in court
