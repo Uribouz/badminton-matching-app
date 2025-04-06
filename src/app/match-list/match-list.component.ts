@@ -221,8 +221,17 @@ export class MatchListComponent {
       (multiplier_rounds_waited * player.roundsWaited || 0)
     );
   }
+
+  //shuffleWithPriority
+  /* features:
+    ถ้าผลลัพธ์ของการเลือกจับคู่ _ไม่เป็นที่น่าพอใจ_ จะทำการ _จับคู่ใหม่_ สูงสุดเป็นจำนวน {maxRetries} ครั้ง
+      _ไม่เป็นที่น่าพอใจ_ = คำนวนจากสูตรว่า "คู่ที่เพิ่งได้มานั้นเคยคู่กันไปแล้ว" และ {A - B < X - Y} หรือไม่
+        โดย {A} = จำนวนเกมที่เล่นไปของบุคคลผู้นั้น, {B} = คู่ที่ได้นั้น ซ้ำกันไปแล้วเป็นลำดับที่เท่าไหร่
+          , {X} = คนทั้งหมด ที่เป็นไปได้ในการจับคู่, {Y} = ตัวแปรที่จะเท่ากับ (แต่ละครั้งที่มีการ _จับคู่ใหม่_ / 3) ปัดเศษขึ้น
+  */
   shuffleWithPriority() {
-    this.log('SHUFFLE start ...');
+    const maxRetries = 10;
+    this.log(`SHUFFLE start(maxRetries = ${maxRetries}) ...`);
     const multiplier_rounds_waited =
       1 / (this.playersMap.size - TOTAL_COURT * PLAYERS_PER_COURT);
     this.log('multiplier_rounds_waited: ', multiplier_rounds_waited);
@@ -236,26 +245,9 @@ export class MatchListComponent {
       ]);
 
     this.log('playingPlayers:', playingPlayers);
-    let playerList = Array.from(this.playersMap.values())
+    let initialPlayerList = Array.from(this.playersMap.values())
       .filter((each) => !playingPlayers.includes(each.name))
       .filter((each) => each.status !== PLAYER_STATUS.BREAK)
-      .sort((a, b) => {
-        let aPoint = this.calculatePriorityPoint(a, multiplier_rounds_waited);
-        let bPoint = this.calculatePriorityPoint(b, multiplier_rounds_waited);
-        if (aPoint == bPoint) {
-          return this.rng.random() - this.rng.random();
-        }
-        return aPoint - bPoint;
-      });
-    this.log(
-      'shuffleWithPriority:',
-      playerList.map((each) => {
-        return `${each.name}: ${this.calculatePriorityPoint(
-          each,
-          multiplier_rounds_waited
-        )} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`;
-      })
-    );
 
     let totalAvailablePlayers = 0;
     this.matchList.forEach((each) => {
@@ -267,9 +259,39 @@ export class MatchListComponent {
     if (totalAvailablePlayers <= 0) {
       return;
     }
-    let teamateList = this.calculateTeamates(
-      playerList.slice(0, totalAvailablePlayers)
-    );
+    let teamateList:{ player1: Player; player2: Player }[] = [];
+    let i=0;
+    for (i=0;i<=maxRetries;i++) {
+      const offsetValidatePlayers = Math.ceil((i+1)/3);
+      this.log(`i: ${i}, offsetValidatePlayers: ${offsetValidatePlayers}`)
+      let playerList = initialPlayerList
+        .sort((a, b) => {
+          let aPoint = this.calculatePriorityPoint(a, multiplier_rounds_waited);
+          let bPoint = this.calculatePriorityPoint(b, multiplier_rounds_waited);
+          if (aPoint == bPoint) {
+            return this.rng.random() - this.rng.random();
+          }
+          return aPoint - bPoint;
+        });
+      this.log(
+        'shuffleWithPriority:',
+        playerList.map((each) => {
+          return `${each.name}: ${this.calculatePriorityPoint(
+            each,
+            multiplier_rounds_waited
+          )} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`;
+        })
+      );
+
+      teamateList = this.calculateTeamates(
+        playerList.slice(0, totalAvailablePlayers)
+      );
+      if (this.validateTeamates(offsetValidatePlayers, initialPlayerList.length, teamateList)) {
+        break;
+      }
+    }
+
+    
     this.matchList.map((each) => {
       if (each.status === COURT_STATUS.PLAYING) return;
       if (teamateList.length < TEAMS_PER_COURT) return;
@@ -281,7 +303,7 @@ export class MatchListComponent {
     });
     this.loadStandbyList();
     this.matchService.saveMatchList(this.matchList);
-    this.log('SHUFFLE end ...');
+    this.log(`SHUFFLE end ... (retries:${i})`);
   }
 
   //Fuzzy Logic
@@ -356,6 +378,26 @@ export class MatchListComponent {
     this.log(`calculateFirstPriorityPlayer name: ${currentPlayer.name} = ${leastPoint}`);
     return leastPoint;
   }
+
+  validateTeamates(offsetValidatePlayers:number, totalPlayersAvailable:number, teamatesList:{ player1: Player; player2: Player }[] ): boolean {
+    let isOk: boolean = true;
+    teamatesList.forEach((each) => {
+      if (isOk === false || each.player1.teamateHistory.length <= 0) {
+        return;
+      }
+      let lastplayerIndex = each.player1.teamateHistory.lastIndexOf(each.player2.name)
+      if (lastplayerIndex < 0) {
+        return;
+      }
+      let totalPlayed = each.player1.totalRoundsPlayed;
+      if (totalPlayed - lastplayerIndex < totalPlayersAvailable-offsetValidatePlayers) {
+        isOk = false;
+        return;
+      }
+    })
+    return isOk;
+  }
+
   downloadLog() {
     const logData = this.logData.join('\n');
     const blob = new Blob([logData], { type: 'text' });
