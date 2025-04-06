@@ -11,18 +11,12 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
     (pending task #5.)
 
 ## Bugs:
-- Many players experience playing against same person
-
 
 ## Backlogs:
 8. can add courts depends on how many players
 9. Add API servers to be able to use this website multiple device at the same time while sharing data usage
-12. Make it a true randmon
 13. Improve UI
 
-
-## Not doing it
-11. Logic when shuffle Female players should not be in the same team...
 
 ## Reference:
     https://www.svgrepo.com/svg/522086/cross
@@ -41,9 +35,5 @@ x. Bugs fixed https://dev.to/kapi1/how-to-fix-page-not-found-on-netlify-a4i
 7. can move players around, as box
 or swap players around in court
 5. Have matched history, you can see which matched you already play with which players.
-
-
-## Installation:
-```bash
-$ npm install --save @nastyox/rando.js
-```
+y. Bugs fixed: Many players experience playing against same person
+12. Make it a true random (Done ?)
