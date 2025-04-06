@@ -4,6 +4,8 @@ import { Player } from '../player/player';
 import { CommonModule } from '@angular/common';
 import { PlayerService } from '../player.service';
 import { MatchService } from '../match.service';
+import { XorShift } from '../random/xorshift';
+
 enum COURT_STATUS {
   AVAILABLE = 'available',
   PLAYING = 'playing',
@@ -30,6 +32,7 @@ export class MatchListComponent {
   playerService = new PlayerService();
   matchService = new MatchService();
   logData: String[] = [];
+  rng = new XorShift()
   constructor() {
     // this.playerService.clearAllData();
     // this.matchService.clearCache();
@@ -47,6 +50,7 @@ export class MatchListComponent {
     let secondMatch = new Match();
     this.clearCourt(secondMatch);
     this.matchList.push(secondMatch);
+    this.rng = new XorShift();
   }
   log(...args: any[]) {
     console.log('log[' + new Date().toLocaleTimeString() + ']: ', ...args);
@@ -239,7 +243,7 @@ export class MatchListComponent {
         let aPoint = this.calculatePriorityPoint(a, multiplier_rounds_waited);
         let bPoint = this.calculatePriorityPoint(b, multiplier_rounds_waited);
         if (aPoint == bPoint) {
-          return Math.random() - Math.random();
+          return this.rng.random() - this.rng.random();
         }
         return aPoint - bPoint;
       });
@@ -287,7 +291,7 @@ export class MatchListComponent {
       let aPoint = this.calculateFirstPriorityPlayer(a, players);
       let bPoint = this.calculateFirstPriorityPlayer(b, players);
       if (aPoint === bPoint) {
-        return Math.random() - Math.random();
+        return this.rng.random() - this.rng.random();
       }
       return aPoint - bPoint;
     });
@@ -304,7 +308,7 @@ export class MatchListComponent {
         let aPoint = this.calculateTeamatePoint(currentPlayer, a);
         let bPoint = this.calculateTeamatePoint(currentPlayer, b);
         if (aPoint === bPoint) {
-          return Math.random() - Math.random();
+          return this.rng.random() - this.rng.random();
         }
         return aPoint - bPoint;
       });
@@ -349,7 +353,7 @@ export class MatchListComponent {
           leastPoint = currentPoint;
         }
       });
-    this.log(`name: ${currentPlayer.name} = ${leastPoint}`);
+    this.log(`calculateFirstPriorityPlayer name: ${currentPlayer.name} = ${leastPoint}`);
     return leastPoint;
   }
   downloadLog() {
