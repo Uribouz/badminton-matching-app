@@ -11,6 +11,12 @@ h1 {
     font-family: Merriweather, serif;
 }
 
+.inputContainer{
+    padding-bottom: 20px;
+}
+.btnAddPlayer{
+    display: block;
+}
 .matchList {
     padding-bottom: 100px;
 }
@@ -38,7 +44,7 @@ h1 {
 .team {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 3px;
     width: 100px;
     border: solid black;
     padding: 5px;
@@ -46,7 +52,7 @@ h1 {
     align-items: center;
 }
 .vl {
-    border-left: 4.5px solid black;
+    border-left: 3px solid black;
   }
 .player {
     border: solid black;
@@ -128,4 +134,7 @@ h1 {
 }
 .matchHistory :nth-child(2) {
     text-align: right;
+}
+.matchHistoryContainer{
+    padding-bottom: 25px;
 }
