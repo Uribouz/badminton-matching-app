@@ -431,7 +431,7 @@ export class MatchListComponent {
     this.playerService.savePlayerList(this.playersMap);
     // this.log('CHANGE_PLAYER_STATUS end ...')
   }
-  shuffleTeamates(match: Match) {
+  swapTeamates(match: Match) {
     if (match.status == COURT_STATUS.PLAYING) return;
     let tmpTeamBPlayer2 = match.teamB.player2;
     match.teamB.player2 = match.teamA.player2;

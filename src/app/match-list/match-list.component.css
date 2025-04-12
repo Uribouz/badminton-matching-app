@@ -41,6 +41,10 @@
     gap: 20px;
     justify-content: start;
 }
+.btn_teamate_swap {
+  height: auto;
+  width: 35px;
+}
 
 .standbyContainer {
     display: flex;
