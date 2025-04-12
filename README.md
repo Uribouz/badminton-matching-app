@@ -19,7 +19,17 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 15. Refactor it to be in its own Module, for readable and maintainability
 
 ## Reference:
+    ### Theme picker
+    https://www.schemecolor.com/roaming-on-the-campus.php
+
+    ### Free SVG Icon 
     https://www.svgrepo.com/svg/522086/cross
+
+    ### SVG Icon HTML to CSS
+    https://yoksel.github.io/url-encoder/
+
+    ### SVG Icon set (Helium Dashed Icons)
+    https://www.svgrepo.com/collection/helium-dashed-icons/
 
 
 
