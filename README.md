@@ -7,12 +7,13 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
-
+8. can add courts depends on how many players
+16. In match-list view, when adding new player, new players should use least players played rounds as initial.
 
 ## Bugs:
 
 ## Backlogs:
-8. can add courts depends on how many players
+
 9. Add API servers to be able to use this website multiple device at the same time while sharing data usage
 10. Add shuffle logic when selecting players to play:
     see players match history and prepare a match with previously player's played matched in mind.

@@ -35,22 +35,13 @@ export class MatchListComponent {
   logData: String[] = [];
   rng = new XorShift()
   constructor() {
-    // this.playerService.clearAllData();
-    // this.matchService.clearCache();
+    this.playerService.clearAllData();
+    this.matchService.clearAllData();
     this.playersMap = this.playerService.loadPlayerList();
-    this.log('playersMap: ', this.playersMap);
-    this.matchList = this.matchService.loadMatchList();
+    // this.log('playersMap: ', this.playersMap);
     this.matchHistory = this.matchService.loadMatchHistory();
+    this.initMatchList();
     this.loadStandbyList();
-    if (this.matchList.length > 0) {
-      return;
-    }
-    let firstMatch = new Match();
-    this.clearCourt(firstMatch);
-    this.matchList.push(firstMatch);
-    let secondMatch = new Match();
-    this.clearCourt(secondMatch);
-    this.matchList.push(secondMatch);
     this.rng = new XorShift();
   }
   log(...args: any[]) {
@@ -62,6 +53,20 @@ export class MatchListComponent {
         )
         .join(' ')
     );
+  }
+  initMatchList() {
+    this.matchList = this.matchService.loadMatchList();
+    if (this.matchList.length > 0) {
+      return;
+    }
+    for (let i=0;i<TOTAL_COURT;i++) {
+      this.addNewMatchList();
+    }
+  }
+  addNewMatchList() {
+    let newMatch = new Match();
+    this.clearCourt(newMatch);
+    this.matchList.push(newMatch);
   }
   addPlayerList(newPlayers: string) {
     let leastPlayed = this.playerService.loadPlayerStatus().leastPlayed;

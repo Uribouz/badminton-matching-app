@@ -9,6 +9,7 @@
     <div class="courtContainer" *ngFor="let match of matchList; index as i">
       <h1>Court {{ i + 1 }}</h1>
       <div class="court">
+        <button class="btn btn_free_court" (click)="freeCourt(i)"></button>
         <div
           class="team"
           [ngClass]="{
@@ -44,7 +45,6 @@
         >
         </button>
       </div>
-      <button class="btn btn_free_court" (click)="freeCourt(i)"></button>
     </div>
     <div class="btnContainer">
       <button class="btn btn_confirm_court" (click)="confirmCourts()"></button>

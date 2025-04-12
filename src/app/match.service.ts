@@ -21,6 +21,10 @@ export class MatchService {
      matchList = JSON.parse(data)
     return matchList
   }
+  clearAllData() {
+    this.clearMatchList();
+    this.clearMatchHistory();
+  }
   clearMatchList() {
     localStorage.removeItem('match-list');
   }
