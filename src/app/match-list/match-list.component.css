@@ -55,8 +55,10 @@ h1 {
     border-left: 3px solid black;
   }
 .player {
+    border-radius: 2px;
     border: solid black;
     width: 75px;
+    height: 60px;
     text-align: center;
 }
 
@@ -111,11 +113,15 @@ h1 {
     position:absolute;
     top: 0;
     /* height: 700px; */
+    border-radius: 10px;
     width: 100px;
     right: -100px;
 }
 .playerStatusBreak {
     background-color: #D77B7B;
+}
+.playerStatusSelected{
+    background-color: #C0E069;
 }
 
 .playerHistoryTable {

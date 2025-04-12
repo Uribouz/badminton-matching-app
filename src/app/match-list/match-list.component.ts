@@ -13,6 +13,7 @@ enum COURT_STATUS {
 enum PLAYER_STATUS {
   READY = 'READY',
   BREAK = 'BREAK',
+  SELECTED = 'SELECTED',
 }
 const PLAYERS_PER_COURT = 4;
 const TEAMS_PER_COURT = 2;
@@ -258,9 +259,15 @@ export class MatchListComponent {
       ]);
 
     this.log('playingPlayers:', playingPlayers);
-    let initialPlayerList = Array.from(this.playersMap.values())
+    let initialPlayerList: Player[] = Array.from(this.playersMap.values())
       .filter((each) => !playingPlayers.includes(each.name))
       .filter((each) => each.status !== PLAYER_STATUS.BREAK)
+    //If have player selected status
+    if (initialPlayerList.flatMap((each) => each.status).includes(PLAYER_STATUS.SELECTED)) {
+      initialPlayerList = initialPlayerList
+        .filter((each) => each.status === PLAYER_STATUS.SELECTED)
+    }
+    this.log(`initialPlayerList: ${initialPlayerList.flatMap(each => {return each.name, each.status})}`)
 
     let totalAvailablePlayers = 0;
     this.matchList.forEach((each) => {
@@ -304,7 +311,6 @@ export class MatchListComponent {
       }
     }
 
-    
     this.matchList.map((each) => {
       if (each.status === COURT_STATUS.PLAYING) return;
       if (teamateList.length < TEAMS_PER_COURT) return;
@@ -433,10 +439,14 @@ export class MatchListComponent {
       this.log(`error not found player ${name}`);
       return;
     }
-    if (player.status !== PLAYER_STATUS.BREAK) {
+    if (player.status === PLAYER_STATUS.READY) {
       player.status = PLAYER_STATUS.BREAK;
       this.log(`player: ${name} break`);
-    } else {
+    } else if (player.status === PLAYER_STATUS.BREAK){
+      player.status = PLAYER_STATUS.SELECTED;
+      this.log(`player: ${name} selected`);
+    }
+    else {
       player.status = PLAYER_STATUS.READY;
       this.log(`player: ${name} ready`);
     }

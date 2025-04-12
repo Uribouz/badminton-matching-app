@@ -7,7 +7,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
-13. Improve UI
+
 
 ## Bugs:
 
@@ -48,3 +48,5 @@ or swap players around in court
 y. Bugs fixed: Many players experience playing against same person
 12. Make it a true random (Done ?)
 14. calling calculateFirstPriorityPlayer too many times ( not efficient).
+13. Improve UI
+16. Improve add function to set only selected players into a match

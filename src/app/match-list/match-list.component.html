@@ -57,6 +57,7 @@
           class="player"
           [ngClass]="{
             playerStatusBreak: player.status === 'BREAK',
+            playerStatusSelected: player.status === 'SELECTED',
             playerStatusReady: true
           }"
           (click)="changePlayerStatus(player.name)"
