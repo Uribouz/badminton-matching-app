@@ -86,11 +86,17 @@ export class MatchListComponent {
     currentCourt.teamB.player2 = new Player('');
   }
 
-  confirmCourt() {
+  confirmCourts() {
     this.log('CONFIRM_COURT start...');
     // this.log('confirmCourt:', this.matchList)
     this.matchList.forEach((court) => {
-      this.log('court.status:', court);
+      this.confirmCourt(court)
+    });
+    this.updatePlayersWaited();
+    this.log('CONFIRM_COURT end...');
+  }
+  confirmCourt(court: Match) {
+    this.log('court.status:', court);
       if (court.status === COURT_STATUS.PLAYING) {
         return;
       }
@@ -118,7 +124,9 @@ export class MatchListComponent {
       this.matchService.saveMatchList(this.matchList);
       this.matchService.addMatchHistory(court);
       this.matchHistory = this.matchService.loadMatchHistory();
-    });
+      this.playerService.savePlayerList(this.playersMap);
+  }
+  updatePlayersWaited() {
     let playingPlayersName = this.matchList
       .filter((each) => each.status === COURT_STATUS.PLAYING)
       .flatMap((each) => [
@@ -131,11 +139,8 @@ export class MatchListComponent {
       .filter((each) => !playingPlayersName.includes(each.name))
       .map((each) => each.name);
     this.confirmedPlayerWaited(currentStandbyList);
-
     this.playerService.savePlayerList(this.playersMap);
-    this.log('CONFIRM_COURT end...');
   }
-
   getMatchTime(match: Match): String {
     return new Date(match.matchTime).toLocaleTimeString();
   }
@@ -154,13 +159,21 @@ export class MatchListComponent {
     this.log('standbyList: ', this.standbyList);
   }
   freeCourt(i: number) {
-    this.log('FREE_COURT start...');
     let currentCourt = this.matchList[i];
+    this.log('FREE_COURT start...');
     currentCourt.status = COURT_STATUS.AVAILABLE;
     this.clearCourt(currentCourt);
     this.matchService.saveMatchList(this.matchList);
     this.loadStandbyList();
     this.log('FREE_COURT end...');
+  }
+  lockCourt(i: number) {
+    let currentCourt = this.matchList[i];
+    this.log(`CONFIRMED_COURT:${i} start...`);
+    this.confirmCourt(currentCourt)
+    currentCourt.status = COURT_STATUS.PLAYING;
+    this.updatePlayersWaited();
+    this.log(`CONFIRMED_COURT:${i} end...`);
   }
 
   confirmedPlayerPlayed(names: string[]) {
