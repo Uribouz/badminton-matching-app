@@ -185,6 +185,7 @@ export class MatchListComponent {
       }
       player.totalRoundsPlayed += 1;
       player.roundsWaited = 0;
+      player.status = PLAYER_STATUS.READY;
       this.playersMap.set(name, player);
     });
     this.log(`players played: \n`, names.join(', '));
