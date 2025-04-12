@@ -309,9 +309,10 @@ export class MatchListComponent {
   //Fuzzy Logic
   calculateTeamates(players: Player[]): { player1: Player; player2: Player }[] {
     let teamates: { player1: Player; player2: Player }[] = [];
+    let mapPriorityPlayers = this.calculateFirstPriorityPlayers(players);
     let remainingPlayers: Player[] = players.slice().sort((a, b) => {
-      let aPoint = this.calculateFirstPriorityPlayer(a, players);
-      let bPoint = this.calculateFirstPriorityPlayer(b, players);
+      let aPoint = mapPriorityPlayers.get(a.name)??0;
+      let bPoint = mapPriorityPlayers.get(b.name)??0;
       if (aPoint === bPoint) {
         return this.rng.random() - this.rng.random();
       }
@@ -352,31 +353,34 @@ export class MatchListComponent {
     return playerA.teamateHistory.lastIndexOf(playerB.name) + 1;
   }
 
-  calculateFirstPriorityPlayer(
-    currentPlayer: Player,
-    otherPlayers: Player[]
-  ): number {
-    let leastPoint = 999;
-    this.log(
-      `currentPlayer ${currentPlayer.name} each: ${currentPlayer.teamateHistory}`
-    );
-    this.log(`otherPlayers ${otherPlayers.flatMap((each) => each.name)}`);
-    otherPlayers
-      .filter((each) => each.name != currentPlayer.name)
-      .forEach((each) => {
-        let currentPoint = 999;
-        if (currentPlayer.teamateHistory.includes(each.name)) {
-          currentPoint =
-            currentPlayer.teamateHistory.length -
-            currentPlayer.teamateHistory.lastIndexOf(each.name);
-        }
-        // this.log(`currentPoint = ${currentPoint}`)
-        if (currentPoint < leastPoint) {
-          leastPoint = currentPoint;
-        }
-      });
-    this.log(`calculateFirstPriorityPlayer name: ${currentPlayer.name} = ${leastPoint}`);
-    return leastPoint;
+  calculateFirstPriorityPlayers(
+    playerList: Player[]
+  ): Map<string, number> {
+    let result  = new Map<string, number>();
+    playerList.forEach(currentPlayer => {
+      let leastPoint = 999;
+      this.log(
+        `currentPlayer ${currentPlayer.name} each: ${currentPlayer.teamateHistory}`
+      );
+      // this.log(`otherPlayers ${playerList.flatMap((each) => each.name)}`);
+      playerList
+          .filter((each) => each.name != currentPlayer.name)
+          .forEach((each) => {
+            let currentPoint = 999;
+            if (currentPlayer.teamateHistory.includes(each.name)) {
+              currentPoint =
+                currentPlayer.teamateHistory.length -
+                currentPlayer.teamateHistory.lastIndexOf(each.name);
+            }
+            // this.log(`currentPoint = ${currentPoint}`)
+            if (currentPoint < leastPoint) {
+              leastPoint = currentPoint;
+            }
+          });
+        this.log(`calculateFirstPriorityPlayers name: ${currentPlayer.name} = ${leastPoint}`);
+        result.set(currentPlayer.name, leastPoint);
+    })
+    return result;
   }
 
   validateTeamates(offsetValidatePlayers:number, totalPlayersAvailable:number, teamatesList:{ player1: Player; player2: Player }[] ): boolean {

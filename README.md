@@ -7,6 +7,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
+13. Improve UI
 
 ## Bugs:
 
@@ -15,9 +16,6 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 9. Add API servers to be able to use this website multiple device at the same time while sharing data usage
 10. Add shuffle logic when selecting players to play:
     see players match history and prepare a match with previously player's played matched in mind.
-    (pending task #5.)
-13. Improve UI
-14. calling calculateFirstPriorityPlayer too many times ( not efficient).
 15. Refactor it to be in its own Module, for readable and maintainability
 
 ## Reference:
@@ -39,3 +37,4 @@ or swap players around in court
 5. Have matched history, you can see which matched you already play with which players.
 y. Bugs fixed: Many players experience playing against same person
 12. Make it a true random (Done ?)
+14. calling calculateFirstPriorityPlayer too many times ( not efficient).
