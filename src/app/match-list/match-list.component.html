@@ -9,7 +9,10 @@
     <div class="courtContainer" *ngFor="let match of matchList; index as i">
       <div class="courtHeader"><button class="btn_small btn_court_delete" (click)="deleteCourt(i)"></button><h1>Court {{ i + 1 }}</h1></div>
       <div class="court">
-        <button class="btn btn_free_court" (click)="freeCourt(i)"></button>
+        <button class="btn btn_free_court" 
+        [ngClass]="{
+          btn_negative: match.teamA.player1.name !== ''
+        }" (click)="freeCourt(i)"></button>
         <div
           class="team"
           [ngClass]="{
@@ -40,7 +43,10 @@
           </div>
         </div>
         <button
-          class="btn btn_teamate_swap"
+          class="btn btn_teamate_swap" 
+          [ngClass]="{
+            btn_positive: match.teamA.player1.name !== ''
+          }"
           (click)="swapTeamates(match)"
         >
         </button>
