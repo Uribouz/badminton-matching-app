@@ -17,7 +17,7 @@ enum PLAYER_STATUS {
 }
 const PLAYERS_PER_COURT = 4;
 const TEAMS_PER_COURT = 2;
-const TOTAL_COURT = 2;
+const DEFAULT_TOTAL_COURT = 2;
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -34,9 +34,10 @@ export class MatchListComponent {
   matchService = new MatchService();
   logData: String[] = [];
   rng = new XorShift()
+  totalCourt = DEFAULT_TOTAL_COURT;
   constructor() {
-    this.playerService.clearAllData();
-    this.matchService.clearAllData();
+    // this.playerService.clearAllData();
+    // this.matchService.clearAllData();
     this.playersMap = this.playerService.loadPlayerList();
     // this.log('playersMap: ', this.playersMap);
     this.matchHistory = this.matchService.loadMatchHistory();
@@ -59,14 +60,15 @@ export class MatchListComponent {
     if (this.matchList.length > 0) {
       return;
     }
-    for (let i=0;i<TOTAL_COURT;i++) {
-      this.addNewMatchList();
+    for (let i=0;i<this.totalCourt;i++) {
+      this.addCourt();
     }
   }
-  addNewMatchList() {
+  addCourt() {
     let newMatch = new Match();
     this.clearCourt(newMatch);
     this.matchList.push(newMatch);
+    this.matchService.saveMatchList(this.matchList);
   }
   addPlayerList(newPlayers: string) {
     let leastPlayed = this.playerService.loadPlayerStatus().leastPlayed;
@@ -90,6 +92,13 @@ export class MatchListComponent {
     currentCourt.teamA.player2 = new Player('');
     currentCourt.teamB.player1 = new Player('');
     currentCourt.teamB.player2 = new Player('');
+  }
+
+  deleteCourt(matchIdx: number) {
+    let deletedMatch = this.matchList.splice(matchIdx,1)
+    this.log(`deleteCourt: ${deletedMatch[0]}`)
+    this.matchService.saveMatchList(this.matchList);
+    this.loadStandbyList();
   }
 
   confirmCourts() {
@@ -253,7 +262,7 @@ export class MatchListComponent {
     const maxRetries = 10;
     this.log(`SHUFFLE start(maxRetries = ${maxRetries}) ...`);
     const multiplier_rounds_waited =
-      1 / (this.playersMap.size - TOTAL_COURT * PLAYERS_PER_COURT);
+      1 / (this.playersMap.size - this.totalCourt * PLAYERS_PER_COURT);
     this.log('multiplier_rounds_waited: ', multiplier_rounds_waited);
     let playingPlayers = this.matchList
       .filter((each) => each.status === COURT_STATUS.PLAYING)

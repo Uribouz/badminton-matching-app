@@ -7,7 +7,7 @@
   </div>
   <div class="matchList">
     <div class="courtContainer" *ngFor="let match of matchList; index as i">
-      <h1>Court {{ i + 1 }}</h1>
+      <div class="courtHeader"><button class="btn_small btn_court_delete" (click)="deleteCourt(i)"></button><h1>Court {{ i + 1 }}</h1></div>
       <div class="court">
         <button class="btn btn_free_court" (click)="freeCourt(i)"></button>
         <div
@@ -47,8 +47,9 @@
       </div>
     </div>
     <div class="btnContainer">
-      <button class="btn btn_confirm_court" (click)="confirmCourts()"></button>
-      <button class="btn btn_shuffle_court" (click)="shuffleWithPriority()"></button>
+      <button class="btn_large btn_court_add" (click)="addCourt()"></button>
+      <button class="btn_large btn_court_confirm" (click)="confirmCourts()"></button>
+      <button class="btn_large btn_court_shuffle" (click)="shuffleWithPriority()"></button>
     </div>
     <div class="standbyContainer">
       <h2>Standby</h2>

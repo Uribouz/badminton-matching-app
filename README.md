@@ -7,8 +7,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
-8. can add courts depends on how many players
-16. In match-list view, when adding new player, new players should use least players played rounds as initial.
+17. In match-list view, when adding new player, new players should use least players played rounds as initial.
 
 ## Bugs:
 
@@ -18,6 +17,9 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 10. Add shuffle logic when selecting players to play:
     see players match history and prepare a match with previously player's played matched in mind.
 15. Refactor it to be in its own Module, for readable and maintainability
+18. Maybe rethink about how wait players affected shuffle decisions
+19. Added MMR ranking players win/lose
+
 
 ## Reference:
     ### Theme picker
@@ -51,3 +53,4 @@ y. Bugs fixed: Many players experience playing against same person
 14. calling calculateFirstPriorityPlayer too many times ( not efficient).
 13. Improve UI
 16. Improve add function to set only selected players into a match
+8. can add courts depends on how many players
