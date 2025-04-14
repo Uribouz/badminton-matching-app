@@ -28,7 +28,7 @@ export class MatchService {
   }
 
 
-  addMatchHistory(match:Match) {
+  addMatchHistory(match:Match):Match[] {
     let matchHistory: Match[] = []
     let data = localStorage.getItem('match-history')
     if (data) {
@@ -36,6 +36,7 @@ export class MatchService {
     }
     matchHistory.push(match)
     localStorage.setItem('match-history', JSON.stringify(matchHistory))
+    return matchHistory
   }
 
   loadMatchHistory():Match[]{

@@ -6,6 +6,18 @@ import { Status } from './status';
 })
 export class PlayerService {
   constructor() {}
+  addPlayerList(leastPlayed:number|0, playersMap:Map<string, Player>, newPlayers: string): Map<string, Player>{
+    newPlayers.split(',').forEach((player) => {
+      if (!playersMap.has(player)) {
+        console.log('New player: ' + player);
+        let newPlayer = new Player(player);
+        newPlayer.totalRoundsPlayed = leastPlayed;
+        playersMap.set(player, newPlayer);
+      }
+    });
+    this.savePlayerList(playersMap)
+    return playersMap;
+  }
   savePlayerList(playersMap: Map<string, Player>) {
     localStorage.setItem(
       'player-list',
@@ -25,7 +37,63 @@ export class PlayerService {
     );
     return playersMap;
   }
+  updatePlayerRoundsPlayed(playerMap: Map<string,Player>, playerName: string, value: number): Map<string,Player> {
+    console.log('updatePlayerRoundsPlayed: ' + playerName + ': ' + value);
+    let player = playerMap.get(playerName);
+    if (!player) {
+      return playerMap;
+    }
+    player.totalRoundsPlayed += value;
+    if (player.totalRoundsPlayed < 0) {
+      player.totalRoundsPlayed = 0;
+    }
+    player.isPreviouslyInteracted = true;
+    playerMap.set(playerName, player);
+    console.log('player:');
+    console.log(player);
+    this.savePlayerList(playerMap)
+    return playerMap
+  }
+  deletePlayer(playerMap: Map<string,Player>, playerName: string): Map<string,Player> {
+    playerMap.delete(playerName)
+    this.savePlayerList(playerMap)
+    return playerMap
+  }
 
+  //Status
+  revalidateStatus(playerStatus: Status, playerMap: Map<string,Player>):Status {
+    if (playerMap.size <= 0) {
+      playerStatus = new Status();
+      return playerStatus;
+    }
+    console.log(
+      'playerMap.values().next().value: ' +
+        playerMap.values().next().value
+    );
+    if (playerMap) {
+      playerStatus.leastPlayed =
+        playerMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
+      playerStatus.mostPlayed =
+        playerMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
+      playerMap.forEach((value) => {
+        if (playerStatus.leastPlayed > value.totalRoundsPlayed) {
+          playerStatus.leastPlayed = value.totalRoundsPlayed;
+        }
+        if (playerStatus.mostPlayed < value.totalRoundsPlayed) {
+          playerStatus.mostPlayed = value.totalRoundsPlayed;
+        }
+        // console.log('player:' + player + ': ' + value.totalRoundsPlayed);
+      });
+    }
+    console.log(
+      'revalidateStatus: ' +
+        playerStatus.leastPlayed +
+        ' - ' +
+        playerStatus.mostPlayed
+    );
+    this.savePlayerStatus(playerStatus);
+    return playerStatus
+  }
   savePlayerStatus(status: Status) {
     localStorage.setItem('players-status', JSON.stringify(status));
   }

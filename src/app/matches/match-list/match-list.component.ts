@@ -31,13 +31,12 @@ export class MatchListComponent {
   standbyList: Player[] = [];
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
+
   matchService = new MatchService();
   logData: String[] = [];
   rng = new XorShift()
   totalCourt = DEFAULT_TOTAL_COURT;
   constructor() {
-    // this.playerService.clearAllData();
-    // this.matchService.clearAllData();
     this.playersMap = this.playerService.loadPlayerList();
     // this.log('playersMap: ', this.playersMap);
     this.matchHistory = this.matchService.loadMatchHistory();
@@ -72,15 +71,7 @@ export class MatchListComponent {
   }
   addPlayerList(newPlayers: string) {
     let leastPlayed = this.playerService.loadPlayerStatus().leastPlayed;
-    newPlayers.split(',').forEach((player) => {
-      if (!this.playersMap.has(player)) {
-        console.log('New player: ' + player);
-        let newPlayer = new Player(player);
-        newPlayer.totalRoundsPlayed = leastPlayed;
-        this.playersMap.set(player, newPlayer);
-      }
-    });
-    this.playerService.savePlayerList(this.playersMap);
+    this.playersMap = this.playerService.addPlayerList(leastPlayed, this.playersMap, newPlayers);
     this.loadStandbyList();
   }
   getPlayerList(): Player[] {
@@ -108,6 +99,7 @@ export class MatchListComponent {
       this.confirmCourt(court)
     });
     this.updatePlayersWaited();
+    this.matchService.saveMatchList(this.matchList);
     this.log('CONFIRM_COURT end...');
   }
   confirmCourt(court: Match) {
@@ -134,12 +126,9 @@ export class MatchListComponent {
         court.teamB.player1?.name || '',
         court.teamB.player2?.name || '',
       ];
-      this.confirmedPlayerPlayed(confirmedPlayerNames);
-      this.confirmePlayerCourt(court);
-      this.matchService.saveMatchList(this.matchList);
-      this.matchService.addMatchHistory(court);
-      this.matchHistory = this.matchService.loadMatchHistory();
-      this.playerService.savePlayerList(this.playersMap);
+      this.playersMap = this.confirmedPlayerPlayed(this.playersMap, confirmedPlayerNames);
+      this.playersMap = this.confirmedPlayerCourt(this.playersMap, court);
+      this.matchHistory = this.matchService.addMatchHistory(court);
   }
   updatePlayersWaited() {
     let playingPlayersName = this.matchList
@@ -182,16 +171,16 @@ export class MatchListComponent {
     this.loadStandbyList();
     this.log('FREE_COURT end...');
   }
-  lockCourt(i: number) {
-    let currentCourt = this.matchList[i];
-    this.log(`CONFIRMED_COURT:${i} start...`);
-    this.confirmCourt(currentCourt)
-    currentCourt.status = COURT_STATUS.PLAYING;
-    this.updatePlayersWaited();
-    this.log(`CONFIRMED_COURT:${i} end...`);
-  }
+  // lockCourt(i: number) {
+  //   let currentCourt = this.matchList[i];
+  //   this.log(`CONFIRMED_COURT:${i} start...`);
+  //   this.confirmCourt(currentCourt)
+  //   currentCourt.status = COURT_STATUS.PLAYING;
+  //   this.updatePlayersWaited();
+  //   this.log(`CONFIRMED_COURT:${i} end...`);
+  // }
 
-  confirmedPlayerPlayed(names: string[]) {
+  confirmedPlayerPlayed(playerMap:Map<string, Player>, names: string[]): Map<string, Player> {
     names.forEach((name) => {
       let player = this.playersMap.get(name);
       if (!player) {
@@ -200,9 +189,11 @@ export class MatchListComponent {
       player.totalRoundsPlayed += 1;
       player.roundsWaited = 0;
       player.status = PLAYER_STATUS.READY;
-      this.playersMap.set(name, player);
+      playerMap.set(name, player);
     });
     this.log(`players played: \n`, names.join(', '));
+    this.playerService.savePlayerList(playerMap)
+    return playerMap
   }
   confirmedPlayerWaited(names: string[]) {
     let logData: string[] = [];
@@ -221,22 +212,26 @@ export class MatchListComponent {
     });
     this.log(`player waited: \n`, logData.join(', '));
   }
-  confirmePlayerCourt(court: Match) {
-    this.confirmedTeamate(court.teamA);
-    this.confirmedTeamate(court.teamB);
+  confirmedPlayerCourt(playerMap: Map<string, Player>, court: Match):Map<string, Player> {
+    playerMap = this.confirmedTeamate(playerMap, court.teamA);
+    playerMap = this.confirmedTeamate(playerMap, court.teamB);
+    this.playerService.savePlayerList(playerMap);
+    return playerMap
   }
-  confirmedTeamate(team: Teammate) {
+  confirmedTeamate(playerMap: Map<string, Player>, team: Teammate):Map<string, Player> {
     this.log('confirmedTeamate: ', team);
-    this.confirmedTeamatePlayer(team.player1.name, team.player2.name);
-    this.confirmedTeamatePlayer(team.player2.name, team.player1.name);
+    playerMap = this.confirmedTeamatePlayer(playerMap, team.player1.name, team.player2.name);
+    playerMap = this.confirmedTeamatePlayer(playerMap, team.player2.name, team.player1.name);
+    return playerMap
   }
-  confirmedTeamatePlayer(playerName1: string, playerName2: string) {
-    let player1 = this.playersMap.get(playerName1);
+  confirmedTeamatePlayer(playerMap: Map<string, Player>, playerName1: string, playerName2: string):Map<string, Player> {
+    let player1 = playerMap.get(playerName1);
     if (!player1) {
-      return;
+      return playerMap;
     }
     player1.teamateHistory = [...player1.teamateHistory, playerName2];
-    this.playersMap.set(player1.name, player1);
+    playerMap.set(player1.name, player1);
+    return playerMap
   }
 
   //Fuzzy Logic

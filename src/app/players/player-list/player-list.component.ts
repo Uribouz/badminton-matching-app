@@ -24,60 +24,33 @@ export class PlayerListComponent {
   getPlayerList(): Player[] {
     return Array.from(this.playersMap.values());
   }
-  savePlayerData() {
-    this.playerService.savePlayerList(this.playersMap);
-    this.playerService.savePlayerStatus(this.status);
-  }
   loadPlayerData() {
     this.playersMap = this.playerService.loadPlayerList();
     this.status = this.playerService.loadPlayerStatus();
   }
   addPlayerList(newPlayers: string) {
-    newPlayers.split(',').forEach((player) => {
-      if (!this.playersMap.has(player)) {
-        console.log('New player: ' + player);
-        let newPlayer = new Player(player);
-        newPlayer.totalRoundsPlayed = this.status.leastPlayed;
-        this.playersMap.set(player, newPlayer);
-      }
-    });
-    this.playerService.savePlayerList(this.playersMap);
+    this.playersMap = this.playerService.addPlayerList( this.status.leastPlayed, this.playersMap, newPlayers)
   }
   deletePlayer(playerName: string) {
     console.log('deletePlayer: ' + playerName);
-    this.playersMap.delete(playerName);
-    this.revalidateStatus();
-    this.savePlayerData();
+    this.playerService.deletePlayer(this.playersMap, playerName);
+    this.status = this.playerService.revalidateStatus(this.status, this.playersMap);
     this.lastInteractPlayers.delete(playerName);
   }
 
   addRoundsPlayed(playerName: string) {
     this.updatePlayerRoundsPlayed(playerName, 1);
-    this.savePlayerData();
   }
 
   subtractRoundsPlayed(playerName: string) {
     this.updatePlayerRoundsPlayed(playerName, -1);
-    this.savePlayerData();
   }
 
   //Internal ----------------------------------------------------------------
   updatePlayerRoundsPlayed(playerName: string, value: number) {
-    console.log('updatePlayerRoundsPlayed: ' + playerName + ': ' + value);
-    let player = this.playersMap.get(playerName);
-    if (!player) {
-      return;
-    }
-    player.totalRoundsPlayed += value;
-    if (player.totalRoundsPlayed < 0) {
-      player.totalRoundsPlayed = 0;
-    }
-    this.revalidateStatus();
-    player.isPreviouslyInteracted = true;
-    this.playersMap.set(playerName, player);
+    this.playersMap = this.playerService.updatePlayerRoundsPlayed(this.playersMap, playerName, value)
+    this.status = this.playerService.revalidateStatus(this.status, this.playersMap);
     this.checkLastInteractivePlayer(playerName);
-    console.log('player:');
-    console.log(player);
   }
   checkLastInteractivePlayer(playerName: string) {
     console.log(
@@ -93,37 +66,6 @@ export class PlayerListComponent {
     const popPlayerName = this.lastInteractPlayers.keys().next().value ?? '';
     this.lastInteractPlayers.delete(popPlayerName);
     this.setInteractivePlayer(popPlayerName, false);
-  }
-  revalidateStatus() {
-    if (this.playersMap.size <= 0) {
-      this.status = new Status();
-      return;
-    }
-    console.log(
-      'this.playersMap.values().next().value: ' +
-        this.playersMap.values().next().value
-    );
-    if (this.playersMap) {
-      this.status.leastPlayed =
-        this.playersMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
-      this.status.mostPlayed =
-        this.playersMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
-      this.playersMap.forEach((value, player) => {
-        if (this.status.leastPlayed > value.totalRoundsPlayed) {
-          this.status.leastPlayed = value.totalRoundsPlayed;
-        }
-        if (this.status.mostPlayed < value.totalRoundsPlayed) {
-          this.status.mostPlayed = value.totalRoundsPlayed;
-        }
-        // console.log('player:' + player + ': ' + value.totalRoundsPlayed);
-      });
-    }
-    console.log(
-      'validateStatus: ' +
-        this.status.leastPlayed +
-        ' - ' +
-        this.status.mostPlayed
-    );
   }
   setInteractivePlayer(playerName: string | undefined, status: boolean) {
     if (!playerName) {
