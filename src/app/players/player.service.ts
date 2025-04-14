@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Player } from './player/player';
-import { Status } from './status/status';
+import { Player } from './player';
+import { Status } from './status';
 @Injectable({
   providedIn: 'root',
 })

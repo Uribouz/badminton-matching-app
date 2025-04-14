@@ -1,4 +1,4 @@
-import { Player } from "../player/player"
+import { Player } from "../players/player"
 
 export class Teammate {
     player1: Player = new Player('');

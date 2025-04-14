@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
-import { Match, Teammate } from '../match/match';
-import { Player } from '../player/player';
+import { Match, Teammate } from '../match';
+import { Player } from '../../players/player';
 import { CommonModule } from '@angular/common';
-import { PlayerService } from '../player.service';
+import { PlayerService } from '../../players/player.service';
 import { MatchService } from '../match.service';
-import { XorShift } from '../random/xorshift';
+import { XorShift } from '../../shared/random/xorshift';
 
 enum COURT_STATUS {
   AVAILABLE = 'available',

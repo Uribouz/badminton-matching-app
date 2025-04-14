@@ -1,10 +1,9 @@
 import { Component } from '@angular/core';
-import { Player } from '../player/player';
+import { Player } from '../player';
 import { CommonModule, KeyValue } from '@angular/common';
 import { max } from 'rxjs';
-import { Status } from '../status/status';
+import { Status } from '../status';
 import { PlayerService } from '../player.service';
-import { MatchService } from '../match.service';
 @Component({
   selector: 'app-player-list',
   standalone: true,
@@ -19,14 +18,7 @@ export class PlayerListComponent {
   status = new Status();
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
-  matchService = new MatchService();
   constructor() {
-    this.loadPlayerData();
-  }
-  clearAllData() {
-    this.playerService.clearAllData();
-    this.matchService.clearMatchList();
-    this.matchService.clearMatchHistory();
     this.loadPlayerData();
   }
   getPlayerList(): Player[] {

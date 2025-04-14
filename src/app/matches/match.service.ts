@@ -1,7 +1,5 @@
 import { Injectable } from '@angular/core';
-import { MatchListComponent } from './match-list/match-list.component';
-import { Match } from './match/match';
-import { Player } from './player/player';
+import { Match } from './match';
 
 @Injectable({
   providedIn: 'root'

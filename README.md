@@ -7,21 +7,25 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
+15. Refactor it to be in its own Module, for readable and maintainability
 17. In match-list view, when adding new player, new players should use least players played rounds as initial.
 
 ## Bugs:
 
 ## Backlogs:
+18. Maybe rethink about how wait players affected shuffle decisions
+19. Added MMR ranking players win/lose
 
 9. Add API servers to be able to use this website multiple device at the same time while sharing data usage
 10. Add shuffle logic when selecting players to play:
     see players match history and prepare a match with previously player's played matched in mind.
-15. Refactor it to be in its own Module, for readable and maintainability
-18. Maybe rethink about how wait players affected shuffle decisions
-19. Added MMR ranking players win/lose
+
 
 
 ## Reference:
+    ### App structure
+    https://v17.angular.io/guide/styleguide#application-structure-and-ngmodules
+
     ### Theme picker
     https://www.schemecolor.com/roaming-on-the-campus.php
 

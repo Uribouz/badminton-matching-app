@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { MatchListComponent } from './match-list.component';
-import { Player,NewPlayer } from '../player/player';
+import { Player,NewPlayer } from '../players/player/player';
 
 describe('MatchListComponent', () => {
   let component: MatchListComponent;
