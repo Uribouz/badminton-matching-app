@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { PlayerService } from '../../players/player.service';
 import { MatchService } from '../match.service';
 import { XorShift } from '../../shared/random/xorshift';
+import { Status } from '../../players/status';
 
 enum COURT_STATUS {
   AVAILABLE = 'available',
@@ -26,6 +27,7 @@ const DEFAULT_TOTAL_COURT = 2;
   styleUrl: './match-list.component.css',
 })
 export class MatchListComponent {
+  status:Status = new Status;
   matchList: Match[] = [];
   matchHistory: Match[] = [];
   standbyList: Player[] = [];
@@ -42,6 +44,7 @@ export class MatchListComponent {
     this.matchHistory = this.matchService.loadMatchHistory();
     this.initMatchList();
     this.loadStandbyList();
+    this.status = this.playerService.loadPlayerStatus();
     this.rng = new XorShift();
   }
   log(...args: any[]) {
@@ -99,6 +102,7 @@ export class MatchListComponent {
       this.confirmCourt(court)
     });
     this.updatePlayersWaited();
+    this.status = this.playerService.revalidateStatus(this.status, this.playersMap);
     this.matchService.saveMatchList(this.matchList);
     this.log('CONFIRM_COURT end...');
   }

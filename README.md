@@ -8,7 +8,7 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
 15. Refactor it to be in its own Module, for readable and maintainability
-17. In match-list view, when adding new player, new players should use least players played rounds as initial.
+
 
 ## Bugs:
 
@@ -58,3 +58,4 @@ y. Bugs fixed: Many players experience playing against same person
 13. Improve UI
 16. Improve add function to set only selected players into a match
 8. can add courts depends on how many players
+17. In match-list view, when adding new player, new players should use least players played rounds as initial.
