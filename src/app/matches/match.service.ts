@@ -34,6 +34,7 @@ export class MatchService {
     if (data) {
       matchHistory = JSON.parse(data)
     }
+    match = structuredClone(match)
     matchHistory.push(match)
     localStorage.setItem('match-history', JSON.stringify(matchHistory))
     return matchHistory

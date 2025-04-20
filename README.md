@@ -12,6 +12,7 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Bugs:
 
+
 ## Backlogs:
 18. Maybe rethink about how wait players affected shuffle decisions
 19. Added MMR ranking players win/lose
@@ -59,3 +60,4 @@ y. Bugs fixed: Many players experience playing against same person
 16. Improve add function to set only selected players into a match
 8. can add courts depends on how many players
 17. In match-list view, when adding new player, new players should use least players played rounds as initial.
+z. Last match history depends on the match changes
