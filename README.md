@@ -10,8 +10,6 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Bugs:
 
-- First click in stand-by list is ignored
-
 ## Backlogs:
 
 19. Added MMR ranking players win/lose
@@ -60,3 +58,4 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
     z. Last match history depends on the match changes
 14. Maybe rethink about how wait players affected shuffle decisions
     --> Removed wait players affected the decision in shuffle
+    Z. Bugs fixed: First click in stand-by list is ignored

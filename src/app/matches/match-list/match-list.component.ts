@@ -12,9 +12,9 @@ enum COURT_STATUS {
   PLAYING = 'playing',
 }
 enum PLAYER_STATUS {
-  READY = 'READY',
-  BREAK = 'BREAK',
-  SELECTED = 'SELECTED',
+  READY = 'ready',
+  BREAK = 'break',
+  SELECTED = 'selected',
 }
 const PLAYERS_PER_COURT = 4;
 const TEAMS_PER_COURT = 2;
@@ -47,6 +47,8 @@ export class MatchListComponent {
     this.status = this.playerService.loadPlayerStatus();
     this.rng = new XorShift();
   }
+  public playerStatus = PLAYER_STATUS;
+  public courtStatus = COURT_STATUS;
   log(...args: any[]) {
     console.log('log[' + new Date().toLocaleTimeString() + ']: ', ...args);
     this.logData.push(
