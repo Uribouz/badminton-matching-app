@@ -27,7 +27,7 @@ const DEFAULT_TOTAL_COURT = 2;
   styleUrl: './match-list.component.css',
 })
 export class MatchListComponent {
-  status:Status = new Status;
+  status: Status = new Status();
   matchList: Match[] = [];
   matchHistory: Match[] = [];
   standbyList: Player[] = [];
@@ -36,7 +36,7 @@ export class MatchListComponent {
 
   matchService = new MatchService();
   logData: String[] = [];
-  rng = new XorShift()
+  rng = new XorShift();
   totalCourt = DEFAULT_TOTAL_COURT;
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
@@ -62,7 +62,7 @@ export class MatchListComponent {
     if (this.matchList.length > 0) {
       return;
     }
-    for (let i=0;i<this.totalCourt;i++) {
+    for (let i = 0; i < this.totalCourt; i++) {
       this.addCourt();
     }
   }
@@ -74,7 +74,11 @@ export class MatchListComponent {
   }
   addPlayerList(newPlayers: string) {
     let leastPlayed = this.playerService.loadPlayerStatus().leastPlayed;
-    this.playersMap = this.playerService.addPlayerList(leastPlayed, this.playersMap, newPlayers);
+    this.playersMap = this.playerService.addPlayerList(
+      leastPlayed,
+      this.playersMap,
+      newPlayers
+    );
     this.loadStandbyList();
   }
   getPlayerList(): Player[] {
@@ -89,8 +93,8 @@ export class MatchListComponent {
   }
 
   deleteCourt(matchIdx: number) {
-    let deletedMatch = this.matchList.splice(matchIdx,1)
-    this.log(`deleteCourt: ${deletedMatch[0]}`)
+    let deletedMatch = this.matchList.splice(matchIdx, 1);
+    this.log(`deleteCourt: ${deletedMatch[0]}`);
     this.matchService.saveMatchList(this.matchList);
     this.loadStandbyList();
   }
@@ -99,40 +103,46 @@ export class MatchListComponent {
     this.log('CONFIRM_COURT start...');
     // this.log('confirmCourt:', this.matchList)
     this.matchList.forEach((court) => {
-      this.confirmCourt(court)
+      this.confirmCourt(court);
     });
     this.updatePlayersWaited();
-    this.status = this.playerService.revalidateStatus(this.status, this.playersMap);
+    this.status = this.playerService.revalidateStatus(
+      this.status,
+      this.playersMap
+    );
     this.matchService.saveMatchList(this.matchList);
     this.log('CONFIRM_COURT end...');
   }
   confirmCourt(court: Match) {
     this.log('court.status:', court);
-      if (court.status === COURT_STATUS.PLAYING) {
-        return;
-      }
-      if (
-        !court.teamA.player1.name ||
-        !court.teamA.player2.name ||
-        !court.teamB.player1.name ||
-        !court.teamB.player2.name
-      ) {
-        this.log('error: court is not full');
-        return;
-      }
-      court.matchTime = new Date();
-      court.status = COURT_STATUS.PLAYING;
-      this.log('set court.status to playing', court);
+    if (court.status === COURT_STATUS.PLAYING) {
+      return;
+    }
+    if (
+      !court.teamA.player1.name ||
+      !court.teamA.player2.name ||
+      !court.teamB.player1.name ||
+      !court.teamB.player2.name
+    ) {
+      this.log('error: court is not full');
+      return;
+    }
+    court.matchTime = new Date();
+    court.status = COURT_STATUS.PLAYING;
+    this.log('set court.status to playing', court);
 
-      let confirmedPlayerNames = [
-        court.teamA.player1?.name || '',
-        court.teamA.player2?.name || '',
-        court.teamB.player1?.name || '',
-        court.teamB.player2?.name || '',
-      ];
-      this.playersMap = this.confirmedPlayerPlayed(this.playersMap, confirmedPlayerNames);
-      this.playersMap = this.confirmedPlayerCourt(this.playersMap, court);
-      this.matchHistory = this.matchService.addMatchHistory(court);
+    let confirmedPlayerNames = [
+      court.teamA.player1?.name || '',
+      court.teamA.player2?.name || '',
+      court.teamB.player1?.name || '',
+      court.teamB.player2?.name || '',
+    ];
+    this.playersMap = this.confirmedPlayerPlayed(
+      this.playersMap,
+      confirmedPlayerNames
+    );
+    this.playersMap = this.confirmedPlayerCourt(this.playersMap, court);
+    this.matchHistory = this.matchService.addMatchHistory(court);
   }
   updatePlayersWaited() {
     let playingPlayersName = this.matchList
@@ -184,20 +194,22 @@ export class MatchListComponent {
   //   this.log(`CONFIRMED_COURT:${i} end...`);
   // }
 
-  confirmedPlayerPlayed(playerMap:Map<string, Player>, names: string[]): Map<string, Player> {
+  confirmedPlayerPlayed(
+    playerMap: Map<string, Player>,
+    names: string[]
+  ): Map<string, Player> {
     names.forEach((name) => {
       let player = this.playersMap.get(name);
       if (!player) {
         player = new Player(name);
       }
       player.totalRoundsPlayed += 1;
-      player.roundsWaited = 0;
       player.status = PLAYER_STATUS.READY;
       playerMap.set(name, player);
     });
     this.log(`players played: \n`, names.join(', '));
-    this.playerService.savePlayerList(playerMap)
-    return playerMap
+    this.playerService.savePlayerList(playerMap);
+    return playerMap;
   }
   confirmedPlayerWaited(names: string[]) {
     let logData: string[] = [];
@@ -206,48 +218,56 @@ export class MatchListComponent {
       if (!player) {
         player = new Player(name);
       }
-      if (player.status === PLAYER_STATUS.BREAK) {
-        player.roundsWaited = 0;
-      } else {
-        player.roundsWaited += 1;
-      }
+      player.roundsWaited += 1;
       logData.push(`${name}:${player.roundsWaited}`);
       this.playersMap.set(name, player);
     });
     this.log(`player waited: \n`, logData.join(', '));
   }
-  confirmedPlayerCourt(playerMap: Map<string, Player>, court: Match):Map<string, Player> {
+  confirmedPlayerCourt(
+    playerMap: Map<string, Player>,
+    court: Match
+  ): Map<string, Player> {
     playerMap = this.confirmedTeamate(playerMap, court.teamA);
     playerMap = this.confirmedTeamate(playerMap, court.teamB);
     this.playerService.savePlayerList(playerMap);
-    return playerMap
+    return playerMap;
   }
-  confirmedTeamate(playerMap: Map<string, Player>, team: Teammate):Map<string, Player> {
+  confirmedTeamate(
+    playerMap: Map<string, Player>,
+    team: Teammate
+  ): Map<string, Player> {
     this.log('confirmedTeamate: ', team);
-    playerMap = this.confirmedTeamatePlayer(playerMap, team.player1.name, team.player2.name);
-    playerMap = this.confirmedTeamatePlayer(playerMap, team.player2.name, team.player1.name);
-    return playerMap
+    playerMap = this.confirmedTeamatePlayer(
+      playerMap,
+      team.player1.name,
+      team.player2.name
+    );
+    playerMap = this.confirmedTeamatePlayer(
+      playerMap,
+      team.player2.name,
+      team.player1.name
+    );
+    return playerMap;
   }
-  confirmedTeamatePlayer(playerMap: Map<string, Player>, playerName1: string, playerName2: string):Map<string, Player> {
+  confirmedTeamatePlayer(
+    playerMap: Map<string, Player>,
+    playerName1: string,
+    playerName2: string
+  ): Map<string, Player> {
     let player1 = playerMap.get(playerName1);
     if (!player1) {
       return playerMap;
     }
     player1.teamateHistory = [...player1.teamateHistory, playerName2];
     playerMap.set(player1.name, player1);
-    return playerMap
+    return playerMap;
   }
 
   //Fuzzy Logic
-  calculatePriorityPoint(
-    player: Player,
-    multiplier_rounds_waited: number
-  ): number {
+  calculatePriorityPoint(player: Player): number {
     const multiplier_rounds_played = 1;
-    return (
-      (multiplier_rounds_played * player.totalRoundsPlayed || 0) -
-      (multiplier_rounds_waited * player.roundsWaited || 0)
-    );
+    return (multiplier_rounds_played * player.totalRoundsPlayed || 0) - 0;
   }
 
   //shuffleWithPriority
@@ -260,9 +280,7 @@ export class MatchListComponent {
   shuffleWithPriority() {
     const maxRetries = 10;
     this.log(`SHUFFLE start(maxRetries = ${maxRetries}) ...`);
-    const multiplier_rounds_waited =
-      1 / (this.playersMap.size - this.totalCourt * PLAYERS_PER_COURT);
-    this.log('multiplier_rounds_waited: ', multiplier_rounds_waited);
+
     let playingPlayers = this.matchList
       .filter((each) => each.status === COURT_STATUS.PLAYING)
       .flatMap((each) => [
@@ -275,13 +293,22 @@ export class MatchListComponent {
     this.log('playingPlayers:', playingPlayers);
     let initialPlayerList: Player[] = Array.from(this.playersMap.values())
       .filter((each) => !playingPlayers.includes(each.name))
-      .filter((each) => each.status !== PLAYER_STATUS.BREAK)
+      .filter((each) => each.status !== PLAYER_STATUS.BREAK);
     //If have player selected status
-    if (initialPlayerList.flatMap((each) => each.status).includes(PLAYER_STATUS.SELECTED)) {
-      initialPlayerList = initialPlayerList
-        .filter((each) => each.status === PLAYER_STATUS.SELECTED)
+    if (
+      initialPlayerList
+        .flatMap((each) => each.status)
+        .includes(PLAYER_STATUS.SELECTED)
+    ) {
+      initialPlayerList = initialPlayerList.filter(
+        (each) => each.status === PLAYER_STATUS.SELECTED
+      );
     }
-    this.log(`initialPlayerList: ${initialPlayerList.flatMap(each => {return each.name, each.status})}`)
+    this.log(
+      `initialPlayerList: ${initialPlayerList.flatMap((each) => {
+        return each.name, each.status;
+      })}`
+    );
 
     let totalAvailablePlayers = 0;
     this.matchList.forEach((each) => {
@@ -293,34 +320,38 @@ export class MatchListComponent {
     if (totalAvailablePlayers <= 0) {
       return;
     }
-    let teamateList:{ player1: Player; player2: Player }[] = [];
-    let i=0;
-    for (i=0;i<=maxRetries;i++) {
-      const offsetValidatePlayers = Math.ceil((i+1)/3);
-      this.log(`i: ${i}, offsetValidatePlayers: ${offsetValidatePlayers}`)
-      let playerList = initialPlayerList
-        .sort((a, b) => {
-          let aPoint = this.calculatePriorityPoint(a, multiplier_rounds_waited);
-          let bPoint = this.calculatePriorityPoint(b, multiplier_rounds_waited);
-          if (aPoint == bPoint) {
-            return this.rng.random() - this.rng.random();
-          }
-          return aPoint - bPoint;
-        });
+    let teamateList: { player1: Player; player2: Player }[] = [];
+    let i = 0;
+    for (i = 0; i <= maxRetries; i++) {
+      const offsetValidatePlayers = Math.ceil((i + 1) / 3);
+      this.log(`i: ${i}, offsetValidatePlayers: ${offsetValidatePlayers}`);
+      let playerList = initialPlayerList.sort((a, b) => {
+        let aPoint = this.calculatePriorityPoint(a);
+        let bPoint = this.calculatePriorityPoint(b);
+        if (aPoint == bPoint) {
+          return this.rng.random() - this.rng.random();
+        }
+        return aPoint - bPoint;
+      });
       this.log(
         'shuffleWithPriority:',
         playerList.map((each) => {
-          return `${each.name}: ${this.calculatePriorityPoint(
-            each,
-            multiplier_rounds_waited
-          )} [${each.totalRoundsPlayed}, ${each.roundsWaited}]`;
+          return `${each.name}: ${this.calculatePriorityPoint(each)} [${
+            each.totalRoundsPlayed
+          }]`;
         })
       );
 
       teamateList = this.calculateTeamates(
         playerList.slice(0, totalAvailablePlayers)
       );
-      if (this.validateTeamates(offsetValidatePlayers, initialPlayerList.length, teamateList)) {
+      if (
+        this.validateTeamates(
+          offsetValidatePlayers,
+          initialPlayerList.length,
+          teamateList
+        )
+      ) {
         break;
       }
     }
@@ -344,8 +375,8 @@ export class MatchListComponent {
     let teamates: { player1: Player; player2: Player }[] = [];
     let mapPriorityPlayers = this.calculateFirstPriorityPlayers(players);
     let remainingPlayers: Player[] = players.slice().sort((a, b) => {
-      let aPoint = mapPriorityPlayers.get(a.name)??0;
-      let bPoint = mapPriorityPlayers.get(b.name)??0;
+      let aPoint = mapPriorityPlayers.get(a.name) ?? 0;
+      let bPoint = mapPriorityPlayers.get(b.name) ?? 0;
       if (aPoint === bPoint) {
         return this.rng.random() - this.rng.random();
       }
@@ -386,52 +417,61 @@ export class MatchListComponent {
     return playerA.teamateHistory.lastIndexOf(playerB.name) + 1;
   }
 
-  calculateFirstPriorityPlayers(
-    playerList: Player[]
-  ): Map<string, number> {
-    let result  = new Map<string, number>();
-    playerList.forEach(currentPlayer => {
+  calculateFirstPriorityPlayers(playerList: Player[]): Map<string, number> {
+    let result = new Map<string, number>();
+    playerList.forEach((currentPlayer) => {
       let leastPoint = 999;
       this.log(
         `currentPlayer ${currentPlayer.name} each: ${currentPlayer.teamateHistory}`
       );
       // this.log(`otherPlayers ${playerList.flatMap((each) => each.name)}`);
       playerList
-          .filter((each) => each.name != currentPlayer.name)
-          .forEach((each) => {
-            let currentPoint = 999;
-            if (currentPlayer.teamateHistory.includes(each.name)) {
-              currentPoint =
-                currentPlayer.teamateHistory.length -
-                currentPlayer.teamateHistory.lastIndexOf(each.name);
-            }
-            // this.log(`currentPoint = ${currentPoint}`)
-            if (currentPoint < leastPoint) {
-              leastPoint = currentPoint;
-            }
-          });
-        this.log(`calculateFirstPriorityPlayers name: ${currentPlayer.name} = ${leastPoint}`);
-        result.set(currentPlayer.name, leastPoint);
-    })
+        .filter((each) => each.name != currentPlayer.name)
+        .forEach((each) => {
+          let currentPoint = 999;
+          if (currentPlayer.teamateHistory.includes(each.name)) {
+            currentPoint =
+              currentPlayer.teamateHistory.length -
+              currentPlayer.teamateHistory.lastIndexOf(each.name);
+          }
+          // this.log(`currentPoint = ${currentPoint}`)
+          if (currentPoint < leastPoint) {
+            leastPoint = currentPoint;
+          }
+        });
+      this.log(
+        `calculateFirstPriorityPlayers name: ${currentPlayer.name} = ${leastPoint}`
+      );
+      result.set(currentPlayer.name, leastPoint);
+    });
     return result;
   }
 
-  validateTeamates(offsetValidatePlayers:number, totalPlayersAvailable:number, teamatesList:{ player1: Player; player2: Player }[] ): boolean {
+  validateTeamates(
+    offsetValidatePlayers: number,
+    totalPlayersAvailable: number,
+    teamatesList: { player1: Player; player2: Player }[]
+  ): boolean {
     let isOk: boolean = true;
     teamatesList.forEach((each) => {
       if (isOk === false || each.player1.teamateHistory.length <= 0) {
         return;
       }
-      let lastplayerIndex = each.player1.teamateHistory.lastIndexOf(each.player2.name)
+      let lastplayerIndex = each.player1.teamateHistory.lastIndexOf(
+        each.player2.name
+      );
       if (lastplayerIndex < 0) {
         return;
       }
       let totalPlayed = each.player1.totalRoundsPlayed;
-      if (totalPlayed - lastplayerIndex < totalPlayersAvailable-offsetValidatePlayers) {
+      if (
+        totalPlayed - lastplayerIndex <
+        totalPlayersAvailable - offsetValidatePlayers
+      ) {
         isOk = false;
         return;
       }
-    })
+    });
     return isOk;
   }
 
@@ -456,11 +496,10 @@ export class MatchListComponent {
     if (player.status === PLAYER_STATUS.READY) {
       player.status = PLAYER_STATUS.BREAK;
       this.log(`player: ${name} break`);
-    } else if (player.status === PLAYER_STATUS.BREAK){
+    } else if (player.status === PLAYER_STATUS.BREAK) {
       player.status = PLAYER_STATUS.SELECTED;
       this.log(`player: ${name} selected`);
-    }
-    else {
+    } else {
       player.status = PLAYER_STATUS.READY;
       this.log(`player: ${name} ready`);
     }
