@@ -274,7 +274,7 @@ export class MatchListComponent {
   calculatePriorityPoint(player: Player): number {
     const multiplier_rounds_played = 1;
     if (player.status === PLAYER_STATUS.SELECTED) {
-      return 0;
+      return -1;
     }
     return (multiplier_rounds_played * player.totalRoundsPlayed || 0) - 0;
   }
