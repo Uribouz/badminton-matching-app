@@ -220,7 +220,11 @@ export class MatchListComponent {
       if (!player) {
         player = new Player(name);
       }
-      player.roundsWaited += 1;
+      if (player.status === PLAYER_STATUS.BREAK) {
+        player.roundsWaited = 0;
+      } else {
+        player.roundsWaited += 1;
+      }
       logData.push(`${name}:${player.roundsWaited}`);
       this.playersMap.set(name, player);
     });

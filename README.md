@@ -8,6 +8,9 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
 
+24. number of 'selected' players doesn't need to be Divisible by 4
+ to be ablue to shuffle into the court.
+
 ## Bugs:
 
 ## Backlogs:
@@ -59,3 +62,4 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 14. Maybe rethink about how wait players affected shuffle decisions
     --> Removed wait players affected the decision in shuffle
     Z. Bugs fixed: First click in stand-by list is ignored
+23. Fix wait counter increased when player is in status 'break'
