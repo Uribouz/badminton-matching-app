@@ -273,6 +273,9 @@ export class MatchListComponent {
   //Fuzzy Logic
   calculatePriorityPoint(player: Player): number {
     const multiplier_rounds_played = 1;
+    if (player.status === PLAYER_STATUS.SELECTED) {
+      return 0;
+    }
     return (multiplier_rounds_played * player.totalRoundsPlayed || 0) - 0;
   }
 
@@ -300,16 +303,7 @@ export class MatchListComponent {
     let initialPlayerList: Player[] = Array.from(this.playersMap.values())
       .filter((each) => !playingPlayers.includes(each.name))
       .filter((each) => each.status !== PLAYER_STATUS.BREAK);
-    //If have player selected status
-    if (
-      initialPlayerList
-        .flatMap((each) => each.status)
-        .includes(PLAYER_STATUS.SELECTED)
-    ) {
-      initialPlayerList = initialPlayerList.filter(
-        (each) => each.status === PLAYER_STATUS.SELECTED
-      );
-    }
+ 
     this.log(
       `initialPlayerList: ${initialPlayerList.flatMap((each) => {
         return each.name, each.status;
@@ -347,7 +341,13 @@ export class MatchListComponent {
           }]`;
         })
       );
-
+      let maxPlayers = Math.floor(playerList.length/PLAYERS_PER_COURT)*PLAYERS_PER_COURT
+      if ( totalAvailablePlayers > maxPlayers) {
+        totalAvailablePlayers = maxPlayers;
+      }
+      this.log(
+        'totalAvailablePlayers: ',totalAvailablePlayers
+      );
       teamateList = this.calculateTeamates(
         playerList.slice(0, totalAvailablePlayers)
       );
