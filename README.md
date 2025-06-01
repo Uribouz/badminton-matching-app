@@ -7,19 +7,14 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
-25. Have a calculator, that can calculate how much player needed to play
-the calculation logic begin with 
- 25.1) Phase 1: Every person pay equally ...
-    - calculate the price of the court: price of the court per hour multiply by how many courts and how many hours we played
-    - calculate the price of the shuttle: price of the shuttle multiply by the amount of the shuttle we used
-    - setting: default prices that can be adjustable
 
- 25.2) Phase 2: Each person pays depends on actually how many games they have been played
-    - UI of how many player have been played need to be rethink
-    - Model of the player.ts need to be update to hold field `priorityPoint` and `totalRoundsPlayed`
-        (to prevent misunderstood the logic when new player added, 
-        they will automatically use the  `least totalRoundsPlayed` from all the players as their own `totalRoundsPlayed`)
-    - TODO: pending calculation logic !!
+25. Have a calculator, that can calculate how much player needed to play
+    the calculation logic begin with
+    25.1) Phase 1: Every person pay equally ... - calculate the price of the court: price of the court per hour multiply by how many courts and how many hours we played - calculate the price of the shuttle: price of the shuttle multiply by the amount of the shuttle we used - setting: default prices that can be adjustable
+
+    25.2) Phase 2: Each person pays depends on actually how many games they have been played - UI of how many player have been played need to be rethink - Model of the player.ts need to be update to hold field `priorityPoint` and `totalRoundsPlayed`
+    (to prevent misunderstood the logic when new player added,
+    they will automatically use the `least totalRoundsPlayed` from all the players as their own `totalRoundsPlayed`) - TODO: pending calculation logic !!
 
 ## Bugs:
 
@@ -72,6 +67,9 @@ the calculation logic begin with
 14. Maybe rethink about how wait players affected shuffle decisions
     --> Removed wait players affected the decision in shuffle
     Z. Bugs fixed: First click in stand-by list is ignored
-23. Fix wait counter increased when player is in status 'break'
-24. number of 'selected' players doesn't need to be Divisible by 4
- to be ablue to shuffle into the court.
+15. Fix wait counter increased when player is in status 'break'
+    #dasd
+16. number of 'selected' players doesn't need to be Divisible by 4
+    to be ablue to shuffle into the court
+    G,
+17. New player now will have minimum rounds player of all player minus 1 (Decrease amount)
