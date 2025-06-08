@@ -8,17 +8,17 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
 
+21. Add API servers to be able to use this website multiple device at the same time while sharing data usage
+    - Refactor it to be in its own Module, for readable and maintainability
+
 ## Bugs:
 
 ## Backlogs:
 
-19. Added MMR ranking players win/lose
-20. Refactor it to be in its own Module, for readable and maintainability
-
-21. Add API servers to be able to use this website multiple device at the same time while sharing data usage
-
-22. Add shuffle logic when selecting players to play:
+21. Add shuffle logic when selecting players to play:
     see player's match history and prepare a match with previously player's played matched in mind.
+
+22. Added MMR ranking players win/lose
 
 23. Have a calculator, that can calculate how much player needed to play
     the calculation logic begin with
