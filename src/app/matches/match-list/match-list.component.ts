@@ -6,6 +6,7 @@ import { PlayerService } from '../../players/player.service';
 import { MatchService } from '../match.service';
 import { XorShift } from '../../shared/random/xorshift';
 import { Status } from '../../players/status';
+import { BillComponent } from '../../bill/bill.component';
 
 enum COURT_STATUS {
   AVAILABLE = 'available',
@@ -22,7 +23,7 @@ const DEFAULT_TOTAL_COURT = 2;
 @Component({
   selector: 'app-match-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, BillComponent],
   templateUrl: './match-list.component.html',
   styleUrl: './match-list.component.css',
 })
@@ -303,7 +304,7 @@ export class MatchListComponent {
     let initialPlayerList: Player[] = Array.from(this.playersMap.values())
       .filter((each) => !playingPlayers.includes(each.name))
       .filter((each) => each.status !== PLAYER_STATUS.BREAK);
- 
+
     this.log(
       `initialPlayerList: ${initialPlayerList.flatMap((each) => {
         return each.name, each.status;
@@ -341,13 +342,12 @@ export class MatchListComponent {
           }]`;
         })
       );
-      let maxPlayers = Math.floor(playerList.length/PLAYERS_PER_COURT)*PLAYERS_PER_COURT
-      if ( totalAvailablePlayers > maxPlayers) {
+      let maxPlayers =
+        Math.floor(playerList.length / PLAYERS_PER_COURT) * PLAYERS_PER_COURT;
+      if (totalAvailablePlayers > maxPlayers) {
         totalAvailablePlayers = maxPlayers;
       }
-      this.log(
-        'totalAvailablePlayers: ',totalAvailablePlayers
-      );
+      this.log('totalAvailablePlayers: ', totalAvailablePlayers);
       teamateList = this.calculateTeamates(
         playerList.slice(0, totalAvailablePlayers)
       );

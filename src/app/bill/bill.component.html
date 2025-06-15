@@ -1,0 +1,78 @@
+<table>
+  <tr>
+    <td><b>Total Courts Played (1 court per 1 hour)</b></td>
+    :
+    <td>
+      <input
+        [(ngModel)]="totalCourts"
+        class="totalCourts"
+        (input)="calculatePrice()"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td><b>Court price rate</b></td>
+    :
+    <td>
+      <input
+        [(ngModel)]="courtPrice"
+        class="courtPrice"
+        (input)="calculatePrice()"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td><b>Total shuttle used</b></td>
+    :
+    <td>
+      <input
+        [(ngModel)]="totalShuttleUsed"
+        class="totalShuttleUsed"
+        (input)="calculatePrice()"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td><b>Shutte price rate</b></td>
+    :
+    <td>
+      <input
+        [(ngModel)]="shuttlePrice"
+        class="shuttlePrice"
+        (input)="calculatePrice()"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td><b>Total Players</b></td>
+    :
+    <td>
+      <input
+        [(ngModel)]="totalPlayers"
+        class="totalPlayers"
+        (input)="calculatePrice()"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td><b>Total Court Price</b></td>
+    :
+    <td>
+      <div class="totalCourtPrice">{{ totalCourtPrice }}</div>
+    </td>
+  </tr>
+  <tr>
+    <td><b>Total Shuttle Price</b></td>
+    :
+    <td>
+      <div class="totalShuttlePrice">{{ totalShuttlePrice }}</div>
+    </td>
+  </tr>
+  <tr>
+    <td><b>Price per person</b></td>
+    :
+    <td>
+      <div class="priceToPay">{{ priceToPay }}</div>
+    </td>
+  </tr>
+</table>

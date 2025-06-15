@@ -8,27 +8,29 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
 
-21. Add API servers to be able to use this website multiple device at the same time while sharing data usage
-    - Refactor it to be in its own Module, for readable and maintainability
+24. Have a calculator, that can calculate how much player needed to play
+    the calculation logic begin with
+    25.1) Phase 1: Every person pay equally ... - calculate the price of the court: price of the court per hour multiply by how many courts and how many hours we played - calculate the price of the shuttle: price of the shuttle multiply by the amount of the shuttle we used - setting: default prices that can be adjustable
 
 ## Bugs:
 
 ## Backlogs:
 
-21. Add shuffle logic when selecting players to play:
+21. Add API servers to be able to use this website multiple device at the same time while sharing data usage
+
+    - Refactor it to be in its own Module, for readable and maintainability
+
+22. Add shuffle logic when selecting players to play:
     see player's match history and prepare a match with previously player's played matched in mind.
 
-22. Added MMR ranking players win/lose
+23. Added MMR ranking players win/lose
 
-23. Have a calculator, that can calculate how much player needed to play
-    the calculation logic begin with
-    25.1) Phase 1: Every person pay equally ... - calculate the price of the court: price of the court per hour multiply by how many courts and how many hours we played - calculate the price of the shuttle: price of the shuttle multiply by the amount of the shuttle we used - setting: default prices that can be adjustable
-
+24. Have a calculator, that can calculate how much player needed to play
     25.2) Phase 2: Each person pays depends on actually how many games they have been played - UI of how many player have been played need to be rethink - Model of the player.ts need to be update to hold field `priorityPoint` and `totalRoundsPlayed`
     (to prevent misunderstood the logic when new player added,
     they will automatically use the `least totalRoundsPlayed` from all the players as their own `totalRoundsPlayed`) - TODO: pending calculation logic !!
 
-24. Modify UI to better represent player's status
+25. Modify UI to better represent player's status
     26.1) Actual games play
     26.2) Point that use in shuffle logic
     27.1) Actual game waited (may be also count 'forced waited players')
