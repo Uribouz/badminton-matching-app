@@ -75,8 +75,7 @@ export class MatchListComponent {
     this.matchService.saveMatchList(this.matchList);
   }
   addPlayerList(newPlayers: string) {
-    let leastPlayed = this.playerService.loadPlayerStatus().leastPlayed-1;
-    leastPlayed = leastPlayed < 0 ? 0 : leastPlayed;
+    let leastPlayed = this.playerService.loadPlayerStatus().leastPlayed;
     this.playersMap = this.playerService.addPlayerList(
       leastPlayed,
       this.playersMap,

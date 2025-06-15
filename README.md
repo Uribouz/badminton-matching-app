@@ -78,5 +78,3 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
     #dasd
 16. number of 'selected' players doesn't need to be Divisible by 4
     to be ablue to shuffle into the court
-    G,
-17. New player now will have minimum rounds player of all player minus 1 (Decrease amount)
