@@ -8,10 +8,6 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
 
 ## Doing
 
-24. Have a calculator, that can calculate how much player needed to play
-    the calculation logic begin with
-    25.1) Phase 1: Every person pay equally ... - calculate the price of the court: price of the court per hour multiply by how many courts and how many hours we played - calculate the price of the shuttle: price of the shuttle multiply by the amount of the shuttle we used - setting: default prices that can be adjustable
-
 ## Bugs:
 
 ## Backlogs:
@@ -80,3 +76,7 @@ Provide tools for a group of Badminton users, with fairness of use in mind.
     #dasd
 16. number of 'selected' players doesn't need to be Divisible by 4
     to be ablue to shuffle into the court
+
+24. Have a calculator, that can calculate how much player needed to play
+    the calculation logic begin with
+    25.1) Phase 1: Every person pay equally ... - calculate the price of the court: price of the court per hour multiply by how many courts and how many hours we played - calculate the price of the shuttle: price of the shuttle multiply by the amount of the shuttle we used - setting: default prices that can be adjustable
