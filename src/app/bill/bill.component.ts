@@ -1,5 +1,6 @@
-import { Component, input, effect } from '@angular/core';
+import { Component, input, effect, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Player } from '../players/player';
 @Component({
   selector: 'app-bill',
   standalone: true,
@@ -8,24 +9,39 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './bill.component.css',
 })
 export class BillComponent {
-  totalPlayers = input<number>(1);
-  totalCourts: number = 4;
-  courtPrice: number = 279;
-  totalShuttleUsed: number = 1;
-  shuttlePrice: number = 67.5;
-  totalCourtPrice: number = 0;
-  totalShuttlePrice: number = 0;
-  priceToPay: number = 0;
-  constructor() {
-    effect(() => {
-      this.calculatePrice();
-    });
-    this.calculatePrice();
+  players = input<Player[]>([]);
+  totalPlayers = computed(() => 
+    this.players().length
+  );
+  totalCourts = signal<number>(4);
+  courtPrice = signal<number>(279);
+  totalShuttleUsed = signal<number>(1);
+  shuttlePrice = signal<number>(67.5);
+
+  // Computed signals - automatically recalculate when dependencies change
+  totalCourtPrice = computed(() => this.courtPrice() * this.totalCourts());
+  totalShuttlePrice = computed(() => this.totalShuttleUsed() * this.shuttlePrice());
+  priceToPay = computed(() => 
+    +((this.totalCourtPrice() + this.totalShuttlePrice()) / this.totalPlayers()).toFixed(2)
+  );
+  // Methods to update values (will trigger recalculation)
+  updateCourts(newValue: number) {
+    this.totalCourts.set(newValue);
+    // priceToPay automatically recalculates!
   }
-  calculatePrice() {
-    this.totalCourtPrice = this.courtPrice * this.totalCourts;
-    this.totalShuttlePrice = this.totalShuttleUsed * this.shuttlePrice;
-    this.priceToPay =
-      +((this.totalCourtPrice + this.totalShuttlePrice) / this.totalPlayers()).toFixed(2);
+
+  updateCourtPrice(newValue: number) {
+    this.courtPrice.set(newValue);
+    // priceToPay automatically recalculates!
+  }
+
+  updateShuttleUsed(newValue: number) {
+    this.totalShuttleUsed.set(newValue);
+    // priceToPay automatically recalculates!
+  }
+
+  updateShuttlePrice(newValue: number) {
+    this.shuttlePrice.set(newValue);
+    // priceToPay automatically recalculates!
   }
 }

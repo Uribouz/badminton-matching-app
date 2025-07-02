@@ -6,7 +6,7 @@
       <input
         [(ngModel)]="courtPrice"
         class="courtPrice"
-        (input)="calculatePrice()"
+        (input)="updateCourtPrice($any($event.target).value)"
       />
     </td>
   </tr>
@@ -17,7 +17,7 @@
       <input
         [(ngModel)]="totalCourts"
         class="totalCourts"
-        (input)="calculatePrice()"
+        (input)="updateCourts($any($event.target).value)"
       />
     </td>
   </tr>
@@ -28,7 +28,7 @@
       <input
         [(ngModel)]="shuttlePrice"
         class="shuttlePrice"
-        (input)="calculatePrice()"
+        (input)="updateShuttlePrice($any($event.target).value)"
       />
     </td>
   </tr>
@@ -39,7 +39,7 @@
       <input
         [(ngModel)]="totalShuttleUsed"
         class="totalShuttleUsed"
-        (input)="calculatePrice()"
+        (input)="updateShuttleUsed($any($event.target).value)"
       />
     </td>
   </tr>
@@ -54,21 +54,21 @@
     <td><b>Total Court Price</b></td>
     :
     <td>
-      <div class="totalCourtPrice">{{ totalCourtPrice }}</div>
+      <div class="totalCourtPrice">{{ totalCourtPrice() }}</div>
     </td>
   </tr>
   <tr>
     <td><b>Total Shuttle Price</b></td>
     :
     <td>
-      <div class="totalShuttlePrice">{{ totalShuttlePrice }}</div>
+      <div class="totalShuttlePrice">{{ totalShuttlePrice() }}</div>
     </td>
   </tr>
   <tr>
     <td><b>Price per person</b></td>
     :
     <td>
-      <div class="priceToPay">{{ priceToPay }}</div>
+      <div class="priceToPay">{{ priceToPay() }}</div>
     </td>
   </tr>
 </table>
