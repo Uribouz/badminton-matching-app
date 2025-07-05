@@ -1,0 +1,4 @@
+export const DEFAULT_TOTAL_COURTS = 4;
+export const DEFAULT_COURT_PRICE = 279;
+export const DEFAULT_TOTAL_SHUTTLE_USED = 1;
+export const DEFAULT_SHUTTLE_PRICE = 67.5;

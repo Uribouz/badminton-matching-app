@@ -1,47 +1,54 @@
 import { Component, input, effect, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Player } from '../players/player';
+import { CommonModule } from '@angular/common';
+import * as defaults from './constant';
 @Component({
   selector: 'app-bill',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CommonModule],
   templateUrl: './bill.component.html',
   styleUrl: './bill.component.css',
 })
 export class BillComponent {
   players = input<Player[]>([]);
-  totalPlayers = computed(() => 
-    this.players().length
-  );
-  totalCourts = signal<number>(4);
-  courtPrice = signal<number>(279);
-  totalShuttleUsed = signal<number>(1);
-  shuttlePrice = signal<number>(67.5);
+  totalCourts = signal<number>(defaults.DEFAULT_TOTAL_COURTS);
+  courtPrice = signal<number>(defaults.DEFAULT_COURT_PRICE);
+  totalShuttleUsed = signal<number>(defaults.DEFAULT_TOTAL_SHUTTLE_USED);
+  shuttlePrice = signal<number>(defaults.DEFAULT_SHUTTLE_PRICE);
 
-  // Computed signals - automatically recalculate when dependencies change
   totalCourtPrice = computed(() => this.courtPrice() * this.totalCourts());
-  totalShuttlePrice = computed(() => this.totalShuttleUsed() * this.shuttlePrice());
-  priceToPay = computed(() => 
-    +((this.totalCourtPrice() + this.totalShuttlePrice()) / this.totalPlayers()).toFixed(2)
+  totalShuttlePrice = computed(
+    () => this.totalShuttleUsed() * this.shuttlePrice()
   );
-  // Methods to update values (will trigger recalculation)
+  totalPrice = computed(
+    () => this.totalCourtPrice() + this.totalShuttlePrice()
+  );
+  totalGamesPlayedFromAllPlayer = computed(() => {
+    return this.players().reduce(
+      (acc, cur) => acc + cur.actualTotalRoundsPlayed,
+      0
+    );
+  });
   updateCourts(newValue: number) {
     this.totalCourts.set(newValue);
-    // priceToPay automatically recalculates!
   }
-
   updateCourtPrice(newValue: number) {
     this.courtPrice.set(newValue);
-    // priceToPay automatically recalculates!
   }
-
   updateShuttleUsed(newValue: number) {
     this.totalShuttleUsed.set(newValue);
-    // priceToPay automatically recalculates!
   }
-
   updateShuttlePrice(newValue: number) {
     this.shuttlePrice.set(newValue);
-    // priceToPay automatically recalculates!
+  }
+  getPlayerList(): Player[] {
+    return Array.from(this.players());
+  }
+  getWhatPlayerHaveToPay(player: Player) {
+    return (
+      (this.totalPrice() * player.actualTotalRoundsPlayed) /
+      this.totalGamesPlayedFromAllPlayer()
+    );
   }
 }

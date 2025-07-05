@@ -1,74 +1,79 @@
-<table>
-  <tr>
-    <td><b>Court price rate</b></td>
-    :
-    <td>
-      <input
-        [(ngModel)]="courtPrice"
-        class="courtPrice"
-        (input)="updateCourtPrice($any($event.target).value)"
-      />
-    </td>
-  </tr>
-  <tr>
-    <td><b>Total Courts Played (1 court per 1 hour)</b></td>
-    :
-    <td>
-      <input
-        [(ngModel)]="totalCourts"
-        class="totalCourts"
-        (input)="updateCourts($any($event.target).value)"
-      />
-    </td>
-  </tr>
-  <tr>
-    <td><b>Shutte price rate</b></td>
-    :
-    <td>
-      <input
-        [(ngModel)]="shuttlePrice"
-        class="shuttlePrice"
-        (input)="updateShuttlePrice($any($event.target).value)"
-      />
-    </td>
-  </tr>
-  <tr>
-    <td><b>Total shuttle used</b></td>
-    :
-    <td>
-      <input
-        [(ngModel)]="totalShuttleUsed"
-        class="totalShuttleUsed"
-        (input)="updateShuttleUsed($any($event.target).value)"
-      />
-    </td>
-  </tr>
-  <tr>
-    <td><b>Total Players</b></td>
-    :
-    <td>
-      <div class="totalPlayers">{{ totalPlayers() }}</div>
-    </td>
-  </tr>
-  <tr>
-    <td><b>Total Court Price</b></td>
-    :
-    <td>
-      <div class="totalCourtPrice">{{ totalCourtPrice() }}</div>
-    </td>
-  </tr>
-  <tr>
-    <td><b>Total Shuttle Price</b></td>
-    :
-    <td>
-      <div class="totalShuttlePrice">{{ totalShuttlePrice() }}</div>
-    </td>
-  </tr>
-  <tr>
-    <td><b>Price per person</b></td>
-    :
-    <td>
-      <div class="priceToPay">{{ priceToPay() }}</div>
-    </td>
-  </tr>
-</table>
+<H1> PAYMENT </H1>
+<div class="paymentDetail">
+  <table>
+    <tr>
+      <td><b>Court price rate</b></td>
+      :
+      <td>
+        <input
+          [(ngModel)]="courtPrice"
+          class="courtPrice"
+          (input)="updateCourtPrice($any($event.target).value)"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td><b>Total Courts Played (1 court per 1 hour)</b></td>
+      :
+      <td>
+        <input
+          [(ngModel)]="totalCourts"
+          class="totalCourts"
+          (input)="updateCourts($any($event.target).value)"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td><b>Shutte price rate</b></td>
+      :
+      <td>
+        <input
+          [(ngModel)]="shuttlePrice"
+          class="shuttlePrice"
+          (input)="updateShuttlePrice($any($event.target).value)"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td><b>Total shuttle used</b></td>
+      :
+      <td>
+        <input
+          [(ngModel)]="totalShuttleUsed"
+          class="totalShuttleUsed"
+          (input)="updateShuttleUsed($any($event.target).value)"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td><b>Total Court Price</b></td>
+      :
+      <td>
+        <div class="totalCourtPrice">{{ totalCourtPrice() }}</div>
+      </td>
+    </tr>
+    <tr>
+      <td><b>Total Shuttle Price</b></td>
+      :
+      <td>
+        <div class="totalShuttlePrice">{{ totalShuttlePrice() }}</div>
+      </td>
+    </tr>
+    <tr>
+      <td><b>Total Price</b></td>
+      :
+      <td>
+        <div class="totalPrice">{{ totalPrice() }}</div>
+      </td>
+    </tr>
+  </table>
+</div>
+<div class="playerContainer">
+  <h2>What to pay for each</h2>
+  <table class="playerTable">
+    <tr class="player" *ngFor="let player of getPlayerList()">
+      <td>{{ player.name }}[G:{{ player.actualTotalRoundsPlayed }}]:</td>
+      <td>{{ getWhatPlayerHaveToPay(player) }}</td>
+    </tr>
+  </table>
+</div>

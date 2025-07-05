@@ -207,6 +207,7 @@ export class MatchListComponent {
         player = new Player(name);
       }
       player.totalRoundsPlayed += 1;
+      player.actualTotalRoundsPlayed += 1;
       player.status = PLAYER_STATUS.READY;
       playerMap.set(name, player);
     });
