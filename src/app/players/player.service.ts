@@ -6,7 +6,11 @@ import { Status } from './status';
 })
 export class PlayerService {
   constructor() {}
-  addPlayerList(leastPlayed:number|0, playersMap:Map<string, Player>, newPlayers: string): Map<string, Player>{
+  addPlayerList(
+    leastPlayed: number | 0,
+    playersMap: Map<string, Player>,
+    newPlayers: string
+  ): Map<string, Player> {
     newPlayers.split(',').forEach((player) => {
       if (!playersMap.has(player)) {
         console.log('New player: ' + player);
@@ -15,7 +19,7 @@ export class PlayerService {
         playersMap.set(player, newPlayer);
       }
     });
-    this.savePlayerList(playersMap)
+    this.savePlayerList(playersMap);
     return playersMap;
   }
   savePlayerList(playersMap: Map<string, Player>) {
@@ -37,7 +41,11 @@ export class PlayerService {
     );
     return playersMap;
   }
-  updatePlayerRoundsPlayed(playerMap: Map<string,Player>, playerName: string, value: number): Map<string,Player> {
+  updatePlayerRoundsPlayed(
+    playerMap: Map<string, Player>,
+    playerName: string,
+    value: number
+  ): Map<string, Player> {
     console.log('updatePlayerRoundsPlayed: ' + playerName + ': ' + value);
     let player = playerMap.get(playerName);
     if (!player) {
@@ -51,24 +59,50 @@ export class PlayerService {
     playerMap.set(playerName, player);
     console.log('player:');
     console.log(player);
-    this.savePlayerList(playerMap)
-    return playerMap
+    this.savePlayerList(playerMap);
+    return playerMap;
   }
-  deletePlayer(playerMap: Map<string,Player>, playerName: string): Map<string,Player> {
-    playerMap.delete(playerName)
-    this.savePlayerList(playerMap)
-    return playerMap
+  updatePlayerActualGamesPlayed(
+    playerMap: Map<string, Player>,
+    playerName: string,
+    value: number
+  ): Map<string, Player> {
+    console.log('updatePlayerActualGamesPlayed: ' + playerName + ': ' + value);
+    let player = playerMap.get(playerName);
+    if (!player) {
+      return playerMap;
+    }
+    player.actualTotalRoundsPlayed += value;
+    if (player.actualTotalRoundsPlayed < 0) {
+      player.actualTotalRoundsPlayed = 0;
+    }
+    player.isPreviouslyInteracted = true;
+    playerMap.set(playerName, player);
+    console.log('player:');
+    console.log(player);
+    this.savePlayerList(playerMap);
+    return playerMap;
+  }
+  deletePlayer(
+    playerMap: Map<string, Player>,
+    playerName: string
+  ): Map<string, Player> {
+    playerMap.delete(playerName);
+    this.savePlayerList(playerMap);
+    return playerMap;
   }
 
   //Status
-  revalidateStatus(playerStatus: Status, playerMap: Map<string,Player>):Status {
+  revalidateStatus(
+    playerStatus: Status,
+    playerMap: Map<string, Player>
+  ): Status {
     if (playerMap.size <= 0) {
       playerStatus = new Status();
       return playerStatus;
     }
     console.log(
-      'playerMap.values().next().value: ' +
-        playerMap.values().next().value
+      'playerMap.values().next().value: ' + playerMap.values().next().value
     );
     if (playerMap) {
       playerStatus.leastPlayed =
@@ -92,7 +126,7 @@ export class PlayerService {
         playerStatus.mostPlayed
     );
     this.savePlayerStatus(playerStatus);
-    return playerStatus
+    return playerStatus;
   }
   savePlayerStatus(status: Status) {
     localStorage.setItem('players-status', JSON.stringify(status));

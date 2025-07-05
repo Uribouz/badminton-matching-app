@@ -49,6 +49,6 @@ export class BillComponent {
     return (
       (this.totalPrice() * player.actualTotalRoundsPlayed) /
       this.totalGamesPlayedFromAllPlayer()
-    );
+    ).toFixed(2);
   }
 }

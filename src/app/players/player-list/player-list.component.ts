@@ -29,12 +29,19 @@ export class PlayerListComponent {
     this.status = this.playerService.loadPlayerStatus();
   }
   addPlayerList(newPlayers: string) {
-    this.playersMap = this.playerService.addPlayerList( this.status.leastPlayed, this.playersMap, newPlayers)
+    this.playersMap = this.playerService.addPlayerList(
+      this.status.leastPlayed,
+      this.playersMap,
+      newPlayers
+    );
   }
   deletePlayer(playerName: string) {
     console.log('deletePlayer: ' + playerName);
     this.playerService.deletePlayer(this.playersMap, playerName);
-    this.status = this.playerService.revalidateStatus(this.status, this.playersMap);
+    this.status = this.playerService.revalidateStatus(
+      this.status,
+      this.playersMap
+    );
     this.lastInteractPlayers.delete(playerName);
   }
 
@@ -45,11 +52,36 @@ export class PlayerListComponent {
   subtractRoundsPlayed(playerName: string) {
     this.updatePlayerRoundsPlayed(playerName, -1);
   }
+  addActualGamesPlayed(playerName: string) {
+    this.updatePlayerActualGamesPlayed(playerName, 1);
+  }
+
+  subtractActualGamesPlayed(playerName: string) {
+    this.updatePlayerActualGamesPlayed(playerName, -1);
+  }
 
   //Internal ----------------------------------------------------------------
+  updatePlayerActualGamesPlayed(playerName: string, value: number) {
+    this.playersMap = this.playerService.updatePlayerActualGamesPlayed(
+      this.playersMap,
+      playerName,
+      value
+    );
+    this.status = this.playerService.revalidateStatus(
+      this.status,
+      this.playersMap
+    );
+  }
   updatePlayerRoundsPlayed(playerName: string, value: number) {
-    this.playersMap = this.playerService.updatePlayerRoundsPlayed(this.playersMap, playerName, value)
-    this.status = this.playerService.revalidateStatus(this.status, this.playersMap);
+    this.playersMap = this.playerService.updatePlayerRoundsPlayed(
+      this.playersMap,
+      playerName,
+      value
+    );
+    this.status = this.playerService.revalidateStatus(
+      this.status,
+      this.playersMap
+    );
     this.checkLastInteractivePlayer(playerName);
   }
   checkLastInteractivePlayer(playerName: string) {
