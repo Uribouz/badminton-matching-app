@@ -1,6 +1,12 @@
 <div class="body">
   <div class="inputContainer">
-    <textarea class="textArea" #playerList placeholder="Player List"></textarea>
+    <input
+      class="input"
+      type="text"
+      #playerList
+      placeholder="Player List"
+      (keyup.enter)="addPlayerList(playerList.value)"
+    />
     <button class="btn btnAddPlayer" (click)="addPlayerList(playerList.value)">
       Add Players
     </button>
