@@ -1,3 +1,11 @@
+.body {
+  font-family: "Open Sans", sans-serif;
+  width: 400px;
+  display: block;
+  align-items: center;
+  position: relative;
+  /* border: 2px solid black; */
+}
 h2 {
   margin: 0 auto;
 }
