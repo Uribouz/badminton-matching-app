@@ -37,7 +37,7 @@ describe('MatchListComponent', () => {
       let callCount = 0;
       Math.random = jasmine.createSpy().and.callFake(() => mockRandomValues[callCount++]);
       
-      const result = component.calculateTeamates(data)
+      const result = component['calculateTeamates'](data);
       console.log(result)
       expect(result).toEqual(
       [

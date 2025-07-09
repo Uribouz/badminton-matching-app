@@ -12,3 +12,10 @@ export class Player {
     this.name = name;
   }
 }
+
+export function NewPlayer(name: string, totalRoundsPlayed: number, teamateHistory: string[]) {
+  let player:Player = new Player(name);
+  player.totalRoundsPlayed = totalRoundsPlayed;
+  player.teamateHistory = teamateHistory;
+  return player;
+}
