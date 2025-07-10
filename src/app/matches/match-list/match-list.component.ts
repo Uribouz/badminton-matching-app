@@ -440,26 +440,11 @@ export class MatchListComponent {
     return teamates;
   }
   private calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther(playerList: Player[]) {
-    let mapPriorityPlayers = this.calculateTeamatesMostRecentPlayedWithOthers(playerList);
-    let sortedPlayers: Player[] = playerList.slice().sort((a, b) => {
-      let aPoint = mapPriorityPlayers.get(a.name) ?? 0;
-      let bPoint = mapPriorityPlayers.get(b.name) ?? 0;
-      if (aPoint === bPoint) {
-        return this.rng.random() - this.rng.random();
-      }
-      return aPoint - bPoint;
-    });
-    this.log('first: sortedPlayers: ', sortedPlayers);
-    return sortedPlayers;
-  }
-  private calculateTeamatesMostRecentPlayedWithOthers(playerList: Player[]): Map<string, number> {
-    let result = new Map<string, number>();
+    let mapPriorityPlayers = new Map<string, number>();
     playerList.forEach((currentPlayer) => {
       let teamateHistory = currentPlayer.teamateHistory
       let leastPoint = 999;
-      this.log(
-        `currentPlayer ${currentPlayer.name} each: ${teamateHistory}`
-      );
+      this.log(`currentPlayer ${currentPlayer.name} each: ${teamateHistory}`);
       playerList
         .filter((each) => each.name != currentPlayer.name)
         .forEach((each) => {
@@ -471,11 +456,20 @@ export class MatchListComponent {
             leastPoint = currentPoint;
           }
         });
-      this.log(`calculateTeamatesMostRecentPlayedWithOthers name: ${currentPlayer.name} = ${leastPoint}`);
-      result.set(currentPlayer.name, leastPoint);
+      mapPriorityPlayers.set(currentPlayer.name, leastPoint);
     });
-    return result;
+    let sortedPlayers: Player[] = playerList.slice().sort((a, b) => {
+      let aPoint = mapPriorityPlayers.get(a.name) ?? 0;
+      let bPoint = mapPriorityPlayers.get(b.name) ?? 0;
+      if (aPoint === bPoint) {
+        return this.rng.random() - this.rng.random();
+      }
+      return aPoint - bPoint;
+    });
+    this.log('calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther: sortedPlayers: ', sortedPlayers);
+    return sortedPlayers;
   }
+
   private calculateTeamatesPoint(playerA: Player, playerB: Player): number {
     if (!playerA.teamateHistory.includes(playerB.name)) {
       return 0;

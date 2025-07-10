@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { MatchListComponent } from './match-list.component';
 import { Player,NewPlayer } from '../../players/player';
+import { Teammate } from '../match';
 
 describe('MatchListComponent', () => {
   let component: MatchListComponent;
@@ -22,9 +23,46 @@ describe('MatchListComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should test calculateTeamates with expect teamate', () => {
+    const input: Player[] = [
+      NewPlayer('ball', 2, ['nice','win']),
+      NewPlayer('nice', 2, ['ball','gato']),
+      NewPlayer('win', 2, ['gato','ball']),
+      NewPlayer('gato', 2, ['win','nice']),
+    ]
+    try {
+      const result = component['calculateTeamates'](input);
+      console.log(result)
 
-  it('should test calculateTeamates', () => {
-    const data: Player[] = [
+      let expectedTeamates: string[][] = [['nice', 'win'], ['ball','gato']];
+      let isValidTeamates: boolean[] = [false, false];
+      result.forEach((each) => {
+        let firstPlayerName = each.player1.name;
+        let secondPlayerName = each.player2.name;
+        expectedTeamates.forEach( (teamates: string[], index: number) => {
+          if (teamates.includes(firstPlayerName) 
+            && teamates.includes(secondPlayerName)) {
+              isValidTeamates[index] = true;
+          }
+        })
+      })
+      isValidTeamates.forEach(each => expect(each).toBeTrue());
+
+      //Expect input to still be the same (doesn't get mutated)
+      expect(input).toEqual(
+        [
+          NewPlayer('ball', 2, ['nice','win']),
+          NewPlayer('nice', 2, ['ball','gato']),
+          NewPlayer('win', 2, ['gato','ball']),
+          NewPlayer('gato', 2, ['win','nice']),
+        ]
+      )
+    } finally {
+    }
+  });
+
+  it('should test calculateTeamates with randomness', () => {
+    const input: Player[] = [
       NewPlayer('ball', 1, ['nice']),
       NewPlayer('nice', 1, ['ball']),
       NewPlayer('win', 1, ['gato']),
@@ -32,20 +70,26 @@ describe('MatchListComponent', () => {
     ]
     const originalRandom = Math.random;
     try {
-      // First call will return 0.3, second call 0.7
       const mockRandomValues = [1, 0.9, 1, 0.8];
       let callCount = 0;
       Math.random = jasmine.createSpy().and.callFake(() => mockRandomValues[callCount++]);
       
-      const result = component['calculateTeamates'](data);
+      const result = component['calculateTeamates'](input);
       console.log(result)
-      expect(result).toEqual(
-      [
-        {player1:data[0], player2:data[2]},
-        {player1:data[1], player2:data[3]},
-      ]
-      )
-      expect(data).toEqual(
+      let expectedTeamates: string[][] = [['nice', 'win'], ['ball','gato']];
+      let isValidTeamates: boolean[] = [false, false];
+      result.forEach((each) => {
+        let firstPlayerName = each.player1.name;
+        let secondPlayerName = each.player2.name;
+        expectedTeamates.forEach( (teamates: string[], index: number) => {
+          if (teamates.includes(firstPlayerName) 
+            && teamates.includes(secondPlayerName)) {
+              isValidTeamates[index] = true;
+          }
+        })
+      })
+      isValidTeamates.forEach(each => expect(each).toBeTrue());
+      expect(input).toEqual(
         [
           NewPlayer('ball', 1, ['nice']),
           NewPlayer('nice', 1, ['ball']),
