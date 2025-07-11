@@ -47,6 +47,25 @@ export class MatchService {
     }
     return JSON.parse(data)
   }
+  loadPlayerOpponents():Map<string, string[]>{
+    let result = new Map<string, string[]>();
+    let history: Match[] = this.loadMatchHistory();
+    let setEachResult = function (currentPlayer: string, oppositePlayer1: string,oppositePlayer2: string):string[] {
+      let oldVal = result.get(currentPlayer);
+      let nowResult = [oppositePlayer1, oppositePlayer2];
+      if (oldVal) {
+        nowResult = [...oldVal, ...nowResult]
+      }
+      return nowResult;
+    }
+    history.forEach( each => {
+      result.set(each.teamA.player1.name, setEachResult(each.teamA.player1.name, each.teamB.player1.name,each.teamB.player2.name));
+      result.set(each.teamA.player2.name, setEachResult(each.teamA.player2.name, each.teamB.player1.name,each.teamB.player2.name));
+      result.set(each.teamB.player1.name, setEachResult(each.teamB.player1.name, each.teamA.player1.name,each.teamA.player2.name));
+      result.set(each.teamB.player2.name, setEachResult(each.teamB.player2.name, each.teamA.player1.name,each.teamA.player2.name));
+    })
+    return result
+  }
   clearMatchHistory() {
     localStorage.removeItem('match-history')
   }

@@ -34,7 +34,7 @@ export class MatchListComponent {
   standbyList: Player[] = [];
   playersMap = new Map<string, Player>();
   playerService = new PlayerService();
-
+  playersOpponents = new Map<string, string[]>();
   matchService = new MatchService();
   logData: String[] = [];
   rng = new XorShift();
@@ -44,8 +44,11 @@ export class MatchListComponent {
 
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
-    // this.log('playersMap: ', this.playersMap);
+    this.log('playersMap: ', this.playersMap);
     this.matchHistory = this.matchService.loadMatchHistory();
+    this.playersOpponents = this.matchService.loadPlayerOpponents();
+    this.log(`playersOpponents:`);
+    this.log(this.playersOpponents);
     this.matchList = this.matchService.loadMatchList();
     if (this.matchList.length > 0) {
       return;
@@ -79,6 +82,9 @@ export class MatchListComponent {
   }
   getMatchTime(match: Match): String {
     return new Date(match.matchTime).toLocaleTimeString();
+  }
+  getOpponentHistory(): {name: string, opponents: string[]}[] {
+    return Array.from(this.playersOpponents.entries()).map(([key, values]) => ({name: key, opponents: values})) 
   }
 
   // Court Management  ======================
@@ -176,8 +182,13 @@ export class MatchListComponent {
         break;
       }
     }
+    let resultCourt = this.calculateMatchInCourts(teamateList);
+    console.log('resultCourt');
+    console.log(resultCourt.flatMap(each => {
+      return `[${each.team1.player1.name}:${each.team1.player2.name}] : [${each.team2.player1.name}:${each.team2.player2.name}]`
+    }));
 
-    this.putPlayerIntoCourts(teamateList);
+    this.putPlayerIntoCourts(resultCourt);
 
     this.reloadStandbyList();
     
@@ -257,6 +268,7 @@ export class MatchListComponent {
     );
     this.playersMap = this.confirmPlayersInCourt(this.playersMap, court);
     this.matchHistory = this.matchService.addMatchHistory(court);
+    this.playersOpponents = this.matchService.loadPlayerOpponents();
   }
   private confirmPlayersWait() {
     let playingPlayersName = this.matchList
@@ -499,15 +511,41 @@ export class MatchListComponent {
     });
     return isStillValid;
   }
-  private putPlayerIntoCourts(teamateList: Teammate[]) {
+  private calculateMatchInCourts(teamateList: Teammate[]): {team1:Teammate,team2:Teammate}[] {
+    let result:{team1:Teammate,team2:Teammate}[] = [];
+    let remainingTeams = [...teamateList];
+    while (remainingTeams.length > 1) {
+      let currentTeam = remainingTeams[0];
+      let otherTeam = remainingTeams.slice(1);
+      otherTeam.sort( (a,b) => {
+        let aPoint = (this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player2.name))
+              + (this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player2.name));
+        let bPoint = (this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player2.name))
+              + (this.calculateOppositePlayerPoint(currentTeam.player2.name, b.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player2.name, b.player2.name));
+        return aPoint - bPoint;
+      })
+      remainingTeams = remainingTeams.filter(each => each != currentTeam && each != otherTeam[0]);
+      result = [...result, {team1: currentTeam, team2: otherTeam[0]}];
+    }
+    return result;
+  }
+  private calculateOppositePlayerPoint(playerA: string, playerB: string): number {
+    let playerAOpponents = this.playersOpponents.get(playerA);
+    if (!playerAOpponents || !playerAOpponents.includes(playerB)) {
+      return 0;
+    }
+    return playerAOpponents.lastIndexOf(playerB) + 1;
+  }
+  private putPlayerIntoCourts(teamateList: {team1: Teammate; team2: Teammate;}[]) {
     this.matchList.map((each) => {
       if (each.status === COURT_STATUS.PLAYING) return;
-      if (teamateList.length < TEAMS_PER_COURT) return;
-      each.teamA.player1 = teamateList[0].player1;
-      each.teamA.player2 = teamateList[0].player2;
-      each.teamB.player1 = teamateList[1].player1;
-      each.teamB.player2 = teamateList[1].player2;
-      teamateList.splice(0, TEAMS_PER_COURT);
+      if (teamateList.length <= 0) return;
+      let currentTeam = teamateList[0]
+      each.teamA.player1 = currentTeam.team1.player1;
+      each.teamA.player2 = currentTeam.team1.player2;
+      each.teamB.player1 = currentTeam.team2.player1;
+      each.teamB.player2 = currentTeam.team2.player2;
+      teamateList.splice(0, 1);
     });
     this.matchService.saveMatchList(this.matchList);
   }

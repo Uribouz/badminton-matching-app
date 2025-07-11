@@ -122,6 +122,15 @@
       </tr>
     </table>
   </div>
+  <div class="opponentHistoryContainer">
+    <h2>Opponents History</h2>
+    <table class="opponentHistoryTable">
+      <tr class="opponentHistory" *ngFor="let each of getOpponentHistory()">
+        <td>{{ each.name }}:</td>
+        <td>{{ each.opponents.join(", ") }}</td>
+      </tr>
+    </table>
+  </div>
   <div class="btnDownloadLog">
     <button class="btn btn_download_log" (click)="downloadLog()">
       Download Log
