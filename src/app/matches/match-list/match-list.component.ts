@@ -41,6 +41,7 @@ export class MatchListComponent {
   totalCourt = DEFAULT_TOTAL_COURT;
   playerStatus = PLAYER_STATUS;
   courtStatus = COURT_STATUS;
+  forceMatchTeamate: {player1:string, player2: string}[] = [{player1:"Johan", player2:"Neen"}];
 
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
@@ -177,7 +178,8 @@ export class MatchListComponent {
     for (retries = 0; retries <= maxRetries; retries++) {
       let sortedPlayerList = this.getSortedPlayerList(availablePlayerList);
       totalAvailableSlots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length)
-      teamateList = this.calculateTeamates( sortedPlayerList.slice(0, totalAvailableSlots));
+      let availablePlayers = this.getAvailablePlayers(sortedPlayerList,totalAvailableSlots);
+      teamateList = this.calculateTeamates(availablePlayers);
       if (this.isAllTeamatesValid(retries,availablePlayerList.length,teamateList)) {
         break;
       }
@@ -423,7 +425,28 @@ export class MatchListComponent {
     this.log('totalAvailableSlots: ', currentTotalAvailableSlot);
     return currentTotalAvailableSlot;
   }
-
+  private getAvailablePlayers(players: Player[], totalAvailableSlots: number) {
+    let returnPlayerList = [...players];
+    let playerNameList = players.map(each => each.name);
+    // let selectedPlayers = players.slice(0, totalAvailableSlots);
+    this.forceMatchTeamate.forEach(each => {
+      let indexPlayer1 = playerNameList.indexOf(each.player1);
+      let indexPlayer2 = playerNameList.indexOf(each.player2);
+      if (indexPlayer1 <= 0 || indexPlayer2 <= 0) {
+        return;
+      }
+      if (indexPlayer1 >= totalAvailableSlots && indexPlayer2 >= totalAvailableSlots) {
+        return;
+      }
+      if ((indexPlayer1 >= totalAvailableSlots) || (indexPlayer2 >= totalAvailableSlots)) {
+        let player1 = players[indexPlayer1];
+        let player2 = players[indexPlayer2];
+        returnPlayerList = returnPlayerList.filter(player => (player.name != each.player1) && (player.name != each.player2));
+        returnPlayerList = [player1, player2, ...returnPlayerList.slice(0,totalAvailableSlots-1)];
+      }
+    })
+    return returnPlayerList.slice(0, totalAvailableSlots);
+  }
   private calculateTeamates(players: Player[]): Teammate[] {
     let teamates: Teammate[] = [];
     let remainingPlayers = this.calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther(players);
@@ -457,17 +480,21 @@ export class MatchListComponent {
       let teamateHistory = currentPlayer.teamateHistory
       let leastPoint = 999;
       this.log(`currentPlayer ${currentPlayer.name} each: ${teamateHistory}`);
-      playerList
-        .filter((each) => each.name != currentPlayer.name)
-        .forEach((each) => {
-          let currentPoint = 999;
-          if (teamateHistory.includes(each.name)) {
-            currentPoint = teamateHistory.length - teamateHistory.lastIndexOf(each.name);
-          }
-          if (currentPoint < leastPoint) {
-            leastPoint = currentPoint;
-          }
-        });
+      if (this.forceMatchTeamate.flatMap(each => [each.player1, each.player2]).includes(currentPlayer.name)) {
+        leastPoint = -1;
+      } else {
+        playerList
+          .filter((each) => each.name != currentPlayer.name)
+          .forEach((each) => {
+            let currentPoint = 999;
+            if (teamateHistory.includes(each.name)) {
+              currentPoint = teamateHistory.length - teamateHistory.lastIndexOf(each.name);
+            }
+            if (currentPoint < leastPoint) {
+              leastPoint = currentPoint;
+            }
+          });
+      }
       mapPriorityPlayers.set(currentPlayer.name, leastPoint);
     });
     let sortedPlayers: Player[] = playerList.slice().sort((a, b) => {
@@ -483,9 +510,18 @@ export class MatchListComponent {
   }
 
   private calculateTeamatesPoint(playerA: Player, playerB: Player): number {
+    // this.log('calculateTeamatesPoint: ', playerA.name, ':', playerB.name);
+    let forceTeamateList = this.forceMatchTeamate.flatMap(each => each.player1+":"+each.player2);
+    if ( forceTeamateList.includes(playerA.name+":"+playerB.name) || forceTeamateList.includes(playerB.name+":"+playerA.name)
+    ) {
+      // this.log(' return -1;');
+      return -1;
+    }
     if (!playerA.teamateHistory.includes(playerB.name)) {
+      // this.log(' return 0;');
       return 0;
     }
+    // this.log(' return playerA.teamateHistory.lastIndexOf(playerB.name) + 1;');
     return playerA.teamateHistory.lastIndexOf(playerB.name) + 1;
   }
   private isAllTeamatesValid(
