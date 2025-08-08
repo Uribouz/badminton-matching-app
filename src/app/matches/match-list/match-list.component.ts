@@ -42,6 +42,7 @@ export class MatchListComponent {
   playerStatus = PLAYER_STATUS;
   courtStatus = COURT_STATUS;
   forceMatchTeamate: {player1:string, player2: string}[] = [{player1:"Johan", player2:"Neen"}];
+  nemesisTeamate: {player1:string, player2: string}[] = [{player1:"Gateaux", player2:"P'Gorn"}];
 
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
@@ -476,13 +477,19 @@ export class MatchListComponent {
   }
   private calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther(playerList: Player[]) {
     let mapPriorityPlayers = new Map<string, number>();
+    let nemesisPlayers = this.nemesisTeamate.flatMap(each => [each.player1, each.player2]);
+    let forcePlayers = this.forceMatchTeamate.flatMap(each => [each.player1, each.player2]);
     playerList.forEach((currentPlayer) => {
       let teamateHistory = currentPlayer.teamateHistory
       let leastPoint = 999;
       this.log(`currentPlayer ${currentPlayer.name} each: ${teamateHistory}`);
-      if (this.forceMatchTeamate.flatMap(each => [each.player1, each.player2]).includes(currentPlayer.name)) {
+      if (nemesisPlayers.includes(currentPlayer.name)) {
+        leastPoint = -2;
+      }
+      else if (forcePlayers.includes(currentPlayer.name)) {
         leastPoint = -1;
-      } else {
+      } 
+      else {
         playerList
           .filter((each) => each.name != currentPlayer.name)
           .forEach((each) => {
@@ -511,9 +518,12 @@ export class MatchListComponent {
 
   private calculateTeamatesPoint(playerA: Player, playerB: Player): number {
     // this.log('calculateTeamatesPoint: ', playerA.name, ':', playerB.name);
+    let nemesisTeamateList = this.nemesisTeamate.flatMap(each => each.player1+":"+each.player2);
+    if ( nemesisTeamateList.includes(playerA.name+":"+playerB.name) || nemesisTeamateList.includes(playerB.name+":"+playerA.name)) {
+      return 9999;
+    }
     let forceTeamateList = this.forceMatchTeamate.flatMap(each => each.player1+":"+each.player2);
-    if ( forceTeamateList.includes(playerA.name+":"+playerB.name) || forceTeamateList.includes(playerB.name+":"+playerA.name)
-    ) {
+    if ( forceTeamateList.includes(playerA.name+":"+playerB.name) || forceTeamateList.includes(playerB.name+":"+playerA.name)) {
       // this.log(' return -1;');
       return -1;
     }
@@ -530,9 +540,22 @@ export class MatchListComponent {
     teamatesList: Teammate[]
   ): boolean {
     let isStillValid: boolean = true;
+    let nemesisTeamateList = this.nemesisTeamate.flatMap(each => each.player1+":"+each.player2);
+    let nemesisPlayerList = this.nemesisTeamate.flatMap(each => [each.player1,each.player2]);
+    let forceTeamateList = this.forceMatchTeamate.flatMap(each => each.player1+":"+each.player2);
     const offsetValidatePlayers = Math.ceil((retries + 1) / 3);
     this.log(`retries: ${retries}, offsetValidatePlayers: ${offsetValidatePlayers}`);
     teamatesList.forEach((each) => {
+      if (nemesisTeamateList.includes(each.player1.name+":"+each.player2.name) || nemesisTeamateList.includes(each.player2.name+":"+each.player1.name)) {
+        isStillValid = false;
+        return;
+      }
+      if (nemesisPlayerList.includes(each.player1.name) || nemesisPlayerList.includes(each.player2.name)) {
+        return;
+      }
+      if (forceTeamateList.includes(each.player1.name+":"+each.player2.name) || forceTeamateList.includes(each.player2.name+":"+each.player1.name)) {
+        return;
+      }
       if (isStillValid === false || each.player1.teamateHistory.length <= 0) {
         return;
       }
