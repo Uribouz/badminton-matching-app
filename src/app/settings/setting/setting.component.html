@@ -1,3 +1,86 @@
+<div class="forcePlayerContainer">
+    <h3>Force Players Teamates</h3>
+    <div class="input-row">
+        <div class="input-group">
+          <label for="player1">Player 1:</label>
+          <input
+            type="text"
+            id="player1"
+            #player1Input
+            [(ngModel)]="forceTeamatePlayer1"
+            placeholder="Enter Player 1 name"
+            class="player-input"
+          />
+        </div>
+        
+        <div class="input-group">
+          <label for="player2">Player 2:</label>
+          <input
+            type="text"
+            id="player2"
+            #player2Input
+            [(ngModel)]="forceTeamatePlayer2"
+            placeholder="Enter Player 2 name"
+            class="player-input"
+          />
+        </div>
+        <button
+            type="button"
+            (click)="onSubmitForceTeamate()"
+            [disabled]="!forceTeamatePlayer1 || !forceTeamatePlayer2"
+            class="submit-button"
+        >add
+        </button>
+    </div>
+    <table class="forcePlayerTable">
+        <tr class="forcePlayerRow" *ngFor="let teamate of forceTeamates">
+            <td> {{ teamate.player1 }} </td>:<td> {{ teamate.player2 }} </td> <button class="btn btn_small" (click)="onClickDeleteForceTeamate(teamate)">X</button>
+        </tr>
+    </table>
+</div>
+
+<div class="nemesisPlayersContainer">
+    <h3>Nemesis Players Teamates</h3>
+    <div class="input-row">
+        <div class="input-group">
+          <label for="player1">Player 1:</label>
+          <input
+            type="text"
+            id="player1"
+            #player1Input
+            [(ngModel)]="nemesisTeamatePlayer1"
+            placeholder="Enter Player 1 name"
+            class="player-input"
+          />
+        </div>
+        
+        <div class="input-group">
+          <label for="player2">Player 2:</label>
+          <input
+            type="text"
+            id="player2"
+            #player2Input
+            [(ngModel)]="nemesisTeamatePlayer2"
+            placeholder="Enter Player 2 name"
+            class="player-input"
+          />
+        </div>
+        <button
+            type="button"
+            (click)="onSubmitNemesisTeamate()"
+            [disabled]="!nemesisTeamatePlayer1 || !nemesisTeamatePlayer2"
+            class="submit-button"
+        >add
+        </button>
+    </div>
+    <table class="nemesisPlayersTable">
+        <tr class="nemesisPlayersRow" *ngFor="let teamate of nemesisTeamates">
+            <td> {{ teamate.player1 }} </td>:<td> {{ teamate.player2 }} </td> <button class="btn btn_small" (click)="onClickDeleteNemesis(teamate)">X</button>
+        </tr>
+    </table>
+</div>
+
+
 <button class="btn btnClearAllData" (click)="clearAllData()">
     Reset All Data
 </button>

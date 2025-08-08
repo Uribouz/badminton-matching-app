@@ -1,4 +1,9 @@
 
+.btn_small {
+    border-radius: 10px;
+    width: 25px;
+    height: 25px;
+  }
 .btnClearAllData {
     margin-top: 1000px;
     background-color: #D77B7B;

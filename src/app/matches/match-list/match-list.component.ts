@@ -7,6 +7,7 @@ import { MatchService } from '../match.service';
 import { XorShift } from '../../shared/random/xorshift';
 import { Status } from '../../players/status';
 import { BillComponent } from '../../bill/bill.component';
+import { SettingService } from '../../settings/setting.service';
 
 enum COURT_STATUS {
   AVAILABLE = 'available',
@@ -36,13 +37,14 @@ export class MatchListComponent {
   playerService = new PlayerService();
   playersOpponents = new Map<string, string[]>();
   matchService = new MatchService();
+  settingService = new SettingService();
   logData: String[] = [];
   rng = new XorShift();
   totalCourt = DEFAULT_TOTAL_COURT;
   playerStatus = PLAYER_STATUS;
   courtStatus = COURT_STATUS;
-  forceMatchTeamate: {player1:string, player2: string}[] = [{player1:"Johan", player2:"Neen"}];
-  nemesisTeamate: {player1:string, player2: string}[] = [{player1:"Gateaux", player2:"P'Gorn"}];
+  forceMatchTeamate: {player1:string, player2: string}[] = [];
+  nemesisTeamate: {player1:string, player2: string}[] = [];
 
   constructor() {
     this.playersMap = this.playerService.loadPlayerList();
@@ -52,15 +54,20 @@ export class MatchListComponent {
     this.log(`playersOpponents:`);
     this.log(this.playersOpponents);
     this.matchList = this.matchService.loadMatchList();
-    if (this.matchList.length > 0) {
-      return;
-    }
-    for (let i = 0; i < this.totalCourt; i++) {
-      this.addCourt();
+    this.log(`matchList: ${this.matchList}`);
+    this.log(this.matchList);
+    if (this.matchList.length <= 0) {
+      for (let i = 0; i < this.totalCourt; i++) {
+        this.addCourt();
+      }
     }
     this.reloadStandbyList();
     this.status = this.playerService.loadPlayerStatus();
     this.rng = new XorShift();
+    this.forceMatchTeamate = this.settingService.loadForceTeamates();
+    this.nemesisTeamate = this.settingService.loadNemesisTeamates();
+    this.log(`forceMatchTeamate: ${this.forceMatchTeamate.flatMap(each => [each.player1, each.player2])}`)
+    this.log(`nemesisTeamate: ${this.nemesisTeamate.flatMap(each => [each.player1, each.player2])}`)
   }
 
 // ================================================================================
