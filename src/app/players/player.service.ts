@@ -148,7 +148,7 @@ export class PlayerService {
   syncPlayersToAPI(playersMap: Map<string, Player>) {
     let today = new Date();
     const eventId = `root-event:${today.toLocaleDateString()}`;
-    const apiUrl = '/api/players';
+    const apiUrl = 'https://badminton-matching-service.onrender.com/players';
     
     playersMap.forEach((player, playerName) => {
       const payload = {
@@ -156,7 +156,11 @@ export class PlayerService {
         player_name: playerName
       };
       
-      this.http.post(apiUrl, payload).subscribe({
+      this.http.post(apiUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).subscribe({
         next: (response) => {
           console.log(`Player ${playerName} synced successfully:`, response);
         },
