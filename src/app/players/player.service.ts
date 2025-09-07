@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Player } from './player';
 import { Status } from './status';
 @Injectable({
   providedIn: 'root',
 })
 export class PlayerService {
-  constructor() {}
+  constructor(private http: HttpClient) {}
   addPlayerList(
     leastPlayed: number | 0,
     playersMap: Map<string, Player>,
@@ -27,6 +28,7 @@ export class PlayerService {
       'player-list',
       JSON.stringify(Array.from(playersMap.entries()))
     );
+    this.syncPlayersToAPI(playersMap)
   }
   loadPlayerList(): Map<string, Player> {
     let playerList = localStorage.getItem('player-list');
@@ -141,5 +143,27 @@ export class PlayerService {
   clearAllData() {
     localStorage.removeItem('player-list');
     localStorage.removeItem('players-status');
+  }
+  
+  syncPlayersToAPI(playersMap: Map<string, Player>) {
+    let today = new Date();
+    const eventId = `root-event:${today.toLocaleDateString()}`;
+    const apiUrl = '/api/players';
+    
+    playersMap.forEach((player, playerName) => {
+      const payload = {
+        event_id: eventId,
+        player_name: playerName
+      };
+      
+      this.http.post(apiUrl, payload).subscribe({
+        next: (response) => {
+          console.log(`Player ${playerName} synced successfully:`, response);
+        },
+        error: (error) => {
+          console.error(`Error syncing player ${playerName}:`, error);
+        }
+      });
+    });
   }
 }

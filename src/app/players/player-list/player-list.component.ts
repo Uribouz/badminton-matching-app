@@ -17,8 +17,7 @@ export class PlayerListComponent {
   maximumInteractPlayers = this.playersPerCourt * 2;
   status = new Status();
   playersMap = new Map<string, Player>();
-  playerService = new PlayerService();
-  constructor() {
+  constructor(private playerService: PlayerService) {
     this.loadPlayerData();
   }
   getPlayerList(): Player[] {

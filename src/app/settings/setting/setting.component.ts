@@ -13,7 +13,6 @@ import { SettingService } from '../../settings/setting.service';
   styleUrl: './setting.component.css'
 })
 export class SettingComponent {
-  playerService: any;
   matchService: any;
   public forceTeamates: {player1:string, player2: string}[] = [];
   public nemesisTeamates: {player1:string, player2: string}[] = [];
@@ -22,8 +21,7 @@ export class SettingComponent {
   forceTeamatePlayer2: string = "";
   nemesisTeamatePlayer1: string = "";
   nemesisTeamatePlayer2: string = "";
-  constructor() {
-      this.playerService = new PlayerService();
+  constructor(private playerService: PlayerService) {
       this.matchService = new MatchService();
       this.forceTeamates = this.settingService.loadForceTeamates();
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();

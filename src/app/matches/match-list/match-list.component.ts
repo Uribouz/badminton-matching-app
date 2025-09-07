@@ -34,7 +34,6 @@ export class MatchListComponent {
   matchHistory: Match[] = [];
   standbyList: Player[] = [];
   playersMap = new Map<string, Player>();
-  playerService = new PlayerService();
   playersOpponents = new Map<string, string[]>();
   matchService = new MatchService();
   settingService = new SettingService();
@@ -46,7 +45,7 @@ export class MatchListComponent {
   forceMatchTeamate: {player1:string, player2: string}[] = [];
   nemesisTeamate: {player1:string, player2: string}[] = [];
 
-  constructor() {
+  constructor(private playerService: PlayerService) {
     this.playersMap = this.playerService.loadPlayerList();
     this.log('playersMap: ', this.playersMap);
     this.matchHistory = this.matchService.loadMatchHistory();
