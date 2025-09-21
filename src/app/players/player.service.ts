@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Player } from './player';
 import { Status } from './status';
-import { Constants } from '../shared/Constants';
+import { Constants } from '../shared/constants';
+import { environment } from '../../envionments/environment';
 @Injectable({
   providedIn: 'root',
 })
@@ -149,7 +150,7 @@ export class PlayerService {
   syncPlayersToAPI(playersMap: Map<string, Player>) {
     let today = new Date();
     const eventId = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
-    const apiUrl = `${Constants.APIURL}/players`;
+    const apiUrl = `${environment.apiUrl}/players`;
     
     playersMap.forEach((player, playerName) => {
       const payload = {

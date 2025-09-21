@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Match } from './match';
 import { HttpClient } from '@angular/common/http';
-import { Constants } from '../shared/Constants';
+import { Constants } from '../shared/constants';
+import { environment } from '../../envionments/environment';
 
 
 @Injectable({
@@ -75,7 +76,7 @@ export class MatchService {
    syncMatchHistoryToAPI(match: Match) {
       let today = new Date();
       const eventId = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
-      const apiUrl = `${Constants.APIURL}/matches`;
+      const apiUrl = `${environment.apiUrl}/matches`;
       const payload = {
         event_id: eventId,
         court_no: match.courtNo,
