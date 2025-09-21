@@ -10,4 +10,6 @@ export class Match {
     status: string = 'available';
     teamA: Teammate = new Teammate;
     teamB: Teammate = new Teammate;
+    courtNo: number = 0;
+    whoWon: string = '';
 }

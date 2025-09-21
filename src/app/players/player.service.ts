@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Player } from './player';
 import { Status } from './status';
+import { Constants } from '../shared/Constants';
 @Injectable({
   providedIn: 'root',
 })
@@ -147,8 +148,8 @@ export class PlayerService {
   
   syncPlayersToAPI(playersMap: Map<string, Player>) {
     let today = new Date();
-    const eventId = `root-event:${today.toLocaleDateString()}`;
-    const apiUrl = 'https://badminton-matching-service.onrender.com/players';
+    const eventId = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
+    const apiUrl = `${Constants.APIURL}/players`;
     
     playersMap.forEach((player, playerName) => {
       const payload = {

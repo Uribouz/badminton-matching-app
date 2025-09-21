@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
 import { Match } from './match';
+import { HttpClient } from '@angular/common/http';
+import { Constants } from '../shared/Constants';
+
 
 @Injectable({
   providedIn: 'root'
 })
 export class MatchService {
-
-  constructor() { }
+  constructor(private http: HttpClient) {}
   saveMatchList(matchList: Match[]) {
     localStorage.setItem('match-list', JSON.stringify(matchList))
   }
@@ -36,6 +38,7 @@ export class MatchService {
     }
     match = structuredClone(match)
     matchHistory.push(match)
+    this.syncMatchHistoryToAPI(match)
     localStorage.setItem('match-history', JSON.stringify(matchHistory))
     return matchHistory
   }
@@ -69,4 +72,33 @@ export class MatchService {
   clearMatchHistory() {
     localStorage.removeItem('match-history')
   }
+   syncMatchHistoryToAPI(match: Match) {
+      let today = new Date();
+      const eventId = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
+      const apiUrl = `${Constants.APIURL}/matches`;
+      const payload = {
+        event_id: eventId,
+        court_no: match.courtNo,
+        date_time: match.matchTime,
+        status: match.status,
+        team_a: {player_1: match.teamA.player1.name, 
+                player_2: match.teamA.player2.name},
+        team_b: {player_1: match.teamB.player1.name, 
+                player_2: match.teamB.player2.name},
+        who_won: match.whoWon,
+      };
+      
+      this.http.post(apiUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).subscribe({
+        next: (response) => {
+          console.log(`Match court ${match.courtNo} synced successfully:`, response);
+        },
+        error: (error) => {
+          console.error(`Error syncing match court ${match.courtNo}:`, error);
+        }
+      });
+    }
 }
