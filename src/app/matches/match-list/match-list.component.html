@@ -22,11 +22,11 @@
       </div>
       <div class="court">
         <button
-          class="btn btn_free_court"
+          class="btn btn_tean_win"
           [ngClass]="{
-            btn_negative: match.teamA.player1.name !== ''
+            btn_positive_win: match.teamA.player1.name !== '' && match.status === courtStatus.PLAYING
           }"
-          (click)="freeCourt(i)"
+          (click)="onClickConfirmWinningTeam(match, 'teamA')"
         ></button>
         <div
           class="team"
@@ -58,7 +58,23 @@
           </div>
         </div>
         <button
-          class="btn btn_teamate_swap"
+          class="btn btn_tean_win"
+          [ngClass]="{
+            btn_positive_win: match.teamA.player1.name !== ''  && match.status === courtStatus.PLAYING
+          }"
+          (click)="onClickConfirmWinningTeam(match, 'teamB')"
+        ></button>
+      </div>
+      <div class="courtOrganizer">
+        <button
+          class="btn btn_court_free"
+          [ngClass]="{
+            btn_negative: match.teamA.player1.name !== ''
+          }"
+          (click)="freeCourt(i)"
+        ></button>
+        <button
+          class="btn btn_court_team_swap"
           [ngClass]="{
             btn_positive: match.teamA.player1.name !== ''
           }"

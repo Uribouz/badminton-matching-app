@@ -138,6 +138,12 @@ export class MatchListComponent {
     match.teamA.player2 = match.teamB.player1;
     match.teamB.player1 = tmpTeamBPlayer2;
   }
+  onClickConfirmWinningTeam(match: Match, whichTeam: string) {
+    if (match.status != COURT_STATUS.PLAYING){
+      return;
+    }
+    console.log(`Winning team of court ${match.courtNo} is ${whichTeam}`)
+  }
 
   // Player management ======================
   changePlayerStatus(name: string) {
