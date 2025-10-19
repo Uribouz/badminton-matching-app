@@ -122,9 +122,14 @@ export class MatchListComponent {
     this.matchService.saveMatchList(this.matchList);
     this.log('CONFIRM_COURT end...');
   }
-  freeCourt(i: number) {
-    let currentCourt = this.matchList[i];
+  freeCourt(currentCourt: Match) {
     this.log('FREE_COURT start...');
+    if (currentCourt.status !== COURT_STATUS.AVAILABLE
+      && currentCourt.whoWon === ''
+    ) {
+    this.log('cannot free court, still didnt have a winner');
+      return;
+    }
     currentCourt.status = COURT_STATUS.AVAILABLE;
     this.clearCourt(currentCourt);
     this.matchService.saveMatchList(this.matchList);
