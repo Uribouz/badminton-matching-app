@@ -105,9 +105,9 @@ export class PlayerService {
       playerStatus = new Status();
       return playerStatus;
     }
-    console.log(
-      'playerMap.values().next().value: ' + playerMap.values().next().value
-    );
+    // console.log(
+    //   'playerMap.values().next().value: ' + playerMap.values().next().value
+    // );
     if (playerMap) {
       playerStatus.leastPlayed =
         playerMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
@@ -164,7 +164,7 @@ export class PlayerService {
         }
       }).subscribe({
         next: (response) => {
-          console.log(`Player ${playerName} synced successfully:`, response);
+          console.debug(`Player ${playerName} synced successfully:`, response);
         },
         error: (error) => {
           console.error(`Error syncing player ${playerName}:`, error);

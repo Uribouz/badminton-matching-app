@@ -209,11 +209,12 @@ export class MatchListComponent {
     if (match.status != COURT_STATUS.PLAYING){
       return;
     }
+    let wonMatchId = `${match.courtNo}:${new Date(match.matchTime).getTime()}`;
     match.whoWon = whichTeam;
-    console.log(`Winning team of court ${match.courtNo} is ${whichTeam}`)
+    console.log(`Winning team of a match ${wonMatchId} is ${whichTeam}`)
 
-    let playerName1 = whichTeam === 'teamA'? match.teamA.player1.name: match.teamA.player2.name;
-    let playerName2 = whichTeam === 'teamB'? match.teamB.player1.name: match.teamB.player2.name;
+    let playerName1 = whichTeam === 'teamA'? match.teamA.player1.name: match.teamB.player1.name;
+    let playerName2 = whichTeam === 'teamA'? match.teamA.player2.name: match.teamB.player2.name;
     let player1 = this.playersMap.get(playerName1);
     let player2 = this.playersMap.get(playerName2);
     if(!player1) {
@@ -224,15 +225,44 @@ export class MatchListComponent {
       this.log(`error not found player ${playerName2}`);
       return;
     }
-    let wonMatchId = `${match.courtNo}:${match.matchTime}`;
     if (player1.lastWonMatch !== wonMatchId) {
       player1.roundsWon += 1
       player1.lastWonMatch = wonMatchId;
+      this.playersMap.set(playerName1, player1);
     }
     if (player2.lastWonMatch !== wonMatchId) {
       player2.roundsWon += 1
       player2.lastWonMatch = wonMatchId;
+      this.playersMap.set(playerName2, player2);
      }
+    console.log(`Won: ${player1.name}: ${player1.roundsWon}, ${player2.name}: ${player2.roundsWon}`);
+
+
+    let lostPlayerName1 = whichTeam === 'teamB'? match.teamA.player1.name: match.teamB.player1.name;
+    let lostPlayerName2 = whichTeam === 'teamB'? match.teamA.player2.name: match.teamB.player2.name;
+    let lostPlayer1 = this.playersMap.get(lostPlayerName1);
+    let lostPlayer2 = this.playersMap.get(lostPlayerName2);
+    if(!lostPlayer1) {
+      this.log(`error not found lost player ${lostPlayerName1}`);
+      return;
+    }
+    if(!lostPlayer2) {
+      this.log(`error not found lost player ${lostPlayerName2}`);
+      return;
+    }
+    if (lostPlayer1.lastWonMatch === wonMatchId) {
+      lostPlayer1.roundsWon -= 1;
+      lostPlayer1.lastWonMatch = '';
+      this.playersMap.set(lostPlayerName1, lostPlayer1);
+    }
+    if (lostPlayer2.lastWonMatch === wonMatchId) {
+      lostPlayer2.roundsWon -= 1;
+      lostPlayer2.lastWonMatch = '';
+      this.playersMap.set(lostPlayerName2, lostPlayer2);
+    }
+    console.log(`Lost: ${lostPlayer1.name}: ${lostPlayer1.roundsWon}, ${lostPlayer2.name}: ${lostPlayer2.roundsWon}`);
+
+    this.playerService.savePlayerList(this.playersMap);
     this.matchService.saveMatchList(this.matchList);
   }
 
