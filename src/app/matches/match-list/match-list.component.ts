@@ -138,14 +138,6 @@ export class MatchListComponent {
     match.teamA.player2 = match.teamB.player1;
     match.teamB.player1 = tmpTeamBPlayer2;
   }
-  onClickConfirmWinningTeam(match: Match, whichTeam: string) {
-    if (match.status != COURT_STATUS.PLAYING){
-      return;
-    }
-    match.whoWon = whichTeam;
-    console.log(`Winning team of court ${match.courtNo} is ${whichTeam}`)
-    this.matchService.saveMatchList(this.matchList);
-  }
 
   // Player management ======================
   changePlayerStatus(name: string) {
@@ -210,6 +202,38 @@ export class MatchListComponent {
     this.reloadStandbyList();
     
     this.log(`SHUFFLE end ... (retries:${retries})`);
+  }
+
+  //Confirm Winning Team
+  onClickConfirmWinningTeam(match: Match, whichTeam: string) {
+    if (match.status != COURT_STATUS.PLAYING){
+      return;
+    }
+    match.whoWon = whichTeam;
+    console.log(`Winning team of court ${match.courtNo} is ${whichTeam}`)
+
+    let playerName1 = whichTeam === 'teamA'? match.teamA.player1.name: match.teamA.player2.name;
+    let playerName2 = whichTeam === 'teamB'? match.teamB.player1.name: match.teamB.player2.name;
+    let player1 = this.playersMap.get(playerName1);
+    let player2 = this.playersMap.get(playerName2);
+    if(!player1) {
+      this.log(`error not found player ${playerName1}`);
+      return;
+    }
+    if(!player2) {
+      this.log(`error not found player ${playerName2}`);
+      return;
+    }
+    let wonMatchId = `${match.courtNo}:${match.matchTime}`;
+    if (player1.lastWonMatch !== wonMatchId) {
+      player1.roundsWon += 1
+      player1.lastWonMatch = wonMatchId;
+    }
+    if (player2.lastWonMatch !== wonMatchId) {
+      player2.roundsWon += 1
+      player2.lastWonMatch = wonMatchId;
+     }
+    this.matchService.saveMatchList(this.matchList);
   }
 
   // Others =================================
@@ -612,6 +636,7 @@ export class MatchListComponent {
   }
   private putPlayerIntoCourts(teamateList: {team1: Teammate; team2: Teammate;}[]) {
     this.matchList.map((each) => {
+      each.matchTime
       if (each.status === COURT_STATUS.PLAYING) return;
       if (teamateList.length <= 0) return;
       let currentTeam = teamateList[0]

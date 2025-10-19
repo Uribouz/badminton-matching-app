@@ -7,6 +7,8 @@ export class Player {
   teamateHistory: string[] = [];
   roundsWaited: number = 0;
   status: string = 'ready';
+  roundsWon: number = 0;
+  lastWonMatch: string = '';
 
   constructor(name: string) {
     this.name = name;
