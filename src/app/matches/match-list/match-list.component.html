@@ -116,11 +116,9 @@
     <table class="playerHistoryTable">
       <tr class="playerHistory" *ngFor="let player of getPlayerList()">
         <td>
-          {{ player.name }}[P:{{ player.totalRoundsPlayed }}][G:{{
-            player.actualTotalRoundsPlayed
-          }}]:
+          {{ player.name }} [P:{{ player.totalRoundsPlayed }}] [G:{{ player.actualTotalRoundsPlayed}}]
         </td>
-        <td>{{ player.teamateHistory.join(", ") }}</td>
+        <td>: {{ player.teamateHistory.join(", ") }}</td>
       </tr>
     </table>
   </div>
@@ -145,6 +143,17 @@
       <tr class="opponentHistory" *ngFor="let each of getOpponentHistory()">
         <td>{{ each.name }}:</td>
         <td>{{ each.opponents.join(", ") }}</td>
+      </tr>
+    </table>
+  </div>
+  <div class="playerHistoryContainer">
+    <h2>Player RoundsWon</h2>
+    <table class="playerHistoryTable">
+      <tr class="playerHistory" *ngFor="let player of getPlayerList()">
+        <td>
+          {{ player.name }}
+        </td>
+        <td>: {{ player.roundsWon}} </td>
       </tr>
     </table>
   </div>
