@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Player } from './player';
 import { Status } from './status';
 import { Constants } from '../shared/constants';
-import { environment } from '../../envionments/environment';
+import { environment } from '../../environments/environment';
 @Injectable({
   providedIn: 'root',
 })

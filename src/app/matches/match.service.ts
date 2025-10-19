@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Match } from './match';
 import { HttpClient } from '@angular/common/http';
 import { Constants } from '../shared/constants';
-import { environment } from '../../envionments/environment';
+import { environment } from '../../environments/environment';
 
 
 @Injectable({
