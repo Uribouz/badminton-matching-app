@@ -142,7 +142,9 @@ export class MatchListComponent {
     if (match.status != COURT_STATUS.PLAYING){
       return;
     }
+    match.whoWon = whichTeam;
     console.log(`Winning team of court ${match.courtNo} is ${whichTeam}`)
+    this.matchService.saveMatchList(this.matchList);
   }
 
   // Player management ======================
@@ -250,6 +252,7 @@ export class MatchListComponent {
     currentCourt.teamA.player2 = new Player('');
     currentCourt.teamB.player1 = new Player('');
     currentCourt.teamB.player2 = new Player('');
+    currentCourt.whoWon = '';
   }
 
   // === Confirm Court Operations =============

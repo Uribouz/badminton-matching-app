@@ -24,7 +24,9 @@
         <button
           class="btn btn_tean_win"
           [ngClass]="{
-            btn_positive_win: match.teamA.player1.name !== '' && match.status === courtStatus.PLAYING
+            btn_positive: match.teamA.player1.name !== '' 
+            && match.status === courtStatus.PLAYING
+            && match.whoWon === 'teamA'
           }"
           (click)="onClickConfirmWinningTeam(match, 'teamA')"
         ></button>
@@ -60,7 +62,9 @@
         <button
           class="btn btn_tean_win"
           [ngClass]="{
-            btn_positive_win: match.teamA.player1.name !== ''  && match.status === courtStatus.PLAYING
+            btn_positive: match.teamA.player1.name !== '' 
+             && match.status === courtStatus.PLAYING
+             && match.whoWon === 'teamB'
           }"
           (click)="onClickConfirmWinningTeam(match, 'teamB')"
         ></button>
@@ -75,9 +79,6 @@
         ></button>
         <button
           class="btn btn_court_team_swap"
-          [ngClass]="{
-            btn_positive: match.teamA.player1.name !== ''
-          }"
           (click)="swapTeamates(match)"
         ></button>
       </div>

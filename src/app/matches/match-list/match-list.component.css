@@ -94,9 +94,6 @@
 .btn_positive {
   background-color: #c0e069;
 }
-.btn_positive_win {
-  background-color: #a5e9e8;
-}
 .btn_court_free {
   height: 45px;
   width: 90px;
@@ -143,7 +140,7 @@
 }
 
 .btn_court_shuffle {
-  background-color: #c0e069;
+  /* background-color: #c0e069; */
   background-position: center;
   background-repeat: no-repeat;
   background-image: url('./icons/shuffle.svg');
