@@ -147,13 +147,13 @@
     </table>
   </div>
   <div class="playerHistoryContainer">
-    <h2>Player RoundsWon</h2>
+    <h2>Player RoundsWon Percentage</h2>
     <table class="playerHistoryTable">
       <tr class="playerHistory" *ngFor="let player of getPlayerList()">
         <td>
           {{ player.name }}
         </td>
-        <td>: {{ player.roundsWon}} </td>
+        <td>: {{ (player.actualTotalRoundsPlayed == null || player.actualTotalRoundsPlayed === 0) ? 'N/A' : ((player.roundsWon/player.actualTotalRoundsPlayed)*100).toFixed(1)+"%" }} ({{player.roundsWon}}) </td>
       </tr>
     </table>
   </div>
