@@ -21,6 +21,7 @@ enum PLAYER_STATUS {
 const PLAYERS_PER_COURT = 4;
 const TEAMS_PER_COURT = 2;
 const DEFAULT_TOTAL_COURT = 2;
+const DEFAULT_PLAYER_POINT = 0.5;
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -191,16 +192,19 @@ export class MatchListComponent {
       let sortedPlayerList = this.getSortedPlayerList(availablePlayerList);
       totalAvailableSlots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length)
       let availablePlayers = this.getAvailablePlayers(sortedPlayerList,totalAvailableSlots);
-      teamateList = this.calculateTeamates(availablePlayers);
-      if (this.isAllTeamatesValid(retries,availablePlayerList.length,teamateList)) {
+      let rankingPlayersMap = this.calculateRankingPlayers(availablePlayers);
+      // this.log("rankingPlayersMap: ", rankingPlayersMap)
+      teamateList = this.calculateTeamates(availablePlayers, rankingPlayersMap);
+      // this.log("teamateList before validate: ", teamateList)
+      if (this.isAllTeamatesValid(retries,availablePlayerList.length,teamateList,rankingPlayersMap)) {
         break;
       }
     }
     let resultCourt = this.calculateMatchInCourts(teamateList);
-    console.log('resultCourt');
-    console.log(resultCourt.flatMap(each => {
+    let resultCourtLog = resultCourt.flatMap(each => {
       return `[${each.team1.player1.name}:${each.team1.player2.name}] : [${each.team2.player1.name}:${each.team2.player2.name}]`
-    }));
+    })
+    this.log('resultCourt ', resultCourtLog);
 
     this.putPlayerIntoCourts(resultCourt);
 
@@ -522,9 +526,10 @@ export class MatchListComponent {
     })
     return returnPlayerList.slice(0, totalAvailableSlots);
   }
-  private calculateTeamates(players: Player[]): Teammate[] {
+  private calculateTeamates(players: Player[], rankingPlayersMap: Map<string, number>): Teammate[] {
     let teamates: Teammate[] = [];
-    let remainingPlayers = this.calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther(players);
+    let remainingPlayers = this.calculateTeamatesGetSortedPlayerLeastWin(players);
+    this.log("remainingPlayers: ", remainingPlayers)
 
     while (remainingPlayers.length > 0) {
       const currentPlayer = remainingPlayers[0];
@@ -533,15 +538,17 @@ export class MatchListComponent {
       if (otherPlayers.length <= 0) {
         break;
       }
+      // this.log("calculateTeamates-currentPlayer: ", currentPlayer.name)
       otherPlayers.sort((a, b) => {
-        let aPoint = this.calculateTeamatesPoint(currentPlayer, a);
-        let bPoint = this.calculateTeamatesPoint(currentPlayer, b);
+        let aPoint = this.calculateTeamatesPoint(currentPlayer, a, rankingPlayersMap);
+        let bPoint = this.calculateTeamatesPoint(currentPlayer, b, rankingPlayersMap);
         if (aPoint === bPoint) {
           return this.rng.random() - this.rng.random();
         }
         return aPoint - bPoint;
       });
       currentPlayerTeamate = otherPlayers[0];
+      // this.log("calculateTeamates-currentPlayerTeamate: ", currentPlayerTeamate.name)
       teamates = [...teamates, { player1: currentPlayer, player2: currentPlayerTeamate }];
       remainingPlayers = remainingPlayers.filter(
         (each) => currentPlayer.name != each.name && currentPlayerTeamate.name != each.name
@@ -549,7 +556,22 @@ export class MatchListComponent {
     }
     return teamates;
   }
-  private calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther(playerList: Player[]) {
+  private calculateRankingPlayers(playerList: Player[]) {
+     let sortedPlayerList = playerList.sort((a,b) => {
+      let aPoint = this.calculateRankingPlayerPoints(a.roundsWon, a.actualTotalRoundsPlayed);
+      let bPoint = this.calculateRankingPlayerPoints(b.roundsWon, b.actualTotalRoundsPlayed);
+      if (aPoint === bPoint) {
+        return this.rng.random() - this.rng.random();
+      }
+      return aPoint-bPoint;
+    })
+    return new Map(sortedPlayerList.map( (player,index) => [player.name, index]))
+  }
+  private calculateRankingPlayerPoints(roundsWon: number, actualTotalRoundsPlayed: number) {
+    if (actualTotalRoundsPlayed == null || actualTotalRoundsPlayed === 0) return DEFAULT_PLAYER_POINT
+    return (roundsWon/actualTotalRoundsPlayed)
+  }
+  private calculateTeamatesGetSortedPlayerLeastWin(playerList: Player[]) {
     let mapPriorityPlayers = new Map<string, number>();
     let nemesisPlayers = this.nemesisTeamate.flatMap(each => [each.player1, each.player2]);
     let forcePlayers = this.forceMatchTeamate.flatMap(each => [each.player1, each.player2]);
@@ -564,17 +586,7 @@ export class MatchListComponent {
         leastPoint = -1;
       } 
       else {
-        playerList
-          .filter((each) => each.name != currentPlayer.name)
-          .forEach((each) => {
-            let currentPoint = 999;
-            if (teamateHistory.includes(each.name)) {
-              currentPoint = teamateHistory.length - teamateHistory.lastIndexOf(each.name);
-            }
-            if (currentPoint < leastPoint) {
-              leastPoint = currentPoint;
-            }
-          });
+        leastPoint = this.calculateRankingPlayerPoints(currentPlayer.roundsWon, currentPlayer.actualTotalRoundsPlayed)
       }
       mapPriorityPlayers.set(currentPlayer.name, leastPoint);
     });
@@ -586,11 +598,12 @@ export class MatchListComponent {
       }
       return aPoint - bPoint;
     });
-    this.log('calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther: sortedPlayers: ', sortedPlayers);
+    this.log('calculateTeamatesGetSortedPlayerLeastWin: sortedPlayers: ', sortedPlayers);
     return sortedPlayers;
   }
+  
 
-  private calculateTeamatesPoint(playerA: Player, playerB: Player): number {
+  private calculateTeamatesPoint(playerA: Player, playerB: Player, rankingPlayersMap: Map<string,number>): number {
     // this.log('calculateTeamatesPoint: ', playerA.name, ':', playerB.name);
     let nemesisTeamateList = this.nemesisTeamate.flatMap(each => each.player1+":"+each.player2);
     if ( nemesisTeamateList.includes(playerA.name+":"+playerB.name) || nemesisTeamateList.includes(playerB.name+":"+playerA.name)) {
@@ -601,6 +614,18 @@ export class MatchListComponent {
       // this.log(' return -1;');
       return -1;
     }
+
+    // #1 Priority: Calculate ranking player
+    // this.log('rankingPlayersMap = ', rankingPlayersMap);
+    let playerARanking = rankingPlayersMap.get(playerA.name) ?? 999;
+    let playerBRanking = rankingPlayersMap.get(playerB.name) ?? 999;
+      // this.log(`playerARanking:playerBRanking = [${playerARanking}:${playerBRanking}]`);
+    if (playerARanking <= (rankingPlayersMap.size/4)-1) {
+      // this.log('  return (rankingPlayersMap.size-1)-playerARanking - playerBRanking');
+      return (rankingPlayersMap.size-1)-playerARanking - playerBRanking
+    }
+
+    // #2 Priority: Calculate same teammate
     if (!playerA.teamateHistory.includes(playerB.name)) {
       // this.log(' return 0;');
       return 0;
@@ -611,7 +636,8 @@ export class MatchListComponent {
   private isAllTeamatesValid(
     retries: number,
     totalPlayersAvailable: number,
-    teamatesList: Teammate[]
+    teamatesList: Teammate[],
+    rankingPlayersMap: Map<string, number>
   ): boolean {
     let isStillValid: boolean = true;
     let nemesisTeamateList = this.nemesisTeamate.flatMap(each => each.player1+":"+each.player2);
@@ -635,6 +661,11 @@ export class MatchListComponent {
       }
       let previousTeamateIndex = each.player1.teamateHistory.lastIndexOf(each.player2.name);
       if (previousTeamateIndex < 0) {
+        return;
+      }
+      
+      let playerARanking = rankingPlayersMap.get(each.player1.name) ?? 999;
+      if (playerARanking <= (rankingPlayersMap.size/4)-1) {
         return;
       }
       if ( each.player1.totalRoundsPlayed - previousTeamateIndex < totalPlayersAvailable - offsetValidatePlayers ) {
