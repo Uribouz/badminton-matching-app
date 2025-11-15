@@ -538,7 +538,7 @@ export class MatchListComponent {
       if (otherPlayers.length <= 0) {
         break;
       }
-      // this.log("calculateTeamates-currentPlayer: ", currentPlayer.name)
+      // this.log("calculateTeamates - currentPlayer: ", currentPlayer.name)
       otherPlayers.sort((a, b) => {
         let aPoint = this.calculateTeamatesPoint(currentPlayer, a, rankingPlayersMap);
         let bPoint = this.calculateTeamatesPoint(currentPlayer, b, rankingPlayersMap);
@@ -548,7 +548,7 @@ export class MatchListComponent {
         return aPoint - bPoint;
       });
       currentPlayerTeamate = otherPlayers[0];
-      // this.log("calculateTeamates-currentPlayerTeamate: ", currentPlayerTeamate.name)
+      // this.log("calculateTeamates - currentPlayerTeamate: ", currentPlayerTeamate.name)
       teamates = [...teamates, { player1: currentPlayer, player2: currentPlayerTeamate }];
       remainingPlayers = remainingPlayers.filter(
         (each) => currentPlayer.name != each.name && currentPlayerTeamate.name != each.name
@@ -573,17 +573,21 @@ export class MatchListComponent {
   }
   private calculateTeamatesGetSortedPlayerLeastWin(playerList: Player[]) {
     let mapPriorityPlayers = new Map<string, number>();
-    let nemesisPlayers = this.nemesisTeamate.flatMap(each => [each.player1, each.player2]);
-    let forcePlayers = this.forceMatchTeamate.flatMap(each => [each.player1, each.player2]);
+    let mapNemesisPlayers = this.getMapPlayers(this.nemesisTeamate);
+    this.log("mapNemesisPlayers: ", mapNemesisPlayers)
+    let mapForceMatchPlayers = this.getMapPlayers(this.forceMatchTeamate);
+    this.log("mapForceMatchPlayers: ", mapForceMatchPlayers)
     playerList.forEach((currentPlayer) => {
-      let teamateHistory = currentPlayer.teamateHistory
       let leastPoint = 999;
-      this.log(`currentPlayer ${currentPlayer.name} each: ${teamateHistory}`);
-      if (nemesisPlayers.includes(currentPlayer.name)) {
-        leastPoint = -2;
+      if (mapNemesisPlayers.has(currentPlayer.name)
+      && mapNemesisPlayers.get(currentPlayer.name)?.some(each => playerList.map(player => player.name).includes(each))) {
+        leastPoint = DEFAULT_PLAYER_POINT;
+        // this.log("NemesisPlayers found");
       }
-      else if (forcePlayers.includes(currentPlayer.name)) {
+      else if (mapForceMatchPlayers.has(currentPlayer.name)
+      && mapForceMatchPlayers.get(currentPlayer.name)?.some(each => playerList.map(player => player.name).includes(each))) {
         leastPoint = -1;
+        // this.log("ForcePlayers found");
       } 
       else {
         leastPoint = this.calculateRankingPlayerPoints(currentPlayer.roundsWon, currentPlayer.actualTotalRoundsPlayed)
@@ -602,6 +606,23 @@ export class MatchListComponent {
     return sortedPlayers;
   }
   
+  private getMapPlayers(playerTeamates: {player1:string, player2: string}[]) {
+    let mapPlayers = new Map<string, string[]>();
+    playerTeamates.forEach(each => {
+      let currentMapPlayer1 = mapPlayers.get(each.player1)
+      let currentMapPlayer2 = mapPlayers.get(each.player2)
+      if (currentMapPlayer1 == undefined || currentMapPlayer1.length <= 0) {
+        currentMapPlayer1 = [];
+      }
+      if (currentMapPlayer2 == undefined || currentMapPlayer2.length <= 0) {
+        currentMapPlayer2 = [];
+      }
+      mapPlayers.set(each.player1, [...currentMapPlayer1,each.player2])
+      mapPlayers.set(each.player2, [...currentMapPlayer2,each.player1])
+    }
+    );
+    return mapPlayers;
+  }
 
   private calculateTeamatesPoint(playerA: Player, playerB: Player, rankingPlayersMap: Map<string,number>): number {
     // this.log('calculateTeamatesPoint: ', playerA.name, ':', playerB.name);
