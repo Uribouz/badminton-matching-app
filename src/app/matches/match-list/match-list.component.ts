@@ -703,6 +703,12 @@ export class MatchListComponent {
       let currentTeam = remainingTeams[0];
       let otherTeam = remainingTeams.slice(1);
       otherTeam.sort( (a,b) => {
+        let currentWinRate = this.playerWinPercentage(currentTeam.player1) + this.playerWinPercentage(currentTeam.player2);
+        let aWinRateDiff = Math.abs(currentWinRate-(this.playerWinPercentage(a.player1)+this.playerWinPercentage(a.player2)))
+        let bWinRateDiff = Math.abs(currentWinRate-(this.playerWinPercentage(b.player1)+this.playerWinPercentage(b.player2)))
+        if(Math.abs(aWinRateDiff-bWinRateDiff) > 0.01) {
+        return aWinRateDiff-bWinRateDiff;
+        }
         let aPoint = (this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player2.name))
               + (this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player2.name));
         let bPoint = (this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player2.name))
@@ -714,12 +720,19 @@ export class MatchListComponent {
     }
     return result;
   }
+  
   private calculateOppositePlayerPoint(playerA: string, playerB: string): number {
     let playerAOpponents = this.playersOpponents.get(playerA);
     if (!playerAOpponents || !playerAOpponents.includes(playerB)) {
       return 0;
     }
-    return playerAOpponents.lastIndexOf(playerB) + 1;
+    return playerAOpponents.length - playerAOpponents.lastIndexOf(playerB);
+  }
+  private playerWinPercentage(player: Player): number {
+    if (!player.actualTotalRoundsPlayed || player.actualTotalRoundsPlayed === 0) {
+      return 50; // Default to 50% for new players
+    }
+    return Math.floor((player.roundsWon / player.actualTotalRoundsPlayed) * 100);
   }
   private putPlayerIntoCourts(teamateList: {team1: Teammate; team2: Teammate;}[]) {
     this.matchList.map((each) => {
