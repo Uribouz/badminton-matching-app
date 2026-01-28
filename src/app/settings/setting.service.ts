@@ -42,14 +42,14 @@ export class SettingService {
   }
   deleteForceTeamate(deleteForceTeamate: {player1:string, player2: string}){
     let newForceTeamates = this.loadForceTeamates().filter(
-      each => each.player1 != deleteForceTeamate.player1 && each.player2 != deleteForceTeamate.player2
+      each => each.player1+each.player2 != deleteForceTeamate.player1 + deleteForceTeamate.player2
     )
     this.saveForceTeamates(newForceTeamates);
     return
   }
   deleteNemesisTeamate(deleteNemesisTeamate: {player1:string, player2: string}){
     let newNemesisTeamates = this.loadNemesisTeamates().filter(
-      each => each.player1 != deleteNemesisTeamate.player1 && each.player2 != deleteNemesisTeamate.player2
+      each => each.player1+each.player2 != deleteNemesisTeamate.player1 + deleteNemesisTeamate.player2
     )
     this.saveNemesisTeamates(newNemesisTeamates);
     return 
