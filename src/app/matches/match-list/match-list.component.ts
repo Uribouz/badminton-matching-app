@@ -170,7 +170,7 @@ export class MatchListComponent {
 
   // Shuffle Logic ==========================
   shufflePlayersIntoCourt() {
-    const maxRetries = 10;
+    const maxRetries = 30;
     this.log(`SHUFFLE start(maxRetries = ${maxRetries}) ...`);
 
    let availablePlayerList = this.getAvailablePlayerList();
@@ -684,11 +684,7 @@ export class MatchListComponent {
       if (previousTeamateIndex < 0) {
         return;
       }
-      
-      let playerARanking = rankingPlayersMap.get(each.player1.name) ?? 999;
-      if (playerARanking <= (rankingPlayersMap.size/4)-1) {
-        return;
-      }
+    
       if ( each.player1.totalRoundsPlayed - previousTeamateIndex < totalPlayersAvailable - offsetValidatePlayers ) {
         isStillValid = false;
         return;
