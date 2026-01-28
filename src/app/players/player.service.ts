@@ -9,21 +9,27 @@ import { environment } from '../../environments/environment';
 })
 export class PlayerService {
   constructor(private http: HttpClient) {}
-  addPlayerList(
-    leastPlayed: number | 0,
-    playersMap: Map<string, Player>,
-    newPlayers: string
-  ): Map<string, Player> {
-    newPlayers.split(',').forEach((player) => {
-      if (!playersMap.has(player)) {
-        console.log('New player: ' + player);
-        let newPlayer = new Player(player);
-        newPlayer.totalRoundsPlayed = leastPlayed;
-        playersMap.set(player, newPlayer);
-      }
-    });
-    this.savePlayerList(playersMap);
-    return playersMap;
+  // addPlayerList(
+  //   leastPlayed: number | 0,
+  //   playersMap: Map<string, Player>,
+  //   newPlayers: string
+  // ): Map<string, Player> {
+  //   newPlayers.split(',').forEach((player) => {
+  //     if (!playersMap.has(player)) {
+  //       console.log('New player: ' + player);
+  //       let newPlayer = new Player(player);
+  //       newPlayer.totalRoundsPlayed = leastPlayed;
+  //       playersMap.set(player, newPlayer);
+  //     }
+  //   });
+  //   this.savePlayerList(playersMap);
+  //   return playersMap;
+  // }
+  savePlayer(player: Player): Map<string, Player> {
+    let playerMap = this.loadPlayerList();
+    playerMap.set(player.name, player);
+    this.savePlayerList(playerMap);
+    return playerMap;
   }
   savePlayerList(playersMap: Map<string, Player>) {
     localStorage.setItem(
@@ -32,8 +38,30 @@ export class PlayerService {
     );
     this.syncPlayersToAPI(playersMap)
   }
+  savePreviousPlayer(newPlayer: Player): Map<string, Player> {
+    let playersMap = this.loadPreviousPlayerList()
+    playersMap.set(newPlayer.name, newPlayer)
+    localStorage.setItem(
+      'previous-player-list',
+      JSON.stringify(Array.from(playersMap.entries()))
+    );
+    return playersMap;
+  }
   loadPlayerList(): Map<string, Player> {
     let playerList = localStorage.getItem('player-list');
+    if (!playerList) {
+      return new Map<string, Player>();
+    }
+    var playersMap: Map<string, Player>;
+    playersMap = new Map(JSON.parse(playerList));
+    //Temp fixed: Clear save data on load from cached.
+    playersMap.forEach(
+      (value, key, playerMap) => (value.isPreviouslyInteracted = false)
+    );
+    return playersMap;
+  }
+  loadPreviousPlayerList(): Map<string, Player> {
+    let playerList = localStorage.getItem('previous-player-list');
     if (!playerList) {
       return new Map<string, Player>();
     }

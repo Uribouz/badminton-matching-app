@@ -73,16 +73,6 @@ export class MatchListComponent {
 // PUBLIC METHODS (Template Callable)
 // ================================================================================
 
-  // Player List Management =================
-  addPlayerList(newPlayers: string) {
-    let leastPlayed = this.playerService.loadPlayerStatus().leastPlayed;
-    this.playersMap = this.playerService.addPlayerList(
-      leastPlayed,
-      this.playersMap,
-      newPlayers
-    );
-    this.reloadStandbyList();
-  }
 
   // UI Helper ==============================
   getPlayerList(): Player[] {

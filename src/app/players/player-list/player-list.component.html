@@ -1,10 +1,11 @@
 <div class="body">
   <div class="inputContainer">
-    <textarea class="textArea" #playerList placeholder="Player List"></textarea>
-    <button class="btn btnAddPlayer" (click)="addPlayerList(playerList.value)">
+    <textarea [(ngModel)]="playerTextArea" class="textArea" placeholder="Player" (keydown.enter)="onAddPlayerTextArea()"></textarea>
+    <button class="btn btnAddPlayer" (click)="onAddPlayerTextArea()">
       Add Players
     </button>
   </div>
+  <h1> Player List</h1><br>
   <div class="playerListContainer">
     <div *ngFor="let player of getPlayerList()">
       <div
@@ -57,6 +58,19 @@
         </div>
       </div>
       <!-- <h3>Total Rounds Wons: {{ player.totalRoundsWon }}</h3> -->
+    </div>
+  </div>
+  <h1> Previous Players</h1><br>
+  <div class="previousPlayerContainer">
+    <div *ngFor="let playerName of getPreviousPlayerList()">
+      <div class="playerContainer">
+        <div class="previousPlayerHeader">
+          <h2>{{ playerName }}</h2>
+          <button
+            class="btn-small btn-add-big"
+            (click)="addPreviousPlayerToList(playerName)"
+          ></button>
+        </div>
     </div>
   </div>
 </div>

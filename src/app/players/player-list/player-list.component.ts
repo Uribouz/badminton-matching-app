@@ -4,35 +4,54 @@ import { CommonModule, KeyValue } from '@angular/common';
 import { max } from 'rxjs';
 import { Status } from '../status';
 import { PlayerService } from '../player.service';
+import { FormsModule } from '@angular/forms'; // 1. Import FormsModule
+
 @Component({
   selector: 'app-player-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule,FormsModule ],
   templateUrl: './player-list.component.html',
   styleUrl: './player-list.component.css',
 })
 export class PlayerListComponent {
+  playerTextArea: string = '';
   lastInteractPlayers: Map<string, string> = new Map<string, string>();
   playersPerCourt = 4;
   maximumInteractPlayers = this.playersPerCourt * 2;
   status = new Status();
   playersMap = new Map<string, Player>();
+  previousPlayerMap = new Map<string, Player>();
   constructor(private playerService: PlayerService) {
     this.loadPlayerData();
   }
   getPlayerList(): Player[] {
     return Array.from(this.playersMap.values());
   }
+  getPreviousPlayerList(): string[] {
+    return Array.from(this.previousPlayerMap.keys());
+  }
+  addPreviousPlayerToList( name: string) {
+    this.addPlayer(name);
+  }
   loadPlayerData() {
     this.playersMap = this.playerService.loadPlayerList();
     this.status = this.playerService.loadPlayerStatus();
+    this.previousPlayerMap = this.playerService.loadPreviousPlayerList();
   }
-  addPlayerList(newPlayers: string) {
-    this.playersMap = this.playerService.addPlayerList(
-      this.status.leastPlayed,
-      this.playersMap,
-      newPlayers
-    );
+
+  onAddPlayerTextArea() {
+    this.addPlayer(this.playerTextArea);
+    this.playerTextArea = '';
+  }
+  addPlayer(newPlayerName: string) {
+    if (this.playersMap.has(newPlayerName)) {
+      return;
+      }
+    console.log('New player: ' + newPlayerName);
+    let newPlayer = new Player(newPlayerName);
+    newPlayer.totalRoundsPlayed = this.status.leastPlayed;
+    this.playersMap = this.playerService.savePlayer(newPlayer);
+    this.previousPlayerMap = this.playerService.savePreviousPlayer(newPlayer);
   }
   deletePlayer(playerName: string) {
     console.log('deletePlayer: ' + playerName);
