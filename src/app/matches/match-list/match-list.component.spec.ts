@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
 
 import { MatchListComponent } from './match-list.component';
 import { Player,NewPlayer } from '../../players/player';
@@ -10,7 +11,8 @@ describe('MatchListComponent', () => {
   let fixture: ComponentFixture<MatchListComponent>;
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MatchListComponent]
+      imports: [MatchListComponent],
+      providers: [provideHttpClient()]
     })
     .compileComponents();
     fixture = TestBed.createComponent(MatchListComponent);
@@ -30,7 +32,8 @@ describe('MatchListComponent', () => {
       NewPlayer('gato', 2, ['win','nice']),
     ]
     try {
-      const result = component['calculateTeamates'](input);
+      const rankingPlayersMap = component['calculateRankingPlayers'](input);
+      const result = component['calculateTeamates'](input, rankingPlayersMap);
       console.log(result)
 
       let expectedTeamates: string[][] = [['nice', 'win'], ['ball','gato']];
@@ -74,21 +77,20 @@ describe('MatchListComponent', () => {
         NewPlayer('win', 1, ['gato']),
         NewPlayer('gato', 1, ['win']),
       ]
-      spyOn(component as any, 'calculateTeamatesGetSortedPlayerMostRecentTeamateWithOther').and.returnValue(mockRemainingPlayers);
+      spyOn(component as any, 'calculateTeamatesGetSortedPlayerLeastWin').and.returnValue(mockRemainingPlayers);
 
       const mockRandomValues = [1, 0, 1, 0];
       (component as any).calculateTeamatesPoint = jasmine.createSpy('calculateTeamatesPoint')
       .and.returnValues(...mockRandomValues);
-      
 
-      const result = component['calculateTeamates'](input);
+      const rankingPlayersMap = component['calculateRankingPlayers'](input);
+      const result = component['calculateTeamates'](input, rankingPlayersMap);
       console.log(result);
 
-      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith( NewPlayer('ball', 1, ['nice']), NewPlayer('win', 1, ['gato']));
-      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith( NewPlayer('ball', 1, ['nice']), NewPlayer('nice', 1, ['ball']));
-
-      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith( NewPlayer('ball', 1, ['nice']), NewPlayer('gato', 1, ['win']));
-      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith( NewPlayer('ball', 1, ['nice']), NewPlayer('win', 1, ['gato']));
+      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith(NewPlayer('ball', 1, ['nice']), NewPlayer('win', 1, ['gato']), jasmine.any(Map));
+      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith(NewPlayer('ball', 1, ['nice']), NewPlayer('nice', 1, ['ball']), jasmine.any(Map));
+      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith(NewPlayer('ball', 1, ['nice']), NewPlayer('gato', 1, ['win']), jasmine.any(Map));
+      expect((component as any).calculateTeamatesPoint).toHaveBeenCalledWith(NewPlayer('ball', 1, ['nice']), NewPlayer('win', 1, ['gato']), jasmine.any(Map));
       expect((component as any).calculateTeamatesPoint).toHaveBeenCalledTimes(4)
     
     
