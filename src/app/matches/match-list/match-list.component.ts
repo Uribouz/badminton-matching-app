@@ -186,7 +186,7 @@ export class MatchListComponent {
       // this.log("rankingPlayersMap: ", rankingPlayersMap)
       teamateList = this.calculateTeamates(availablePlayers, rankingPlayersMap);
       // this.log("teamateList before validate: ", teamateList)
-      if (this.isAllTeamatesValid(retries,availablePlayerList.length,teamateList,rankingPlayersMap)) {
+      if (this.isAllTeamatesValid(retries,totalAvailableSlots,teamateList,rankingPlayersMap)) {
         break;
       }
     }
