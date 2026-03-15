@@ -461,14 +461,7 @@ export class MatchListComponent {
     return totalAvailableSlots;
   }
   private getSortedPlayerList(availablePlayerList: Player[]) {
-    let sortedPlayerList = availablePlayerList.sort((a, b) => {
-      let aPoint = this.calculatePlayerPriorityPoint(a);
-      let bPoint = this.calculatePlayerPriorityPoint(b);
-      if (aPoint == bPoint) {
-        return this.rng.random() - this.rng.random();
-      }
-      return aPoint - bPoint;
-    });
+    let sortedPlayerList = this.sortByPoint(availablePlayerList, p => this.calculatePlayerPriorityPoint(p));
     this.log(
       'shufflePlayersIntoCourt:',
       sortedPlayerList.map((each) => {
@@ -529,14 +522,7 @@ export class MatchListComponent {
         break;
       }
       // this.log("calculateTeamates - currentPlayer: ", currentPlayer.name)
-      otherPlayers.sort((a, b) => {
-        let aPoint = this.calculateTeamatesPoint(currentPlayer, a, rankingPlayersMap);
-        let bPoint = this.calculateTeamatesPoint(currentPlayer, b, rankingPlayersMap);
-        if (aPoint === bPoint) {
-          return this.rng.random() - this.rng.random();
-        }
-        return aPoint - bPoint;
-      });
+      otherPlayers = this.sortByPoint(otherPlayers, p => this.calculateTeamatesPoint(currentPlayer, p, rankingPlayersMap));
       currentPlayerTeamate = otherPlayers[0];
       // this.log("calculateTeamates - currentPlayerTeamate: ", currentPlayerTeamate.name)
       teamates = [...teamates, { player1: currentPlayer, player2: currentPlayerTeamate }];
@@ -547,15 +533,8 @@ export class MatchListComponent {
     return teamates;
   }
   private calculateRankingPlayers(playerList: Player[]) {
-     let sortedPlayerList = playerList.sort((a,b) => {
-      let aPoint = this.calculateRankingPlayerPoints(a.roundsWon, a.actualTotalRoundsPlayed);
-      let bPoint = this.calculateRankingPlayerPoints(b.roundsWon, b.actualTotalRoundsPlayed);
-      if (aPoint === bPoint) {
-        return this.rng.random() - this.rng.random();
-      }
-      return aPoint-bPoint;
-    })
-    return new Map(sortedPlayerList.map( (player,index) => [player.name, index]))
+    let sortedPlayerList = this.sortByPoint(playerList, p => this.calculateRankingPlayerPoints(p.roundsWon, p.actualTotalRoundsPlayed));
+    return new Map(sortedPlayerList.map((player, index) => [player.name, index]))
   }
   private calculateRankingPlayerPoints(roundsWon: number, actualTotalRoundsPlayed: number) {
     if (actualTotalRoundsPlayed == null || actualTotalRoundsPlayed === 0) return DEFAULT_PLAYER_POINT
@@ -584,14 +563,7 @@ export class MatchListComponent {
       }
       mapPriorityPlayers.set(currentPlayer.name, leastPoint);
     });
-    let sortedPlayers: Player[] = playerList.slice().sort((a, b) => {
-      let aPoint = mapPriorityPlayers.get(a.name) ?? 0;
-      let bPoint = mapPriorityPlayers.get(b.name) ?? 0;
-      if (aPoint === bPoint) {
-        return this.rng.random() - this.rng.random();
-      }
-      return aPoint - bPoint;
-    });
+    let sortedPlayers: Player[] = this.sortByPoint(playerList, p => mapPriorityPlayers.get(p.name) ?? 0);
     this.log('calculateTeamatesGetSortedPlayerLeastWin: sortedPlayers: ', sortedPlayers);
     return sortedPlayers;
   }
@@ -626,23 +598,19 @@ export class MatchListComponent {
       return -1;
     }
 
-    // #1 Priority: Calculate ranking player
-    // this.log('rankingPlayersMap = ', rankingPlayersMap);
+    let historyPenalty = playerA.teamateHistory.includes(playerB.name)
+      ? playerA.teamateHistory.lastIndexOf(playerB.name) + 1
+      : 0;
+
+    // Ranking balance adjustment (for bottom 25%): history is same scale as ranking score, so ranking can still win
     let playerARanking = rankingPlayersMap.get(playerA.name) ?? 999;
     let playerBRanking = rankingPlayersMap.get(playerB.name) ?? 999;
-      // this.log(`playerARanking:playerBRanking = [${playerARanking}:${playerBRanking}]`);
     if (playerARanking <= (rankingPlayersMap.size/4)-1) {
-      // this.log('  return (rankingPlayersMap.size-1)-playerARanking - playerBRanking');
-      return (rankingPlayersMap.size-1)-playerARanking - playerBRanking
+      return (rankingPlayersMap.size-1)-playerARanking - playerBRanking + historyPenalty;
     }
 
-    // #2 Priority: Calculate same teammate
-    if (!playerA.teamateHistory.includes(playerB.name)) {
-      // this.log(' return 0;');
-      return 0;
-    }
-    // this.log(' return playerA.teamateHistory.lastIndexOf(playerB.name) + 1;');
-    return playerA.teamateHistory.lastIndexOf(playerB.name) + 1;
+    // For everyone else: scale up history penalty so it always dominates
+    return historyPenalty * rankingPlayersMap.size;
   }
   private isAllTeamatesValid(
     retries: number,
@@ -733,6 +701,16 @@ export class MatchListComponent {
       teamateList.splice(0, 1);
     });
     this.matchService.saveMatchList(this.matchList);
+  }
+
+  private sortByPoint(players: Player[], pointFn: (player: Player) => number): Player[] {
+    const randomTiebreaker = new Map(players.map(p => [p.name, this.rng.random()]));
+    return players.slice().sort((a, b) => {
+      const aPoint = pointFn(a);
+      const bPoint = pointFn(b);
+      if (aPoint === bPoint) return randomTiebreaker.get(a.name)! - randomTiebreaker.get(b.name)!;
+      return aPoint - bPoint;
+    });
   }
 
   // === Others ===============================
