@@ -537,8 +537,7 @@ export class MatchListComponent {
     return new Map(sortedPlayerList.map((player, index) => [player.name, index]))
   }
   private calculateRankingPlayerPoints(roundsWon: number, actualTotalRoundsPlayed: number) {
-    if (actualTotalRoundsPlayed == null || actualTotalRoundsPlayed === 0) return DEFAULT_PLAYER_POINT
-    return (roundsWon/actualTotalRoundsPlayed)
+    return (roundsWon + 1) / (actualTotalRoundsPlayed + 2)
   }
   private calculateTeamatesGetSortedPlayerLeastWin(playerList: Player[]) {
     let mapPriorityPlayers = new Map<string, number>();
