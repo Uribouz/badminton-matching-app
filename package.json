@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve --open",
-    "build": "ng build && echo '/*    /index.html   200' > ./dist/badminton-matching-app/browser/_redirects",
-    "build_window": "ng build && echo /*    /index.html   200 > ./dist/badminton-matching-app/browser/_redirects",
+    "start": "node scripts/set-env.js && ng serve --open",
+    "build": "node scripts/set-env.js --prod && ng build && echo '/*    /index.html   200' > ./dist/badminton-matching-app/browser/_redirects",
+    "build_window": "node scripts/set-env.js --prod && ng build && echo /*    /index.html   200 > ./dist/badminton-matching-app/browser/_redirects",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
@@ -19,6 +19,7 @@
     "@angular/platform-browser": "^17.3.0",
     "@angular/platform-browser-dynamic": "^17.3.0",
     "@angular/router": "^17.3.0",
+    "@supabase/supabase-js": "^2.99.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.3"
@@ -28,6 +29,7 @@
     "@angular/cli": "^17.3.7",
     "@angular/compiler-cli": "^17.3.0",
     "@types/jasmine": "~5.1.0",
+    "dotenv": "^17.3.1",
     "jasmine-core": "~5.1.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
