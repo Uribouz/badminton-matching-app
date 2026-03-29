@@ -36,7 +36,6 @@ export class MatchListComponent {
   standbyList: Player[] = [];
   playersMap = new Map<string, Player>();
   playersOpponents = new Map<string, string[]>();
-  settingService = new SettingService();
   logData: String[] = [];
   rng = new XorShift();
   totalCourt = DEFAULT_TOTAL_COURT;
@@ -45,7 +44,7 @@ export class MatchListComponent {
   forceMatchTeamate: {player1:string, player2: string}[] = [];
   nemesisTeamate: {player1:string, player2: string}[] = [];
 
-  constructor(private playerService: PlayerService, private matchService: MatchService) {
+  constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService) {
     this.playersMap = this.playerService.loadPlayerList();
     this.log('playersMap: ', this.playersMap);
     this.matchHistory = this.matchService.loadMatchHistory();

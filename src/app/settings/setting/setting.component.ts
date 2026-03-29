@@ -15,12 +15,11 @@ import { SettingService } from '../../settings/setting.service';
 export class SettingComponent {
   public forceTeamates: {player1:string, player2: string}[] = [];
   public nemesisTeamates: {player1:string, player2: string}[] = [];
-  settingService = new SettingService();
   forceTeamatePlayer1: string = "";
   forceTeamatePlayer2: string = "";
   nemesisTeamatePlayer1: string = "";
   nemesisTeamatePlayer2: string = "";
-  constructor(private playerService: PlayerService, private matchService: MatchService) {
+  constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService) {
       this.forceTeamates = this.settingService.loadForceTeamates();
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();
   }

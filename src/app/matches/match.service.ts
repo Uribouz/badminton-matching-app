@@ -1,15 +1,16 @@
 import { Injectable } from '@angular/core';
 import { Match } from './match';
-import { HttpClient } from '@angular/common/http';
 import { Constants } from '../shared/constants';
-import { environment } from '../../environments/environment';
+import { AuthService } from '../auth/auth.service';
+import { EventService } from '../events/event.service';
 
 
 @Injectable({
   providedIn: 'root'
 })
 export class MatchService {
-  constructor(private http: HttpClient) {}
+  constructor(private authService: AuthService, private eventService: EventService) {}
+
   saveMatchList(matchList: Match[]) {
     localStorage.setItem('match-list', JSON.stringify(matchList))
   }
@@ -30,7 +31,6 @@ export class MatchService {
     localStorage.removeItem('match-list');
   }
 
-
   addMatchHistory(match:Match):Match[] {
     let matchHistory: Match[] = []
     let data = localStorage.getItem('match-history')
@@ -39,7 +39,7 @@ export class MatchService {
     }
     match = structuredClone(match)
     matchHistory.push(match)
-    this.syncMatchHistoryToAPI(match)
+    this.syncMatchToSupabase(match);
     localStorage.setItem('match-history', JSON.stringify(matchHistory))
     return matchHistory
   }
@@ -73,33 +73,35 @@ export class MatchService {
   clearMatchHistory() {
     localStorage.removeItem('match-history')
   }
-   syncMatchHistoryToAPI(match: Match) {
-      let today = new Date();
-      const eventId = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
-      const apiUrl = `${environment.apiUrl}/matches`;
-      const payload = {
-        event_id: eventId,
-        court_no: match.courtNo,
-        date_time: match.matchTime,
-        status: match.status,
-        team_a: {player_1: match.teamA.player1.name, 
-                player_2: match.teamA.player2.name},
-        team_b: {player_1: match.teamB.player1.name, 
-                player_2: match.teamB.player2.name},
-        who_won: match.whoWon,
-      };
-      
-      this.http.post(apiUrl, payload, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }).subscribe({
-        next: (response) => {
-          console.log(`Match court ${match.courtNo} synced successfully:`, response);
-        },
-        error: (error) => {
-          console.error(`Error syncing match court ${match.courtNo}:`, error);
-        }
-      });
+
+  async syncMatchToSupabase(match: Match) {
+    const today = new Date();
+    const eventKey = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
+
+    await this.eventService.ensureEventExists(eventKey);
+
+    const supabase = this.authService.getClient();
+    const user = await this.authService.getUser();
+
+    const row = {
+      event_id: eventKey,
+      user_id: user?.id ?? null,
+      court_no: match.courtNo,
+      match_time: match.matchTime,
+      status: match.status,
+      team_a_player_1: match.teamA.player1.name,
+      team_a_player_2: match.teamA.player2.name,
+      team_b_player_1: match.teamB.player1.name,
+      team_b_player_2: match.teamB.player2.name,
+      who_won: match.whoWon,
+    };
+
+    const { error } = await supabase.from('matches').insert(row);
+
+    if (error) {
+      console.error(`Error syncing match court ${match.courtNo} to Supabase:`, error);
+    } else {
+      console.log(`Match court ${match.courtNo} synced to Supabase`);
     }
+  }
 }

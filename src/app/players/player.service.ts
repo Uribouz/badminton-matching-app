@@ -1,30 +1,16 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Player } from './player';
 import { Status } from './status';
 import { Constants } from '../shared/constants';
-import { environment } from '../../environments/environment';
+import { AuthService } from '../auth/auth.service';
+import { EventService } from '../events/event.service';
+
 @Injectable({
   providedIn: 'root',
 })
 export class PlayerService {
-  constructor(private http: HttpClient) {}
-  // addPlayerList(
-  //   leastPlayed: number | 0,
-  //   playersMap: Map<string, Player>,
-  //   newPlayers: string
-  // ): Map<string, Player> {
-  //   newPlayers.split(',').forEach((player) => {
-  //     if (!playersMap.has(player)) {
-  //       console.log('New player: ' + player);
-  //       let newPlayer = new Player(player);
-  //       newPlayer.totalRoundsPlayed = leastPlayed;
-  //       playersMap.set(player, newPlayer);
-  //     }
-  //   });
-  //   this.savePlayerList(playersMap);
-  //   return playersMap;
-  // }
+  constructor(private authService: AuthService, private eventService: EventService) {}
+
   savePlayer(player: Player): Map<string, Player> {
     let playerMap = this.loadPlayerList();
     playerMap.set(player.name, player);
@@ -36,7 +22,7 @@ export class PlayerService {
       'player-list',
       JSON.stringify(Array.from(playersMap.entries()))
     );
-    this.syncPlayersToAPI(playersMap)
+    this.syncPlayersToSupabase(playersMap);
   }
   savePreviousPlayer(newPlayer: Player): Map<string, Player> {
     let playersMap = this.loadPreviousPlayerList()
@@ -133,9 +119,6 @@ export class PlayerService {
       playerStatus = new Status();
       return playerStatus;
     }
-    // console.log(
-    //   'playerMap.values().next().value: ' + playerMap.values().next().value
-    // );
     if (playerMap) {
       playerStatus.leastPlayed =
         playerMap?.values()?.next()?.value?.totalRoundsPlayed ?? 0;
@@ -148,7 +131,6 @@ export class PlayerService {
         if (playerStatus.mostPlayed < value.totalRoundsPlayed) {
           playerStatus.mostPlayed = value.totalRoundsPlayed;
         }
-        // console.log('player:' + player + ': ' + value.totalRoundsPlayed);
       });
     }
     console.log(
@@ -174,30 +156,38 @@ export class PlayerService {
     localStorage.removeItem('player-list');
     localStorage.removeItem('players-status');
   }
-  
-  syncPlayersToAPI(playersMap: Map<string, Player>) {
-    let today = new Date();
-    const eventId = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
-    const apiUrl = `${environment.apiUrl}/players`;
-    
-    playersMap.forEach((player, playerName) => {
-      const payload = {
-        event_id: eventId,
-        player_name: playerName
-      };
-      
-      this.http.post(apiUrl, payload, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }).subscribe({
-        next: (response) => {
-          console.debug(`Player ${playerName} synced successfully:`, response);
-        },
-        error: (error) => {
-          console.error(`Error syncing player ${playerName}:`, error);
-        }
-      });
-    });
+
+  async syncPlayersToSupabase(playersMap: Map<string, Player>) {
+    const today = new Date();
+    const eventKey = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
+
+    await this.eventService.ensureEventExists(eventKey);
+
+    const supabase = this.authService.getClient();
+    const user = await this.authService.getUser();
+
+    const rows = Array.from(playersMap.values()).map(player => ({
+      event_id: eventKey,
+      user_id: user?.id ?? null,
+      player_name: player.name,
+      total_rounds_played: player.totalRoundsPlayed,
+      actual_total_rounds_played: player.actualTotalRoundsPlayed,
+      rounds_waited: player.roundsWaited,
+      rounds_won: player.roundsWon,
+      status: player.status,
+      last_won_match: player.lastWonMatch,
+      teammate_history: player.teamateHistory,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('players')
+      .upsert(rows, { onConflict: 'event_id,player_name' });
+
+    if (error) {
+      console.error('Error syncing players to Supabase:', error);
+    } else {
+      console.debug('Players synced to Supabase');
+    }
   }
 }

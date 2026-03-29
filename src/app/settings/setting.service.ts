@@ -1,13 +1,16 @@
 import { Injectable } from '@angular/core';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SettingService {
 
-  constructor() { }
+  constructor(private authService: AuthService) { }
+
   saveForceTeamates(forceTeamates: {player1:string, player2: string}[]) {
     localStorage.setItem('force-teamates', JSON.stringify(forceTeamates))
+    this.syncSettingsToSupabase();
   }
   loadForceTeamates():{player1:string, player2: string}[] {
     let forceTeamates:{player1:string, player2: string}[] = []
@@ -20,6 +23,7 @@ export class SettingService {
   }
   saveNemesisTeamates(nemesisTeamates: {player1:string, player2: string}[]) {
     localStorage.setItem('nemesis-teamates', JSON.stringify(nemesisTeamates))
+    this.syncSettingsToSupabase();
   }
   loadNemesisTeamates():{player1:string, player2: string}[] {
     let nemesisTeamates:{player1:string, player2: string}[] = []
@@ -52,6 +56,59 @@ export class SettingService {
       each => each.player1+each.player2 != deleteNemesisTeamate.player1 + deleteNemesisTeamate.player2
     )
     this.saveNemesisTeamates(newNemesisTeamates);
-    return 
+    return
+  }
+
+  async syncSettingsToSupabase() {
+    const supabase = this.authService.getClient();
+    const user = await this.authService.getUser();
+    if (!user) {
+      return;
+    }
+
+    const forceTeammates = this.loadForceTeamates();
+    const nemesisTeammates = this.loadNemesisTeamates();
+
+    const { error } = await supabase
+      .from('settings')
+      .upsert(
+        {
+          user_id: user.id,
+          force_teammates: forceTeammates,
+          nemesis_teammates: nemesisTeammates,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
+
+    if (error) {
+      console.error('Error syncing settings to Supabase:', error);
+    } else {
+      console.debug('Settings synced to Supabase');
+    }
+  }
+
+  async loadSettingsFromSupabase() {
+    const supabase = this.authService.getClient();
+    const user = await this.authService.getUser();
+    if (!user) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('settings')
+      .select('force_teammates, nemesis_teammates')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Error loading settings from Supabase:', error);
+      return;
+    }
+
+    if (data) {
+      localStorage.setItem('force-teamates', JSON.stringify(data['force_teammates'] ?? []));
+      localStorage.setItem('nemesis-teamates', JSON.stringify(data['nemesis_teammates'] ?? []));
+    }
   }
 }
