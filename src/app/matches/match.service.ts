@@ -81,11 +81,11 @@ export class MatchService {
     await this.eventService.ensureEventExists(eventKey);
 
     const supabase = this.authService.getClient();
-    const user = await this.authService.getUser();
+    const session = await this.authService.getSession();
 
     const row = {
       event_id: eventKey,
-      user_id: user?.id ?? null,
+      user_id: session?.user?.id ?? null,
       court_no: match.courtNo,
       match_time: match.matchTime,
       status: match.status,

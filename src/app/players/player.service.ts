@@ -164,11 +164,12 @@ export class PlayerService {
     await this.eventService.ensureEventExists(eventKey);
 
     const supabase = this.authService.getClient();
-    const user = await this.authService.getUser();
+    const session = await this.authService.getSession();
+    const userId = session?.user?.id ?? null;
 
     const rows = Array.from(playersMap.values()).map(player => ({
       event_id: eventKey,
-      user_id: user?.id ?? null,
+      user_id: userId,
       player_name: player.name,
       total_rounds_played: player.totalRoundsPlayed,
       actual_total_rounds_played: player.actualTotalRoundsPlayed,

@@ -61,8 +61,8 @@ export class SettingService {
 
   async syncSettingsToSupabase() {
     const supabase = this.authService.getClient();
-    const user = await this.authService.getUser();
-    if (!user) {
+    const session = await this.authService.getSession();
+    if (!session) {
       return;
     }
 
@@ -73,7 +73,7 @@ export class SettingService {
       .from('settings')
       .upsert(
         {
-          user_id: user.id,
+          user_id: session.user.id,
           force_teammates: forceTeammates,
           nemesis_teammates: nemesisTeammates,
           updated_at: new Date().toISOString(),
@@ -90,15 +90,15 @@ export class SettingService {
 
   async loadSettingsFromSupabase() {
     const supabase = this.authService.getClient();
-    const user = await this.authService.getUser();
-    if (!user) {
+    const session = await this.authService.getSession();
+    if (!session) {
       return;
     }
 
     const { data, error } = await supabase
       .from('settings')
       .select('force_teammates, nemesis_teammates')
-      .eq('user_id', user.id)
+      .eq('user_id', session.user.id)
       .single();
 
     if (error) {
