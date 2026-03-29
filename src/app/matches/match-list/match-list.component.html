@@ -1,101 +1,103 @@
 <div class="body">
   <div class="matchList">
-    <div class="courtContainer" *ngFor="let match of matchList; index as i">
-      <div class="courtHeader">
-        <button
-          class="btn_small btn_court_delete"
-          (click)="deleteCourt(i)"
-        ></button>
-        <h1>Court {{ i + 1 }}</h1>
-      </div>
-      <div class="court">
-        <button
-          class="btn btn_tean_win"
-          [ngClass]="{
-            btn_positive: match.teamA.player1.name !== '' 
-            && match.status === courtStatus.PLAYING
-            && match.whoWon === 'teamA'
-          }"
-          (click)="onClickConfirmWinningTeam(match, 'teamA')"
-        ></button>
-        <div
-          class="team"
-          [ngClass]="{
-            courtStatusPlaying: match.status === courtStatus.PLAYING,
-            courtStatusAvailable: true
-          }"
-        >
-          <div class="player">
-            <h3>{{ match.teamA.player1.name }}</h3>
+    <div class="courtsPanel">
+      <div class="courtContainer" *ngFor="let match of matchList; index as i">
+        <div class="courtHeader">
+          <button
+            class="btn_small btn_court_delete"
+            (click)="deleteCourt(i)"
+          ></button>
+          <h1>Court {{ i + 1 }}</h1>
+        </div>
+        <div class="court">
+          <button
+            class="btn btn_tean_win"
+            [ngClass]="{
+              btn_positive: match.teamA.player1.name !== ''
+              && match.status === courtStatus.PLAYING
+              && match.whoWon === 'teamA'
+            }"
+            (click)="onClickConfirmWinningTeam(match, 'teamA')"
+          ></button>
+          <div
+            class="team"
+            [ngClass]="{
+              courtStatusPlaying: match.status === courtStatus.PLAYING,
+              courtStatusAvailable: true
+            }"
+          >
+            <div class="player">
+              <h3>{{ match.teamA.player1.name }}</h3>
+            </div>
+            <div class="player">
+              <h3>{{ match.teamA.player2.name }}</h3>
+            </div>
           </div>
-          <div class="player">
-            <h3>{{ match.teamA.player2.name }}</h3>
+          <div class="vl"></div>
+          <div
+            class="team"
+            [ngClass]="{
+              courtStatusPlaying: match.status === courtStatus.PLAYING,
+              courtStatusAvailable: true
+            }"
+          >
+            <div class="player">
+              <h3>{{ match.teamB.player1.name }}</h3>
+            </div>
+            <div class="player">
+              <h3>{{ match.teamB.player2.name }}</h3>
+            </div>
+          </div>
+          <button
+            class="btn btn_tean_win"
+            [ngClass]="{
+              btn_positive: match.teamA.player1.name !== ''
+               && match.status === courtStatus.PLAYING
+               && match.whoWon === 'teamB'
+            }"
+            (click)="onClickConfirmWinningTeam(match, 'teamB')"
+          ></button>
+        </div>
+        <div class="courtOrganizer">
+          <button
+            class="btn btn_court_free"
+            [ngClass]="{
+              btn_negative: match.teamA.player1.name !== ''
+            }"
+            (click)="freeCourt(match)"
+          ></button>
+          <button
+            class="btn btn_court_team_swap"
+            (click)="swapTeamates(match)"
+          ></button>
+        </div>
+      </div>
+      <div class="standbyContainer">
+        <span class="standbyLabel">Standby</span>
+        <div class="standbyChips">
+          <div
+            class="standbyChip"
+            *ngFor="let player of standbyList"
+            [ngClass]="{
+              playerStatusBreak: player.status === playerStatus.BREAK,
+              playerStatusSelected: player.status === playerStatus.SELECTED
+            }"
+            (click)="changePlayerStatus(player.name)"
+          >
+            {{ player.name }}
           </div>
         </div>
-        <div class="vl"></div>
-        <div
-          class="team"
-          [ngClass]="{
-            courtStatusPlaying: match.status === courtStatus.PLAYING,
-            courtStatusAvailable: true
-          }"
-        >
-          <div class="player">
-            <h3>{{ match.teamB.player1.name }}</h3>
-          </div>
-          <div class="player">
-            <h3>{{ match.teamB.player2.name }}</h3>
-          </div>
-        </div>
-        <button
-          class="btn btn_tean_win"
-          [ngClass]="{
-            btn_positive: match.teamA.player1.name !== '' 
-             && match.status === courtStatus.PLAYING
-             && match.whoWon === 'teamB'
-          }"
-          (click)="onClickConfirmWinningTeam(match, 'teamB')"
-        ></button>
       </div>
-      <div class="courtOrganizer">
+      <div class="btnContainer">
+        <button class="btn_large btn_court_add" (click)="addCourt()"></button>
         <button
-          class="btn btn_court_free"
-          [ngClass]="{
-            btn_negative: match.teamA.player1.name !== ''
-          }"
-          (click)="freeCourt(match)"
+          class="btn_large btn_court_confirm"
+          (click)="confirmCourts()"
         ></button>
         <button
-          class="btn btn_court_team_swap"
-          (click)="swapTeamates(match)"
+          class="btn_large btn_court_shuffle"
+          (click)="shufflePlayersIntoCourt()"
         ></button>
-      </div>
-    </div>
-    <div class="btnContainer">
-      <button class="btn_large btn_court_add" (click)="addCourt()"></button>
-      <button
-        class="btn_large btn_court_confirm"
-        (click)="confirmCourts()"
-      ></button>
-      <button
-        class="btn_large btn_court_shuffle"
-        (click)="shufflePlayersIntoCourt()"
-      ></button>
-    </div>
-    <div class="standbyContainer">
-      <h2>Standby</h2>
-      <div class="playerStandby" *ngFor="let player of standbyList">
-        <div
-          class="player"
-          [ngClass]="{
-            playerStatusBreak: player.status === playerStatus.BREAK,
-            playerStatusSelected: player.status === playerStatus.SELECTED,
-            playerStatusReady: true
-          }"
-          (click)="changePlayerStatus(player.name)"
-        >
-          <h4>{{ player.name }}</h4>
-        </div>
       </div>
     </div>
   </div>
