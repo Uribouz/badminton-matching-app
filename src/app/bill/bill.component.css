@@ -15,10 +15,6 @@ h2 {
   width: 100%;
   overflow-x: auto;
 }
-.paymentDetail table {
-  width: 100%;
-  table-layout: fixed;
-}
 .paymentDetail input {
   width: 100%;
   box-sizing: border-box;
