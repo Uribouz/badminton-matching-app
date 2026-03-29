@@ -184,15 +184,48 @@
 }
 
 .standbyChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 10px;
   border-radius: 20px;
   border: 1px solid #999;
   background: #fff;
   font-size: 13px;
-  cursor: pointer;
   white-space: nowrap;
   user-select: none;
 }
+
+.standbyChipName {
+  flex-shrink: 0;
+}
+
+.standbyChipActions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.statusDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.3;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.statusDot.dotActive {
+  opacity: 1;
+  transform: scale(1.3);
+  background-color: #000000 !important;
+}
+
+.dotBreak    { background-color: #c0392b; border-color: #c0392b; }
+.dotSelected { background-color: #27ae60; border-color: #27ae60; }
+.dotReady    { background-color: #ffffff;    border-color: #555; }
 .playerStatusBreak {
   background-color: #d77b7b;
 }

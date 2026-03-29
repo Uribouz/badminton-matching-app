@@ -82,9 +82,28 @@
               playerStatusBreak: player.status === playerStatus.BREAK,
               playerStatusSelected: player.status === playerStatus.SELECTED
             }"
-            (click)="changePlayerStatus(player.name)"
           >
-            {{ player.name }}
+            <span class="standbyChipName">{{ player.name }}</span>
+            <div class="standbyChipActions">
+              <button
+                class="statusDot dotBreak"
+                [class.dotActive]="player.status === playerStatus.BREAK"
+                (click)="setPlayerStatus(player.name, playerStatus.BREAK)"
+                title="Break"
+              ></button>
+              <button
+                class="statusDot dotSelected"
+                [class.dotActive]="player.status === playerStatus.SELECTED"
+                (click)="setPlayerStatus(player.name, playerStatus.SELECTED)"
+                title="Selected"
+              ></button>
+              <button
+                class="statusDot dotReady"
+                [class.dotActive]="player.status === playerStatus.READY"
+                (click)="setPlayerStatus(player.name, playerStatus.READY)"
+                title="Free"
+              ></button>
+            </div>
           </div>
         </div>
       </div>

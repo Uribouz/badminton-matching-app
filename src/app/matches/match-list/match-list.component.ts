@@ -135,6 +135,15 @@ export class MatchListComponent {
   }
 
   // Player management ======================
+  setPlayerStatus(name: string, status: PLAYER_STATUS) {
+    let player = this.playersMap.get(name);
+    if (!player) return;
+    player.status = status;
+    this.log(`player: ${name} ${status}`);
+    this.playersMap.set(player.name, player);
+    this.playerService.savePlayerList(this.playersMap);
+  }
+
   changePlayerStatus(name: string) {
     // this.log('CHANGE_PLAYER_STATUS start...')
     let player = this.playersMap.get(name);
