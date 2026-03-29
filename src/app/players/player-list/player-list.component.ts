@@ -33,6 +33,9 @@ export class PlayerListComponent {
   addPreviousPlayerToList( name: string) {
     this.addPlayer(name);
   }
+  deletePreviousPlayer(name: string) {
+    this.playerService.deletePreviousPlayer(this.previousPlayerMap,name);
+  }
   loadPlayerData() {
     this.playersMap = this.playerService.loadPlayerList();
     this.status = this.playerService.loadPlayerStatus();

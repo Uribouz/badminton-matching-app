@@ -109,6 +109,14 @@ export class PlayerService {
     this.savePlayerList(playerMap);
     return playerMap;
   }
+  deletePreviousPlayer(previousPlayerMap: Map<string, Player>, playerName: string): Map<string, Player> {
+    previousPlayerMap.delete(playerName)
+    localStorage.setItem(
+      'previous-player-list',
+      JSON.stringify(Array.from(previousPlayerMap.entries()))
+    );
+    return previousPlayerMap;
+  }
 
   //Status
   revalidateStatus(
