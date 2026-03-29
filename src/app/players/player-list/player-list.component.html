@@ -61,16 +61,14 @@
     </div>
   </div>
   <h1> Previous Players</h1><br>
-  <div class="previousPlayerContainer">
+  <div class="playerListContainer">
     <div *ngFor="let playerName of getPreviousPlayerList()">
-      <div class="playerContainer">
-        <div class="previousPlayerHeader">
+      <div class="previousPlayerContainer">
           <h2>{{ playerName }}</h2>
           <button
-            class="btn-small btn-add-big"
+            class="btn-small btn-add"
             (click)="addPreviousPlayerToList(playerName)"
           ></button>
-        </div>
     </div>
   </div>
 </div>
