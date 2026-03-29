@@ -1,0 +1,120 @@
+.body {
+  font-family: "Open Sans", sans-serif;
+  padding: 10px 16px;
+}
+
+.event-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.state-message {
+  color: #666;
+  padding: 20px 0;
+}
+
+.state-message.error {
+  color: #d32f2f;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #444;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 4px;
+}
+
+.empty-msg {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+/* Courts */
+.courtsPanel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.courtContainer {
+  width: fit-content;
+}
+
+.courtHeader h1 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+}
+
+.court {
+  padding: 2px;
+  border: solid 5px #333;
+  border-radius: 10px;
+  display: flex;
+  gap: 2px;
+}
+
+.courtStatusPlaying {
+  background-color: #a5e9e8;
+}
+
+.team {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100px;
+  border: solid black;
+  padding: 5px;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+.vl {
+  border-left: 3px solid black;
+}
+
+.player {
+  border-radius: 2px;
+  border: solid black;
+  width: 75px;
+  height: 60px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player h3 {
+  font-size: 0.75rem;
+  margin: 0;
+  word-break: break-word;
+}
+
+/* History tables */
+.historyTable {
+  border-spacing: 4px 8px;
+  font-size: 0.875rem;
+}
+
+.historyTable td {
+  padding: 2px 6px;
+  vertical-align: top;
+}
+
+.player-name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.winner {
+  color: #1976d2;
+  font-weight: bold;
+}

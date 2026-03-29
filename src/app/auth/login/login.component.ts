@@ -47,4 +47,8 @@ export class LoginComponent {
     this.isSignUp = !this.isSignUp;
     this.errorMessage = '';
   }
+
+  loginAsGuest() {
+    this.router.navigate(['/guest']);
+  }
 }

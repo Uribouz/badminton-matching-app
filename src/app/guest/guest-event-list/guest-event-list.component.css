@@ -1,0 +1,58 @@
+.event-list-container {
+  padding: 20px 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.state-message {
+  color: #666;
+  font-size: 0.95rem;
+  padding: 20px 0;
+}
+
+.state-message.error {
+  color: #d32f2f;
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+}
+
+.event-card:hover {
+  background: #f0f7ff;
+  border-color: #1976d2;
+}
+
+.event-date {
+  font-weight: 500;
+  color: #333;
+}
+
+.event-arrow {
+  color: #999;
+  font-size: 1.3rem;
+}

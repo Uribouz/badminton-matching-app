@@ -42,5 +42,10 @@
         {{ isSignUp ? 'Sign In' : 'Sign Up' }}
       </button>
     </p>
+
+    <div class="guest-divider"><span>or</span></div>
+    <button type="button" class="btn-guest" (click)="loginAsGuest()">
+      Continue as Guest
+    </button>
   </div>
 </div>

@@ -1,0 +1,72 @@
+<div class="body">
+  <h2 class="event-title">{{ eventLabel }}</h2>
+
+  <div *ngIf="loading" class="state-message">Loading...</div>
+  <div *ngIf="!loading && error" class="state-message error">{{ error }}</div>
+
+  <ng-container *ngIf="!loading && !error">
+    <!-- Active Courts -->
+    <div class="section">
+      <h3 class="section-title">Courts</h3>
+      <div *ngIf="activeCourts.length === 0" class="empty-msg">No active courts.</div>
+      <div class="courtsPanel">
+        <div class="courtContainer" *ngFor="let match of activeCourts; index as i">
+          <div class="courtHeader">
+            <h1>Court {{ match.courtNo }}</h1>
+          </div>
+          <div class="court courtStatusPlaying">
+            <div class="team">
+              <div class="player"><h3>{{ match.teamAPlayer1 }}</h3></div>
+              <div class="player"><h3>{{ match.teamAPlayer2 }}</h3></div>
+            </div>
+            <div class="vl"></div>
+            <div class="team">
+              <div class="player"><h3>{{ match.teamBPlayer1 }}</h3></div>
+              <div class="player"><h3>{{ match.teamBPlayer2 }}</h3></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Partner History -->
+    <div class="section">
+      <h3 class="section-title">Partner History</h3>
+      <div *ngIf="players.length === 0" class="empty-msg">No player data.</div>
+      <table class="historyTable" *ngIf="players.length > 0">
+        <tr *ngFor="let player of players">
+          <td class="player-name">{{ player.name }} [P:{{ player.totalRoundsPlayed }}] [G:{{ player.actualTotalRoundsPlayed }}]</td>
+          <td>: {{ player.teamateHistory.join(', ') }}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Match History -->
+    <div class="section">
+      <h3 class="section-title">Match History</h3>
+      <div *ngIf="matchHistory.length === 0" class="empty-msg">No matches yet.</div>
+      <table class="historyTable" *ngIf="matchHistory.length > 0">
+        <tr *ngFor="let match of matchHistory; index as i">
+          <td>{{ i + 1 }}) {{ getMatchTime(match) }}</td>
+          <td>[{{ match.teamAPlayer1 }}, {{ match.teamAPlayer2 }}]</td>
+          <td>vs</td>
+          <td>[{{ match.teamBPlayer1 }}, {{ match.teamBPlayer2 }}]</td>
+          <td *ngIf="match.whoWon" class="winner">{{ match.whoWon === 'teamA' ? '← W' : 'W →' }}</td>
+          <td *ngIf="!match.whoWon"></td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Win Percentage -->
+    <!-- <div class="section">
+      <h3 class="section-title">Win Percentage</h3>
+      <div *ngIf="players.length === 0" class="empty-msg">No player data.</div>
+      <table class="historyTable" *ngIf="players.length > 0">
+        <tr *ngFor="let player of players">
+          <td class="player-name">{{ player.name }}</td>
+          <td>: {{ winPercentage(player) }} ({{ player.roundsWon }})</td>
+        </tr>
+      </table>
+    </div> -->
+  </ng-container>
+</div>

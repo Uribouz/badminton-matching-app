@@ -90,3 +90,40 @@ input:focus {
   padding: 0;
   text-decoration: underline;
 }
+
+.guest-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.25rem 0 1rem;
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.guest-divider::before,
+.guest-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.guest-divider span {
+  padding: 0 0.75rem;
+}
+
+.btn-guest {
+  width: 100%;
+  padding: 0.7rem;
+  background-color: #fff;
+  color: #555;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-guest:hover {
+  background-color: #f5f5f5;
+  border-color: #999;
+}

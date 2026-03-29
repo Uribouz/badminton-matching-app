@@ -1,0 +1,18 @@
+<div class="event-list-container">
+  <h2 class="page-title">Select an Event</h2>
+
+  <div *ngIf="loading" class="state-message">Loading events...</div>
+  <div *ngIf="!loading && error" class="state-message error">{{ error }}</div>
+  <div *ngIf="!loading && !error && events.length === 0" class="state-message">No events found.</div>
+
+  <div *ngIf="!loading && !error && events.length > 0" class="event-list">
+    <button
+      *ngFor="let event of events"
+      class="event-card"
+      (click)="selectEvent(event.event_key)"
+    >
+      <span class="event-date">{{ formatLabel(event.event_key) }}</span>
+      <span class="event-arrow">›</span>
+    </button>
+  </div>
+</div>
