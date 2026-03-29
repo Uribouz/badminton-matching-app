@@ -1,9 +1,11 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { PlayerService } from '../../players/player.service';
 import { MatchService } from '../../matches/match.service';
 import { SettingService } from '../../settings/setting.service';
+import { AuthService } from '../../auth/auth.service';
 
 @Component({
   selector: 'app-setting',
@@ -19,7 +21,7 @@ export class SettingComponent {
   forceTeamatePlayer2: string = "";
   nemesisTeamatePlayer1: string = "";
   nemesisTeamatePlayer2: string = "";
-  constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService) {
+  constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService, private authService: AuthService, private router: Router) {
       this.forceTeamates = this.settingService.loadForceTeamates();
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();
   }
@@ -52,5 +54,9 @@ export class SettingComponent {
   clearAllData() {
     this.playerService.clearAllData();
     this.matchService.clearAllData();
+  }
+  async logout() {
+    await this.authService.signOut();
+    this.router.navigate(['/login']);
   }
 }
