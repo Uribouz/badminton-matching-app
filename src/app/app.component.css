@@ -1,16 +1,25 @@
 .page-content {
+  max-width: 900px;
+  margin: 0 auto;
   padding-bottom: 64px;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  min-height: 100vh;
 }
 
 .bottom-nav {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 900px;
   height: 60px;
   display: flex;
   background: #fff;
   border-top: 1px solid #e0e0e0;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
   z-index: 100;
 }
