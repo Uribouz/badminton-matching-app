@@ -15,9 +15,12 @@ export const environment = {
 };
 `;
 
-const targetPath = isProd
-  ? path.resolve(__dirname, '../src/environments/environment.prod.ts')
-  : path.resolve(__dirname, '../src/environments/environment.ts');
+const targetDir = path.resolve(__dirname, '../src/environments');
+const targetPath = path.join(targetDir, 'environment.ts');
+
+if (!fs.existsSync(targetDir)) {
+  fs.mkdirSync(targetDir, { recursive: true });
+}
 
 fs.writeFileSync(targetPath, envContent);
 console.log(`Generated ${targetPath}`);
