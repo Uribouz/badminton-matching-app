@@ -31,8 +31,16 @@ export class PlayerListComponent {
   getPreviousPlayerList(): string[] {
     return Array.from(this.previousPlayerMap.keys()).filter(name => !this.playersMap.has(name));
   }
-  addPreviousPlayerToList( name: string) {
+  addPreviousPlayerToList(name: string) {
+    const savedRank = this.previousPlayerMap.get(name)?.rank;
     this.addPlayer(name);
+    if (savedRank != null) {
+      const player = this.playersMap.get(name);
+      if (player) {
+        player.rank = savedRank;
+        this.playerService.savePlayerList(this.playersMap);
+      }
+    }
   }
   deletePreviousPlayer(name: string) {
     this.playerService.deletePreviousPlayer(this.previousPlayerMap,name);
@@ -106,6 +114,7 @@ export class PlayerListComponent {
     player.rank = Number(rank);
     this.playersMap.set(playerName, player);
     this.playerService.savePlayerList(this.playersMap);
+    this.previousPlayerMap = this.playerService.savePreviousPlayer(player);
   }
 
   //Internal ----------------------------------------------------------------

@@ -82,6 +82,15 @@ export class SettingComponent {
   clearAllData() {
     this.playerService.clearAllData();
     this.matchService.clearAllData();
+    this.settingService.saveForceTeamates([]);
+    this.settingService.saveNemesisTeamates([]);
+    this.forceTeamates = [];
+    this.nemesisTeamates = [];
+    this.forceTeamatePlayer1 = '';
+    this.forceTeamatePlayer2 = '';
+    this.nemesisTeamatePlayer1 = '';
+    this.nemesisTeamatePlayer2 = '';
+    this.playerNames = [];
   }
   async logout() {
     await this.authService.signOut();
