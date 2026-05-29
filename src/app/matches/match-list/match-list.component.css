@@ -263,3 +263,28 @@
 .matchHistoryContainer {
   padding-bottom: 25px;
 }
+.matchTeamWin {
+  background-color: #d4f5d4;
+  font-weight: bold;
+}
+.matchTeamLoss {
+  background-color: #fad4d4;
+  color: #888;
+}
+.matchResult {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  font-size: 10px;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 3px;
+  background: #3a3;
+  color: #fff;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.matchResultLoss {
+  background: #c33;
+}

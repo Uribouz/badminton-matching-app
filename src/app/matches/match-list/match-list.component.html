@@ -137,11 +137,19 @@
     <table>
       <tr class="matchHistory" *ngFor="let match of matchHistory; index as i">
         <td>{{ i }}) {{ getMatchTime(match) }}</td>
-        <td>
+        <td class="matchTeam"
+            [class.matchTeamWin]="match.whoWon === 'teamA'"
+            [class.matchTeamLoss]="match.whoWon === 'teamB'">
+          <span class="matchResult" *ngIf="match.whoWon === 'teamA'">W</span>
+          <span class="matchResult matchResultLoss" *ngIf="match.whoWon === 'teamB'">L</span>
           [{{ match.teamA.player1.name }}, {{ match.teamA.player2.name }}]
         </td>
         :
-        <td>
+        <td class="matchTeam"
+            [class.matchTeamWin]="match.whoWon === 'teamB'"
+            [class.matchTeamLoss]="match.whoWon === 'teamA'">
+          <span class="matchResult" *ngIf="match.whoWon === 'teamB'">W</span>
+          <span class="matchResult matchResultLoss" *ngIf="match.whoWon === 'teamA'">L</span>
           [{{ match.teamB.player1.name }}, {{ match.teamB.player2.name }}]
         </td>
       </tr>

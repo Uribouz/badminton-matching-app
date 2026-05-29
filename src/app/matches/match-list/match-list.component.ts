@@ -120,6 +120,10 @@ export class MatchListComponent {
     this.log('cannot free court, still didnt have a winner');
       return;
     }
+    if (currentCourt.status === COURT_STATUS.PLAYING) {
+      this.matchHistory = this.matchService.addMatchHistory(currentCourt);
+      this.playersOpponents = this.matchService.loadPlayerOpponents();
+    }
     currentCourt.status = COURT_STATUS.AVAILABLE;
     this.clearCourt(currentCourt);
     this.matchService.saveMatchList(this.matchList);
@@ -341,8 +345,6 @@ export class MatchListComponent {
       confirmedPlayerNames
     );
     this.playersMap = this.confirmPlayersInCourt(this.playersMap, court);
-    this.matchHistory = this.matchService.addMatchHistory(court);
-    this.playersOpponents = this.matchService.loadPlayerOpponents();
   }
   private confirmPlayersWait() {
     let playingPlayersName = this.matchList
