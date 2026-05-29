@@ -47,12 +47,16 @@
       <div *ngIf="matchHistory.length === 0" class="empty-msg">No matches yet.</div>
       <table class="historyTable" *ngIf="matchHistory.length > 0">
         <tr *ngFor="let match of matchHistory; index as i">
-          <td>{{ i + 1 }}) {{ getMatchTime(match) }}</td>
-          <td>[{{ match.teamAPlayer1 }}, {{ match.teamAPlayer2 }}]</td>
-          <td>vs</td>
-          <td>[{{ match.teamBPlayer1 }}, {{ match.teamBPlayer2 }}]</td>
-          <td *ngIf="match.whoWon" class="winner">{{ match.whoWon === 'teamA' ? '← W' : 'W →' }}</td>
-          <td *ngIf="!match.whoWon"></td>
+          <td class="match-time">{{ i + 1 }}) {{ getMatchTime(match) }}</td>
+          <td class="matchTeam">
+            <span class="winBadge" *ngIf="match.whoWon === 'teamA'">W</span>
+            [{{ match.teamAPlayer1 }}, {{ match.teamAPlayer2 }}]
+          </td>
+          <td class="vs-separator">vs</td>
+          <td class="matchTeam">
+            <span class="winBadge" *ngIf="match.whoWon === 'teamB'">W</span>
+            [{{ match.teamBPlayer1 }}, {{ match.teamBPlayer2 }}]
+          </td>
         </tr>
       </table>
     </div>

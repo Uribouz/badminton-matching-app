@@ -142,11 +142,25 @@
   white-space: nowrap;
 }
 
-.winner {
-  color: var(--color-blue);
-  background: var(--color-blue-light);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+.match-time {
+  white-space: nowrap;
+}
+
+.vs-separator {
+  text-align: center;
+  color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.matchTeam {
+  padding: var(--space-2) var(--space-3);
+}
+
+.winBadge {
+  font-size: 10px;
   font-weight: 700;
+  color: var(--color-text-muted);
+  margin-right: var(--space-1);
+  letter-spacing: 0.05em;
 }
