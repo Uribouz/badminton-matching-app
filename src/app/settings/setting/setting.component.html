@@ -1,3 +1,4 @@
+<div class="setting-page">
 <div class="forcePlayerContainer">
     <h3>Force Players Teamates</h3>
     <div class="input-row">
@@ -113,9 +114,12 @@
     <p class="shuffleModeDesc" *ngIf="shuffleMode === 'auto'">Randomly picks: 40% Balanced, 40% Mixed, 20% Novel each shuffle.</p>
 </div>
 
-<button class="btn btnClearAllData" (click)="clearAllData()">
-    Reset All Data
-</button>
-<button class="btn btnLogout" (click)="logout()">
-    Logout
-</button>
+<div class="danger-zone">
+    <button class="btn btnClearAllData" (click)="clearAllData()">
+        Reset All Data
+    </button>
+    <button class="btn btnLogout" (click)="logout()">
+        Logout
+    </button>
+</div>
+</div>

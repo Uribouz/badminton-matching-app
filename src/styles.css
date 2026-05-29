@@ -11,3 +11,87 @@ html, body {
   overflow-x: hidden;
 }
 
+:root {
+  /* Colors — original palette, tokenized */
+  --color-teal: #a5e9e8;
+  --color-teal-dim: #d4f5f4;
+  --color-blue: #1976d2;
+  --color-blue-light: rgba(25, 118, 210, 0.08);
+  --color-green: #c0e069;
+  --color-green-bg: #d4f5d4;
+  --color-red: #d77b7b;
+  --color-red-bg: #fad4d4;
+  --color-orange: #f7a007;
+
+  /* Neutrals */
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-border: #e4e8ee;
+  --color-border-strong: #c8ced9;
+  --color-text-primary: #1a1d23;
+  --color-text-secondary: #5a6272;
+  --color-text-muted: #9099a8;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.07), 0 2px 12px rgba(0,0,0,0.05);
+  --shadow-nav: 0 -1px 0 var(--color-border), 0 -4px 16px rgba(0,0,0,0.06);
+
+  /* Typography */
+  --font-body: 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 15px;
+  --font-size-md: 17px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.section-header {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: var(--space-4) 0 var(--space-2);
+}
+
+hr.divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 0;
+}

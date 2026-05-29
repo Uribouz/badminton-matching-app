@@ -1,13 +1,13 @@
 .body {
   font-family: "Open Sans", sans-serif;
-  padding: 10px 16px;
+  padding: var(--space-4);
 }
 
 .event-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: #333;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-5);
 }
 
 .state-message {
@@ -20,16 +20,18 @@
 }
 
 .section {
-  margin-bottom: 28px;
+  margin-bottom: var(--space-8);
 }
 
 .section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-  color: #444;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-4);
 }
 
 .empty-msg {
@@ -41,51 +43,74 @@
 .courtsPanel {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: var(--space-4);
   align-items: flex-start;
 }
 
 .courtContainer {
   width: fit-content;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
+  min-width: 220px;
 }
 
 .courtHeader h1 {
   margin: 0 0 4px 0;
-  font-size: 1rem;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
 }
 
 .court {
-  padding: 2px;
-  border: solid 5px #333;
-  border-radius: 10px;
+  padding: var(--space-2);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   display: flex;
   gap: 2px;
+  overflow: hidden;
 }
 
 .courtStatusPlaying {
-  background-color: #a5e9e8;
+  background: var(--color-teal-dim);
+}
+
+.courtStatusPlaying .team {
+  background: var(--color-teal);
 }
 
 .team {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-2);
   width: 100px;
-  border: solid black;
-  padding: 5px;
+  padding: var(--space-2);
+  flex: 1;
   justify-content: space-evenly;
   align-items: center;
 }
 
 .vl {
-  border-left: 3px solid black;
+  width: 1px;
+  background: var(--color-border-strong);
+  border: none;
+  align-self: stretch;
+  flex-shrink: 0;
 }
 
 .player {
   border-radius: 2px;
-  border: solid black;
-  width: 75px;
-  height: 60px;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.7);
+  height: auto;
+  min-height: 52px;
+  width: 80px;
   text-align: center;
   display: flex;
   align-items: center;
@@ -93,19 +118,22 @@
 }
 
 .player h3 {
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   margin: 0;
   word-break: break-word;
 }
 
 /* History tables */
 .historyTable {
-  border-spacing: 4px 8px;
-  font-size: 0.875rem;
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .historyTable td {
-  padding: 2px 6px;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
   vertical-align: top;
 }
 
@@ -115,6 +143,10 @@
 }
 
 .winner {
-  color: #1976d2;
-  font-weight: bold;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
 }

@@ -144,7 +144,7 @@
           <span class="matchResult matchResultLoss" *ngIf="match.whoWon === 'teamB'">L</span>
           [{{ match.teamA.player1.name }}, {{ match.teamA.player2.name }}]
         </td>
-        :
+        <td class="vs-separator">vs</td>
         <td class="matchTeam"
             [class.matchTeamWin]="match.whoWon === 'teamB'"
             [class.matchTeamLoss]="match.whoWon === 'teamA'">
@@ -181,7 +181,4 @@
     </button>
   </div>
 </div>
-<br />
-<br />
-<br />
-<app-bill [players]="getPlayerList()"></app-bill>
+<div class="bill-section"><p class="bill-section-header">Payment</p><app-bill [players]="getPlayerList()"></app-bill></div>
