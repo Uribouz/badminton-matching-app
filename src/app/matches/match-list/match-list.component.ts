@@ -529,8 +529,8 @@ export class MatchListComponent {
     const saved = this.settingService.loadShuffleMode();
     if (saved !== 'auto') return saved;
     const roll = this.rng.random();
-    if (roll < 0.40) return 'balanced';
-    if (roll < 0.80) return 'mixed';
+    if (roll < 0.60) return 'balanced';
+    if (roll < 0.90) return 'mixed';
     return 'novel';
   }
 

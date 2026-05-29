@@ -196,6 +196,7 @@
   background-repeat: no-repeat;
   background-image: url('./icons/share.svg');
   background-size: 55%;
+  margin-left: auto;
 }
 
 .standbyContainer {
