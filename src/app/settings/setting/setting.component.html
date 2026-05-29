@@ -12,7 +12,7 @@
             class="player-input"
           />
         </div>
-        
+
         <div class="input-group">
           <label for="player2">Player 2:</label>
           <input
@@ -31,6 +31,15 @@
             class="submit-button"
         >add
         </button>
+    </div>
+    <div class="playerChips" *ngIf="playerNames.length > 0">
+        <button
+            *ngFor="let name of playerNames"
+            class="playerChip"
+            [class.playerChipSelected1]="forceTeamatePlayer1 === name"
+            [class.playerChipSelected2]="forceTeamatePlayer2 === name"
+            (click)="onSelectForcePlayer(name)"
+        >{{ name }}</button>
     </div>
     <table class="forcePlayerTable">
         <tr class="forcePlayerRow" *ngFor="let teamate of forceTeamates">
@@ -53,7 +62,7 @@
             class="player-input"
           />
         </div>
-        
+
         <div class="input-group">
           <label for="player2">Player 2:</label>
           <input
@@ -72,6 +81,15 @@
             class="submit-button"
         >add
         </button>
+    </div>
+    <div class="playerChips" *ngIf="playerNames.length > 0">
+        <button
+            *ngFor="let name of playerNames"
+            class="playerChip"
+            [class.playerChipSelected1]="nemesisTeamatePlayer1 === name"
+            [class.playerChipSelected2]="nemesisTeamatePlayer2 === name"
+            (click)="onSelectNemesisPlayer(name)"
+        >{{ name }}</button>
     </div>
     <table class="nemesisPlayersTable">
         <tr class="nemesisPlayersRow" *ngFor="let teamate of nemesisTeamates">

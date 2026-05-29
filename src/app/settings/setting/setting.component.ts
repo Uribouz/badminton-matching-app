@@ -23,16 +23,34 @@ export class SettingComponent {
   nemesisTeamatePlayer2: string = "";
 
   shuffleMode: 'balanced' | 'mixed' | 'novel' | 'auto' = 'auto';
+  playerNames: string[] = [];
 
   constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService, private authService: AuthService, private router: Router) {
       this.forceTeamates = this.settingService.loadForceTeamates();
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();
       this.shuffleMode = this.settingService.loadShuffleMode();
+      this.playerNames = Array.from(this.playerService.loadPlayerList().keys());
   }
 
   setShuffleMode(mode: 'balanced' | 'mixed' | 'novel' | 'auto') {
     this.shuffleMode = mode;
     this.settingService.saveShuffleMode(mode);
+  }
+
+  onSelectForcePlayer(name: string) {
+    if (!this.forceTeamatePlayer1) {
+      this.forceTeamatePlayer1 = name;
+    } else if (!this.forceTeamatePlayer2 && this.forceTeamatePlayer1 !== name) {
+      this.forceTeamatePlayer2 = name;
+    }
+  }
+
+  onSelectNemesisPlayer(name: string) {
+    if (!this.nemesisTeamatePlayer1) {
+      this.nemesisTeamatePlayer1 = name;
+    } else if (!this.nemesisTeamatePlayer2 && this.nemesisTeamatePlayer1 !== name) {
+      this.nemesisTeamatePlayer2 = name;
+    }
   }
 
   onSubmitForceTeamate() {

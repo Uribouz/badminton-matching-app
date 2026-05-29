@@ -56,6 +56,36 @@
     border: 1px solid #aaa;
 }
 
+.playerChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 12px;
+}
+.playerChip {
+    padding: 4px 12px;
+    border-radius: 16px;
+    border: 1px solid #aaa;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.12s, border-color 0.12s;
+}
+.playerChip:hover {
+    border-color: #555;
+    background: #e8e8e8;
+}
+.playerChipSelected1 {
+    background: #a5e9e8;
+    border-color: #2aa;
+    font-weight: bold;
+}
+.playerChipSelected2 {
+    background: #f7c97e;
+    border-color: #c80;
+    font-weight: bold;
+}
+
 .btnClearAllData {
     margin-top: 20px;
     background-color: #D77B7B;
