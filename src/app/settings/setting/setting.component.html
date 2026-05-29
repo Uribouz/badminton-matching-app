@@ -95,25 +95,6 @@
     <p class="shuffleModeDesc" *ngIf="shuffleMode === 'auto'">Randomly picks: 40% Balanced, 40% Mixed, 20% Novel each shuffle.</p>
 </div>
 
-<div class="playerRankContainer">
-    <h3>Player Ranks</h3>
-    <table class="playerRankTable">
-        <thead>
-            <tr><th>Player</th><th>Rank (1=best)</th></tr>
-        </thead>
-        <tbody>
-            <tr *ngFor="let player of getPlayerList()">
-                <td>{{ player.name }}</td>
-                <td>
-                    <select [(ngModel)]="player.rank" (ngModelChange)="onPlayerRankChange(player.name, $event)">
-                        <option *ngFor="let r of rankOptions" [value]="r">{{ r }}</option>
-                    </select>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
 <button class="btn btnClearAllData" (click)="clearAllData()">
     Reset All Data
 </button>

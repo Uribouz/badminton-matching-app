@@ -186,6 +186,7 @@ export class PlayerService {
       status: player.status,
       last_won_match: player.lastWonMatch,
       teammate_history: player.teamateHistory,
+      rank: player.rank ?? 5,
       updated_at: new Date().toISOString(),
     }));
 
@@ -198,5 +199,29 @@ export class PlayerService {
     } else {
       console.debug('Players synced to Supabase');
     }
+  }
+
+  async loadPlayerRanksFromSupabase(): Promise<Map<string, number>> {
+    const supabase = this.authService.getClient();
+    const session = await this.authService.getSession();
+    const userId = session?.user?.id ?? null;
+    if (!userId) return new Map();
+
+    const { data, error } = await supabase
+      .from('players')
+      .select('player_name, rank, updated_at')
+      .eq('user_id', userId)
+      .not('rank', 'is', null)
+      .order('updated_at', { ascending: false });
+
+    if (error || !data) return new Map();
+
+    const rankMap = new Map<string, number>();
+    for (const row of data) {
+      if (!rankMap.has(row.player_name) && row.rank != null) {
+        rankMap.set(row.player_name, Number(row.rank));
+      }
+    }
+    return rankMap;
   }
 }

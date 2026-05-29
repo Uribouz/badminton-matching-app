@@ -1,6 +1,6 @@
 <div class="body">
   <div class="inputContainer">
-    <textarea [(ngModel)]="playerTextArea" class="textArea" placeholder="Player" (keydown.enter)="onAddPlayerTextArea()"></textarea>
+    <textarea [(ngModel)]="playerTextArea" class="textArea" placeholder="Player" (keydown.enter)="onAddPlayerTextArea(); $event.preventDefault()"></textarea>
     <button class="btn btnAddPlayer" (click)="onAddPlayerTextArea()">
       Add Players
     </button>
@@ -55,6 +55,12 @@
             class="btn-small btn-add"
             (click)="addActualGamesPlayed(player.name)"
           ></button>
+        </div>
+        <div class="playerBodyRank">
+          <label>Rank:</label>
+          <select [(ngModel)]="player.rank" (ngModelChange)="onPlayerRankChange(player.name, $event)">
+            <option *ngFor="let r of rankOptions" [value]="r">{{ r }}</option>
+          </select>
         </div>
       </div>
       <!-- <h3>Total Rounds Wons: {{ player.totalRoundsWon }}</h3> -->

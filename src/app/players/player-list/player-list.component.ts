@@ -18,6 +18,7 @@ export class PlayerListComponent {
   lastInteractPlayers: Map<string, string> = new Map<string, string>();
   playersPerCourt = 4;
   maximumInteractPlayers = this.playersPerCourt * 2;
+  rankOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   status = new Status();
   playersMap = new Map<string, Player>();
   previousPlayerMap = new Map<string, Player>();
@@ -28,7 +29,7 @@ export class PlayerListComponent {
     return Array.from(this.playersMap.values());
   }
   getPreviousPlayerList(): string[] {
-    return Array.from(this.previousPlayerMap.keys());
+    return Array.from(this.previousPlayerMap.keys()).filter(name => !this.playersMap.has(name));
   }
   addPreviousPlayerToList( name: string) {
     this.addPlayer(name);
@@ -40,6 +41,24 @@ export class PlayerListComponent {
     this.playersMap = this.playerService.loadPlayerList();
     this.status = this.playerService.loadPlayerStatus();
     this.previousPlayerMap = this.playerService.loadPreviousPlayerList();
+    this.mergeRanksFromSupabase();
+  }
+
+  private async mergeRanksFromSupabase() {
+    const rankMap = await this.playerService.loadPlayerRanksFromSupabase();
+    if (rankMap.size === 0) return;
+    let changed = false;
+    this.playersMap.forEach((player, name) => {
+      const remoteRank = rankMap.get(name);
+      if (remoteRank != null && player.rank !== remoteRank) {
+        player.rank = remoteRank;
+        changed = true;
+      }
+    });
+    if (changed) {
+      this.playersMap = new Map(this.playersMap);
+      this.playerService.savePlayerList(this.playersMap);
+    }
   }
 
   onAddPlayerTextArea() {
@@ -79,6 +98,14 @@ export class PlayerListComponent {
 
   subtractActualGamesPlayed(playerName: string) {
     this.updatePlayerActualGamesPlayed(playerName, -1);
+  }
+
+  onPlayerRankChange(playerName: string, rank: number) {
+    const player = this.playersMap.get(playerName);
+    if (!player) return;
+    player.rank = Number(rank);
+    this.playersMap.set(playerName, player);
+    this.playerService.savePlayerList(this.playersMap);
   }
 
   //Internal ----------------------------------------------------------------

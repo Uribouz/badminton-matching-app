@@ -6,7 +6,6 @@ import { PlayerService } from '../../players/player.service';
 import { MatchService } from '../../matches/match.service';
 import { SettingService } from '../../settings/setting.service';
 import { AuthService } from '../../auth/auth.service';
-import { Player } from '../../players/player';
 
 @Component({
   selector: 'app-setting',
@@ -24,19 +23,11 @@ export class SettingComponent {
   nemesisTeamatePlayer2: string = "";
 
   shuffleMode: 'balanced' | 'mixed' | 'novel' | 'auto' = 'auto';
-  playersMap = new Map<string, Player>();
-  rankOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService, private authService: AuthService, private router: Router) {
       this.forceTeamates = this.settingService.loadForceTeamates();
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();
       this.shuffleMode = this.settingService.loadShuffleMode();
-      this.playersMap = this.playerService.loadPlayerList();
-      this.playersMap.forEach(p => { p.rank = p.rank ?? 5; });
-  }
-
-  getPlayerList(): Player[] {
-    return Array.from(this.playersMap.values());
   }
 
   setShuffleMode(mode: 'balanced' | 'mixed' | 'novel' | 'auto') {
@@ -44,13 +35,6 @@ export class SettingComponent {
     this.settingService.saveShuffleMode(mode);
   }
 
-  onPlayerRankChange(playerName: string, rank: number) {
-    const player = this.playersMap.get(playerName);
-    if (!player) return;
-    player.rank = Number(rank);
-    this.playersMap.set(playerName, player);
-    this.playerService.savePlayerList(this.playersMap);
-  }
   onSubmitForceTeamate() {
     this.settingService.addForceTeamate({player1: this.forceTeamatePlayer1, player2: this.forceTeamatePlayer2});
     this.clearForceTeamateInputs();
