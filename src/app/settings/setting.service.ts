@@ -60,6 +60,21 @@ export class SettingService {
     if (val === 'balanced' || val === 'mixed' || val === 'novel' || val === 'auto') return val;
     return 'auto';
   }
+  saveShuffleModeWeights(weights: {balanced: number, mixed: number, novel: number}) {
+    localStorage.setItem('shuffle-mode-weights', JSON.stringify(weights));
+  }
+  loadShuffleModeWeights(): {balanced: number, mixed: number, novel: number} {
+    const val = localStorage.getItem('shuffle-mode-weights');
+    if (val) {
+      try {
+        const parsed = JSON.parse(val);
+        if (typeof parsed.balanced === 'number' && typeof parsed.mixed === 'number' && typeof parsed.novel === 'number') {
+          return parsed;
+        }
+      } catch {}
+    }
+    return { balanced: 60, mixed: 30, novel: 10 };
+  }
 
   deleteNemesisTeamate(deleteNemesisTeamate: {player1:string, player2: string}){
     let newNemesisTeamates = this.loadNemesisTeamates().filter(

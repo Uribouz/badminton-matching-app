@@ -111,7 +111,33 @@
     <p class="shuffleModeDesc" *ngIf="shuffleMode === 'balanced'">Pairs players within ±3 rank of each other.</p>
     <p class="shuffleModeDesc" *ngIf="shuffleMode === 'mixed'">Pairs best player with weakest; opposing team balances the rank sum.</p>
     <p class="shuffleModeDesc" *ngIf="shuffleMode === 'novel'">Prioritises pairings where players have never met before.</p>
-    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'auto'">Randomly picks: 40% Balanced, 40% Mixed, 20% Novel each shuffle.</p>
+    <div class="autoMixSlider" *ngIf="shuffleMode === 'auto'">
+      <div class="mixBar">
+        <div class="mixSeg mixSeg--balanced" [style.width.%]="balancedPct">
+          <span *ngIf="balancedPct >= 12">{{balancedPct}}%</span>
+        </div>
+        <div class="mixSeg mixSeg--mixed" [style.width.%]="mixedPct">
+          <span *ngIf="mixedPct >= 12">{{mixedPct}}%</span>
+        </div>
+        <div class="mixSeg mixSeg--novel" [style.width.%]="novelPct">
+          <span *ngIf="novelPct >= 12">{{novelPct}}%</span>
+        </div>
+      </div>
+      <div class="mixSliderRow">
+        <span class="mixLabel mixLabel--balanced">Balanced</span>
+        <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="balancedPct" (ngModelChange)="onBalancedPctChange()">
+        <span class="mixPct">{{balancedPct}}%</span>
+      </div>
+      <div class="mixSliderRow">
+        <span class="mixLabel mixLabel--novel">Novel</span>
+        <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="novelPct" (ngModelChange)="onNovelPctChange()">
+        <span class="mixPct">{{novelPct}}%</span>
+      </div>
+      <div class="mixSliderRow mixSliderRowDerived">
+        <span class="mixLabel mixLabel--mixed">Mixed</span>
+        <span class="mixPctDerived">{{mixedPct}}% (remaining)</span>
+      </div>
+    </div>
 </div>
 
 <div class="danger-zone">

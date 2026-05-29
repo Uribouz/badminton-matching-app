@@ -23,18 +23,36 @@ export class SettingComponent {
   nemesisTeamatePlayer2: string = "";
 
   shuffleMode: 'balanced' | 'mixed' | 'novel' | 'auto' = 'auto';
+  balancedPct = 60;
+  novelPct = 10;
+  get mixedPct() { return 100 - this.balancedPct - this.novelPct; }
   playerNames: string[] = [];
 
   constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService, private authService: AuthService, private router: Router) {
       this.forceTeamates = this.settingService.loadForceTeamates();
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();
       this.shuffleMode = this.settingService.loadShuffleMode();
+      const weights = this.settingService.loadShuffleModeWeights();
+      this.balancedPct = weights.balanced;
+      this.novelPct = weights.novel;
       this.playerNames = Array.from(this.playerService.loadPlayerList().keys());
   }
 
   setShuffleMode(mode: 'balanced' | 'mixed' | 'novel' | 'auto') {
     this.shuffleMode = mode;
     this.settingService.saveShuffleMode(mode);
+  }
+
+  onBalancedPctChange() {
+    if (this.balancedPct + this.novelPct > 100) this.novelPct = 100 - this.balancedPct;
+    this.saveWeights();
+  }
+  onNovelPctChange() {
+    if (this.balancedPct + this.novelPct > 100) this.balancedPct = 100 - this.novelPct;
+    this.saveWeights();
+  }
+  private saveWeights() {
+    this.settingService.saveShuffleModeWeights({ balanced: this.balancedPct, mixed: this.mixedPct, novel: this.novelPct });
   }
 
   onSelectForcePlayer(name: string) {
