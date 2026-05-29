@@ -191,6 +191,13 @@
   background-image: url('./icons/shuffle.svg');
 }
 
+.btn_share_guest {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-image: url('./icons/share.svg');
+  background-size: 55%;
+}
+
 .standbyContainer {
   display: flex;
   flex-direction: row;

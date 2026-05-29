@@ -273,6 +273,16 @@ export class MatchListComponent {
   }
 
   // Others =================================
+  shareGuestUrl() {
+    const eventKey = `root-event:${new Date().toLocaleDateString()}`;
+    const url = `${window.location.origin}/guest/event/${encodeURIComponent(eventKey)}/matches`;
+    if (navigator.share) {
+      navigator.share({ title: 'Badminton Match', url });
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert('Link copied!'));
+    }
+  }
+
   downloadLog() {
     const logData = this.logData.join('\n');
     const blob = new Blob([logData], { type: 'text' });
