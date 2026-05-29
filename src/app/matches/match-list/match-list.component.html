@@ -141,7 +141,7 @@
     <h2>Match History</h2>
     <table>
       <tr class="matchHistory" *ngFor="let match of matchHistory; index as i">
-        <td>{{ i }}) {{ getMatchTime(match) }}</td>
+        <td>{{ i }}) {{ getMatchTime(match) }} <span class="modeBadge" [class]="'modeBadge--' + match.mode">{{ match.mode }}</span></td>
         <td class="matchTeam"
             [class.matchTeamWin]="match.whoWon === 'teamA'"
             [class.matchTeamLoss]="match.whoWon === 'teamB'">

@@ -205,7 +205,7 @@ export class MatchListComponent {
       `[${e.team1.player1.name}:${e.team1.player2.name}] vs [${e.team2.player1.name}:${e.team2.player2.name}]`
     ));
 
-    this.putPlayerIntoCourts(resultCourt);
+    this.putPlayerIntoCourts(resultCourt, mode);
     this.reloadStandbyList();
     this.log('SHUFFLE end.');
   }
@@ -528,9 +528,10 @@ export class MatchListComponent {
   private resolveMode(): 'balanced' | 'mixed' | 'novel' {
     const saved = this.settingService.loadShuffleMode();
     if (saved !== 'auto') return saved;
-    const roll = this.rng.random();
-    if (roll < 0.60) return 'balanced';
-    if (roll < 0.90) return 'mixed';
+    const weights = this.settingService.loadShuffleModeWeights();
+    const roll = this.rng.random() * 100;
+    if (roll < weights.balanced) return 'balanced';
+    if (roll < weights.balanced + weights.mixed) return 'mixed';
     return 'novel';
   }
 
@@ -850,7 +851,7 @@ export class MatchListComponent {
     }
     return Math.floor((player.roundsWon / player.actualTotalRoundsPlayed) * 100);
   }
-  private putPlayerIntoCourts(teamateList: {team1: Teammate; team2: Teammate;}[]) {
+  private putPlayerIntoCourts(teamateList: {team1: Teammate; team2: Teammate;}[], mode: string) {
     this.matchList.map((each) => {
       each.matchTime
       if (each.status === COURT_STATUS.PLAYING) return;
@@ -860,6 +861,7 @@ export class MatchListComponent {
       each.teamA.player2 = currentTeam.team1.player2;
       each.teamB.player1 = currentTeam.team2.player1;
       each.teamB.player2 = currentTeam.team2.player2;
+      each.mode = mode;
       teamateList.splice(0, 1);
     });
     this.matchService.saveMatchList(this.matchList);

@@ -12,4 +12,5 @@ export class Match {
     teamB: Teammate = new Teammate;
     courtNo: number = 0;
     whoWon: string = '';
+    mode: string = '';
 }

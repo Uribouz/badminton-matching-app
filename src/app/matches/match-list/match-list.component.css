@@ -353,6 +353,31 @@
   color: #fff;
 }
 
+.modeBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: var(--space-2);
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+.modeBadge--balanced {
+  background: #d1fae5;
+  color: #065f46;
+}
+.modeBadge--mixed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.modeBadge--novel {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .playerHistoryContainer h2,
 .matchHistoryContainer h2,
 .opponentHistoryContainer h2,
