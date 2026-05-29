@@ -51,6 +51,16 @@ export class SettingService {
     this.saveForceTeamates(newForceTeamates);
     return
   }
+  saveShuffleMode(mode: 'balanced' | 'mixed' | 'novel' | 'auto') {
+    localStorage.setItem('shuffle-mode', mode);
+    this.syncSettingsToSupabase();
+  }
+  loadShuffleMode(): 'balanced' | 'mixed' | 'novel' | 'auto' {
+    const val = localStorage.getItem('shuffle-mode');
+    if (val === 'balanced' || val === 'mixed' || val === 'novel' || val === 'auto') return val;
+    return 'auto';
+  }
+
   deleteNemesisTeamate(deleteNemesisTeamate: {player1:string, player2: string}){
     let newNemesisTeamates = this.loadNemesisTeamates().filter(
       each => each.player1+each.player2 != deleteNemesisTeamate.player1 + deleteNemesisTeamate.player2
@@ -76,6 +86,7 @@ export class SettingService {
           user_id: session.user.id,
           force_teammates: forceTeammates,
           nemesis_teammates: nemesisTeammates,
+          shuffle_mode: this.loadShuffleMode(),
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
@@ -97,7 +108,7 @@ export class SettingService {
 
     const { data, error } = await supabase
       .from('settings')
-      .select('force_teammates, nemesis_teammates')
+      .select('force_teammates, nemesis_teammates, shuffle_mode')
       .eq('user_id', session.user.id)
       .single();
 
@@ -109,6 +120,9 @@ export class SettingService {
     if (data) {
       localStorage.setItem('force-teamates', JSON.stringify(data['force_teammates'] ?? []));
       localStorage.setItem('nemesis-teamates', JSON.stringify(data['nemesis_teammates'] ?? []));
+      if (data['shuffle_mode']) {
+        localStorage.setItem('shuffle-mode', data['shuffle_mode']);
+      }
     }
   }
 }

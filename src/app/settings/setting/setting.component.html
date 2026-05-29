@@ -81,6 +81,39 @@
 </div>
 
 
+<div class="shuffleModeContainer">
+    <h3>Shuffle Mode</h3>
+    <div class="shuffleModeButtons">
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'balanced'" (click)="setShuffleMode('balanced')">Balanced</button>
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'mixed'" (click)="setShuffleMode('mixed')">Mixed</button>
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'novel'" (click)="setShuffleMode('novel')">Novel</button>
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'auto'" (click)="setShuffleMode('auto')">Auto</button>
+    </div>
+    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'balanced'">Pairs players within ±3 rank of each other.</p>
+    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'mixed'">Pairs best player with weakest; opposing team balances the rank sum.</p>
+    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'novel'">Prioritises pairings where players have never met before.</p>
+    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'auto'">Randomly picks: 40% Balanced, 40% Mixed, 20% Novel each shuffle.</p>
+</div>
+
+<div class="playerRankContainer">
+    <h3>Player Ranks</h3>
+    <table class="playerRankTable">
+        <thead>
+            <tr><th>Player</th><th>Rank (1=best)</th></tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let player of getPlayerList()">
+                <td>{{ player.name }}</td>
+                <td>
+                    <select [(ngModel)]="player.rank" (ngModelChange)="onPlayerRankChange(player.name, $event)">
+                        <option *ngFor="let r of rankOptions" [value]="r">{{ r }}</option>
+                    </select>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
 <button class="btn btnClearAllData" (click)="clearAllData()">
     Reset All Data
 </button>

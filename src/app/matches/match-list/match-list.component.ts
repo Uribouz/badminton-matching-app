@@ -168,47 +168,42 @@ export class MatchListComponent {
 
   // Shuffle Logic ==========================
   shufflePlayersIntoCourt() {
-    const maxRetries = 30;
-    this.log(`SHUFFLE start(maxRetries = ${maxRetries}) ...`);
+    this.log('SHUFFLE start...');
 
-   let availablePlayerList = this.getAvailablePlayerList();
-
+    const availablePlayerList = this.getAvailablePlayerList();
     let totalAvailableSlots = this.getTotalAvailableSlotsInCourts();
-    if (totalAvailableSlots <= 0) {
-      return;
+    if (totalAvailableSlots <= 0) return;
+
+    const sortedPlayerList = this.getSortedPlayerList(availablePlayerList);
+    totalAvailableSlots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length);
+    const eligiblePlayers = this.getAvailablePlayers(sortedPlayerList, totalAvailableSlots);
+
+    const mode = this.resolveMode();
+    this.log(`SHUFFLE mode: ${mode}`);
+
+    let teamateList: Teammate[];
+    if (mode === 'balanced') {
+      const result = this.shuffleBalanced(eligiblePlayers);
+      if (result === null) {
+        this.log('Balanced fallback → novel (no same-rank partners available)');
+        teamateList = this.shuffleNovel(eligiblePlayers);
+      } else {
+        teamateList = result;
+      }
+    } else if (mode === 'mixed') {
+      teamateList = this.shuffleMixed(eligiblePlayers);
+    } else {
+      teamateList = this.shuffleNovel(eligiblePlayers);
     }
 
-    /* features:
-    ถ้าผลลัพธ์ของการเลือกจับคู่ _ไม่เป็นที่น่าพอใจ_ จะทำการ _จับคู่ใหม่_ สูงสุดเป็นจำนวน {maxRetries} ครั้ง
-      _ไม่เป็นที่น่าพอใจ_ = คำนวนจากสูตรว่า "คู่ที่เพิ่งได้มานั้นเคยคู่กันไปแล้ว" และ {A - B < X - Y} หรือไม่
-        โดย {A} = จำนวนเกมที่เล่นไปของบุคคลผู้นั้น, {B} = คู่ที่ได้นั้น ซ้ำกันไปแล้วเป็นลำดับที่เท่าไหร่
-          , {X} = คนทั้งหมด ที่เป็นไปได้ในการจับคู่, {Y} = ตัวแปรที่จะเท่ากับ (แต่ละครั้งที่มีการ _จับคู่ใหม่_ / 3) ปัดเศษขึ้น
-    */
-    let teamateList: Teammate[] = [];
-    let retries = 0;
-    for (retries = 0; retries <= maxRetries; retries++) {
-      let sortedPlayerList = this.getSortedPlayerList(availablePlayerList);
-      totalAvailableSlots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length)
-      let availablePlayers = this.getAvailablePlayers(sortedPlayerList,totalAvailableSlots);
-      let rankingPlayersMap = this.calculateRankingPlayers(availablePlayers);
-      // this.log("rankingPlayersMap: ", rankingPlayersMap)
-      teamateList = this.calculateTeamates(availablePlayers, rankingPlayersMap);
-      // this.log("teamateList before validate: ", teamateList)
-      if (this.isAllTeamatesValid(retries,totalAvailableSlots,teamateList,rankingPlayersMap)) {
-        break;
-      }
-    }
-    let resultCourt = this.calculateMatchInCourts(teamateList);
-    let resultCourtLog = resultCourt.flatMap(each => {
-      return `[${each.team1.player1.name}:${each.team1.player2.name}] : [${each.team2.player1.name}:${each.team2.player2.name}]`
-    })
-    this.log('resultCourt ', resultCourtLog);
+    const resultCourt = this.calculateMatchInCourtsRankBased(teamateList);
+    this.log('resultCourt', resultCourt.map(e =>
+      `[${e.team1.player1.name}:${e.team1.player2.name}] vs [${e.team2.player1.name}:${e.team2.player2.name}]`
+    ));
 
     this.putPlayerIntoCourts(resultCourt);
-
     this.reloadStandbyList();
-    
-    this.log(`SHUFFLE end ... (retries:${retries})`);
+    this.log('SHUFFLE end.');
   }
 
   //Confirm Winning Team
@@ -517,167 +512,315 @@ export class MatchListComponent {
     })
     return returnPlayerList.slice(0, totalAvailableSlots);
   }
-  private calculateTeamates(players: Player[], rankingPlayersMap: Map<string, number>): Teammate[] {
-    let teamates: Teammate[] = [];
-    let remainingPlayers = this.calculateTeamatesGetSortedPlayerLeastWin(players);
-    this.log("remainingPlayers: ", remainingPlayers)
+  // === Mode Resolution =============================
+  private resolveMode(): 'balanced' | 'mixed' | 'novel' {
+    const saved = this.settingService.loadShuffleMode();
+    if (saved !== 'auto') return saved;
+    const roll = this.rng.random();
+    if (roll < 0.40) return 'balanced';
+    if (roll < 0.80) return 'mixed';
+    return 'novel';
+  }
 
-    while (remainingPlayers.length > 0) {
-      const currentPlayer = remainingPlayers[0];
-      let currentPlayerTeamate: Player;
-      let otherPlayers = remainingPlayers.slice(1);
-      if (otherPlayers.length <= 0) {
-        break;
-      }
-      // this.log("calculateTeamates - currentPlayer: ", currentPlayer.name)
-      otherPlayers = this.sortByPoint(otherPlayers, p => this.calculateTeamatesPoint(currentPlayer, p, rankingPlayersMap));
-      currentPlayerTeamate = otherPlayers[0];
-      // this.log("calculateTeamates - currentPlayerTeamate: ", currentPlayerTeamate.name)
-      teamates = [...teamates, { player1: currentPlayer, player2: currentPlayerTeamate }];
-      remainingPlayers = remainingPlayers.filter(
-        (each) => currentPlayer.name != each.name && currentPlayerTeamate.name != each.name
-      );
-    }
-    return teamates;
+  // === Effective Rank ==============================
+  // Lower = stronger. Win-rate can shift a player up to 2 full rank positions,
+  // so a high-win-rate lower-ranked player can naturally fall into a better quad.
+  private effectiveRank(player: Player): number {
+    const rank = player.rank ?? 5;
+    const winRate = (player.roundsWon + 1) / (player.actualTotalRoundsPlayed + 2);
+    return rank * 1000 - winRate * 2000;
   }
-  private calculateRankingPlayers(playerList: Player[]) {
-    let sortedPlayerList = this.sortByPoint(playerList, p => this.calculateRankingPlayerPoints(p.roundsWon, p.actualTotalRoundsPlayed));
-    return new Map(sortedPlayerList.map((player, index) => [player.name, index]))
-  }
-  private calculateRankingPlayerPoints(roundsWon: number, actualTotalRoundsPlayed: number) {
-    return (roundsWon + 1) / (actualTotalRoundsPlayed + 2)
-  }
-  private calculateTeamatesGetSortedPlayerLeastWin(playerList: Player[]) {
-    let mapPriorityPlayers = new Map<string, number>();
-    let mapNemesisPlayers = this.getMapPlayers(this.nemesisTeamate);
-    this.log("mapNemesisPlayers: ", mapNemesisPlayers)
-    let mapForceMatchPlayers = this.getMapPlayers(this.forceMatchTeamate);
-    this.log("mapForceMatchPlayers: ", mapForceMatchPlayers)
-    playerList.forEach((currentPlayer) => {
-      let leastPoint = 999;
-      if (mapNemesisPlayers.has(currentPlayer.name)
-      && mapNemesisPlayers.get(currentPlayer.name)?.some(each => playerList.map(player => player.name).includes(each))) {
-        leastPoint = DEFAULT_PLAYER_POINT;
-        // this.log("NemesisPlayers found");
-      }
-      else if (mapForceMatchPlayers.has(currentPlayer.name)
-      && mapForceMatchPlayers.get(currentPlayer.name)?.some(each => playerList.map(player => player.name).includes(each))) {
-        leastPoint = -1;
-        // this.log("ForcePlayers found");
-      } 
-      else {
-        leastPoint = this.calculateRankingPlayerPoints(currentPlayer.roundsWon, currentPlayer.actualTotalRoundsPlayed)
-      }
-      mapPriorityPlayers.set(currentPlayer.name, leastPoint);
+
+  // === Constraint Helpers ==========================
+  private getForceTeamatesMap(): Map<string, string> {
+    const map = new Map<string, string>();
+    this.forceMatchTeamate.forEach(pair => {
+      map.set(pair.player1, pair.player2);
+      map.set(pair.player2, pair.player1);
     });
-    let sortedPlayers: Player[] = this.sortByPoint(playerList, p => mapPriorityPlayers.get(p.name) ?? 0);
-    this.log('calculateTeamatesGetSortedPlayerLeastWin: sortedPlayers: ', sortedPlayers);
-    return sortedPlayers;
-  }
-  
-  private getMapPlayers(playerTeamates: {player1:string, player2: string}[]) {
-    let mapPlayers = new Map<string, string[]>();
-    playerTeamates.forEach(each => {
-      let currentMapPlayer1 = mapPlayers.get(each.player1)
-      let currentMapPlayer2 = mapPlayers.get(each.player2)
-      if (currentMapPlayer1 == undefined || currentMapPlayer1.length <= 0) {
-        currentMapPlayer1 = [];
-      }
-      if (currentMapPlayer2 == undefined || currentMapPlayer2.length <= 0) {
-        currentMapPlayer2 = [];
-      }
-      mapPlayers.set(each.player1, [...currentMapPlayer1,each.player2])
-      mapPlayers.set(each.player2, [...currentMapPlayer2,each.player1])
-    }
-    );
-    return mapPlayers;
+    return map;
   }
 
-  private calculateTeamatesPoint(playerA: Player, playerB: Player, rankingPlayersMap: Map<string,number>): number {
-    // this.log('calculateTeamatesPoint: ', playerA.name, ':', playerB.name);
-    let nemesisTeamateList = this.nemesisTeamate.flatMap(each => each.player1+":"+each.player2);
-    if ( nemesisTeamateList.includes(playerA.name+":"+playerB.name) || nemesisTeamateList.includes(playerB.name+":"+playerA.name)) {
-      return 9999;
-    }
-    let forceTeamateList = this.forceMatchTeamate.flatMap(each => each.player1+":"+each.player2);
-    if ( forceTeamateList.includes(playerA.name+":"+playerB.name) || forceTeamateList.includes(playerB.name+":"+playerA.name)) {
-      // this.log(' return -1;');
-      return -1;
-    }
-
-    let historyPenalty = playerA.teamateHistory.includes(playerB.name)
-      ? playerA.teamateHistory.lastIndexOf(playerB.name) + 1
-      : 0;
-
-    // Ranking balance adjustment (for bottom 25%): history is same scale as ranking score, so ranking can still win
-    let playerARanking = rankingPlayersMap.get(playerA.name) ?? 999;
-    let playerBRanking = rankingPlayersMap.get(playerB.name) ?? 999;
-    if (playerARanking <= (rankingPlayersMap.size/4)-1) {
-      return (rankingPlayersMap.size-1)-playerARanking - playerBRanking + historyPenalty;
-    }
-
-    // For everyone else: scale up history penalty so it always dominates
-    return historyPenalty * rankingPlayersMap.size;
+  private getNemesisSet(): Set<string> {
+    const set = new Set<string>();
+    this.nemesisTeamate.forEach(pair => {
+      set.add(`${pair.player1}:${pair.player2}`);
+      set.add(`${pair.player2}:${pair.player1}`);
+    });
+    return set;
   }
-  private isAllTeamatesValid(
-    retries: number,
-    totalPlayersAvailable: number,
-    teamatesList: Teammate[],
-    rankingPlayersMap: Map<string, number>
+
+  private isNemesisPair(a: string, b: string, nemesisSet: Set<string>): boolean {
+    return nemesisSet.has(`${a}:${b}`);
+  }
+
+  // Returns true when playerA and playerB paired too recently relative to the pool.
+  // Formula mirrors old isAllTeamatesValid: elapsed rounds must be ≥ (totalPlayers - offset).
+  // offset grows with each retry phase, progressively relaxing the constraint.
+  private isRecentTeammatePair(
+    playerA: Player,
+    playerB: Player,
+    totalPlayers: number,
+    offset: number
   ): boolean {
-    let isStillValid: boolean = true;
-    let nemesisTeamateList = this.nemesisTeamate.flatMap(each => each.player1+":"+each.player2);
-    let nemesisPlayerList = this.nemesisTeamate.flatMap(each => [each.player1,each.player2]);
-    let forceTeamateList = this.forceMatchTeamate.flatMap(each => each.player1+":"+each.player2);
-    const offsetValidatePlayers = Math.ceil((retries + 1) / 3);
-    this.log(`retries: ${retries}, offsetValidatePlayers: ${offsetValidatePlayers}`);
-    teamatesList.forEach((each) => {
-      if (nemesisTeamateList.includes(each.player1.name+":"+each.player2.name) || nemesisTeamateList.includes(each.player2.name+":"+each.player1.name)) {
-        isStillValid = false;
-        return;
-      }
-      if (nemesisPlayerList.includes(each.player1.name) || nemesisPlayerList.includes(each.player2.name)) {
-        return;
-      }
-      if (forceTeamateList.includes(each.player1.name+":"+each.player2.name) || forceTeamateList.includes(each.player2.name+":"+each.player1.name)) {
-        return;
-      }
-      if (isStillValid === false || each.player1.teamateHistory.length <= 0) {
-        return;
-      }
-      let previousTeamateIndex = each.player1.teamateHistory.lastIndexOf(each.player2.name);
-      if (previousTeamateIndex < 0) {
-        return;
-      }
-    
-      if ( each.player1.totalRoundsPlayed - previousTeamateIndex < totalPlayersAvailable - offsetValidatePlayers ) {
-        isStillValid = false;
-        return;
-      }
-    });
-    return isStillValid;
+    const lastIdx = playerA.teamateHistory.lastIndexOf(playerB.name);
+    if (lastIdx < 0) return false;
+    const requiredCooldown = Math.max(1, totalPlayers - offset);
+    return (playerA.totalRoundsPlayed - lastIdx) < requiredCooldown;
   }
-  private calculateMatchInCourts(teamateList: Teammate[]): {team1:Teammate,team2:Teammate}[] {
-    let result:{team1:Teammate,team2:Teammate}[] = [];
-    let remainingTeams = [...teamateList];
-    while (remainingTeams.length > 1) {
-      let currentTeam = remainingTeams[0];
-      let otherTeam = remainingTeams.slice(1);
-      otherTeam.sort( (a,b) => {
-        let currentWinRate = this.playerWinPercentage(currentTeam.player1) + this.playerWinPercentage(currentTeam.player2);
-        let aWinRateDiff = Math.abs(currentWinRate-(this.playerWinPercentage(a.player1)+this.playerWinPercentage(a.player2)))
-        let bWinRateDiff = Math.abs(currentWinRate-(this.playerWinPercentage(b.player1)+this.playerWinPercentage(b.player2)))
-        if(Math.abs(aWinRateDiff-bWinRateDiff) > 0.01) {
-        return aWinRateDiff-bWinRateDiff;
+
+  // Pair force teammates first (shared by all modes)
+  private lockForcePairs(players: Player[], forceMap: Map<string, string>, used: Set<string>, pairs: Teammate[]) {
+    const sorted = [...players].sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
+    for (const player of sorted) {
+      if (used.has(player.name)) continue;
+      const forcedName = forceMap.get(player.name);
+      if (!forcedName) continue;
+      const partner = players.find(p => p.name === forcedName);
+      if (partner && !used.has(partner.name)) {
+        pairs.push({ player1: player, player2: partner });
+        used.add(player.name);
+        used.add(partner.name);
+      }
+    }
+  }
+
+  // === Mode A — Balanced ============================
+  // Sort all eligible players by effectiveRank, group into quads of 4.
+  // Within each quad, pair players so no partner pair exceeds 3 raw rank apart.
+  // A lower-ranked player with a high win-rate sorts into a higher-skill quad
+  // automatically via effectiveRank.
+  // Interleaved assignment: player at sorted position i goes to quad i % numQuads.
+  // For 8 players / 2 quads: Quad 0 = positions [0,2,4,6], Quad 1 = [1,3,5,7].
+  // This guarantees each quad spans the full skill range instead of clustering
+  // the bottom rank tier together when many same-rank players are in the pool.
+  private shuffleBalanced(players: Player[]): Teammate[] | null {
+    const totalPlayers = players.length;
+    const numQuads = Math.floor(players.length / 4);
+    const sorted = [...players].sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
+    const forceMap = this.getForceTeamatesMap();
+    const nemesisSet = this.getNemesisSet();
+    const pairs: Teammate[] = [];
+
+    for (let qi = 0; qi < numQuads; qi++) {
+      // Interleaved positions are already in ascending effectiveRank order — no re-sort needed
+      const q = [0, 1, 2, 3].map(k => sorted[qi + k * numQuads]);
+      const quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers);
+      if (!quadPair) return null;
+      pairs.push(quadPair[0], quadPair[1]);
+    }
+    return pairs;
+  }
+
+  // Within a quad of 4 players (sorted best→worst by effectiveRank):
+  // Pass 0: rank ≤3, not nemesis, AND not recently paired — prevents deterministic repeat pairings.
+  // Pass 1: rank ≤3, not nemesis (recency relaxed).
+  // Pass 2: not nemesis only (rank and recency both relaxed).
+  // Returns null only when every option is blocked by a nemesis conflict.
+  private formQuadPairs(
+    q: Player[],
+    forceMap: Map<string, string>,
+    nemesisSet: Set<string>,
+    totalPlayers: number
+  ): [Teammate, Teammate] | null {
+    const MAX_RANK_DIFF = 3;
+    const RECENCY_OFFSET = 1; // strict: cooldown = totalPlayers-1 rounds
+
+    // Detect any force pair inside this quad
+    for (let a = 0; a < 4; a++) {
+      const forcedName = forceMap.get(q[a].name);
+      if (!forcedName) continue;
+      const b = q.findIndex((p, idx) => idx !== a && p.name === forcedName);
+      if (b < 0) continue;
+      // Force pair found at indices a and b; remaining two form the other team
+      const rest = q.filter((_, idx) => idx !== a && idx !== b);
+      if (this.isNemesisPair(rest[0].name, rest[1].name, nemesisSet)) return null;
+      return [
+        { player1: q[a], player2: q[b] },
+        { player1: rest[0], player2: rest[1] },
+      ];
+    }
+
+    // [0,3] vs [1,2]: (best+worst) vs (2nd+3rd) → most equal team strength
+    // [0,2] vs [1,3]: (best+3rd) vs (2nd+worst)
+    // [0,1] vs [2,3]: (best+2nd) vs (3rd+worst) → least balanced teams, last resort
+    const options: [[number, number], [number, number]][] = [
+      [[0, 3], [1, 2]],
+      [[0, 2], [1, 3]],
+      [[0, 1], [2, 3]],
+    ];
+
+    // Priority order — rank diversity always beats recency freshness:
+    // Pass A: rank ≤3, not nemesis, not recent, cross-rank (rd > 0 for both pairs)  ← best
+    // Pass B: rank ≤3, not nemesis,             cross-rank (recency relaxed)
+    // Pass C: rank ≤3, not nemesis, not recent  (same-raw-rank allowed)
+    // Pass D: rank ≤3, not nemesis              (recency also relaxed)
+    // Pass E: not nemesis only                  (rank + recency both relaxed)
+    type CheckFn = (ai: number, bi: number, ci: number, di: number) => boolean;
+    const rd = (a: number, b: number) => Math.abs((q[a].rank ?? 5) - (q[b].rank ?? 5));
+    const nem = (a: number, b: number) => this.isNemesisPair(q[a].name, q[b].name, nemesisSet);
+    const recent = (a: number, b: number) => this.isRecentTeammatePair(q[a], q[b], totalPlayers, RECENCY_OFFSET);
+
+    const tryOptions = (accept: CheckFn): [Teammate, Teammate] | null => {
+      for (const [[ai, bi], [ci, di]] of options) {
+        if (accept(ai, bi, ci, di)) {
+          return [
+            { player1: q[ai], player2: q[bi] },
+            { player1: q[ci], player2: q[di] },
+          ];
         }
-        let aPoint = (this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player2.name))
-              + (this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player2.name));
-        let bPoint = (this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player2.name))
-              + (this.calculateOppositePlayerPoint(currentTeam.player2.name, b.player1.name) + this.calculateOppositePlayerPoint(currentTeam.player2.name, b.player2.name));
+      }
+      return null;
+    };
+
+    return (
+      tryOptions((ai,bi,ci,di) => rd(ai,bi)>0 && rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)>0 && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di) && !recent(ai,bi) && !recent(ci,di)) ??
+      tryOptions((ai,bi,ci,di) => rd(ai,bi)>0 && rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)>0 && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di)) ??
+      tryOptions((ai,bi,ci,di) => rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di) && !recent(ai,bi) && !recent(ci,di)) ??
+      tryOptions((ai,bi,ci,di) => rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di)) ??
+      tryOptions((ai,bi,ci,di) => !nem(ai,bi) && !nem(ci,di)) ??
+      null
+    );
+  }
+
+  // === Mode B — Mixed (top↔bottom) ==================
+  private shuffleMixed(players: Player[]): Teammate[] {
+    const sorted = [...players].sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
+    const forceMap = this.getForceTeamatesMap();
+    const used = new Set<string>();
+    const pairs: Teammate[] = [];
+
+    this.lockForcePairs(players, forceMap, used, pairs);
+
+    const remaining = sorted.filter(p => !used.has(p.name));
+    let lo = 0;
+    let hi = remaining.length - 1;
+    while (lo < hi) {
+      pairs.push({ player1: remaining[lo], player2: remaining[hi] });
+      lo++;
+      hi--;
+    }
+    return pairs;
+  }
+
+  // === Mode C — Novel (prioritise never-met) ========
+  // 10 attempts divided into 3 phases of progressive relaxation (same formula as old isAllTeamatesValid):
+  //   attempts 0-2: offset=1 (strict cooldown = totalPlayers-1 rounds)
+  //   attempts 3-5: offset=2 (medium)
+  //   attempts 6-8: offset=3 (relaxed)
+  //   attempt  9:   offset=4 (very relaxed)
+  // Each attempt hard-rejects recently-paired candidates first; falls back to soft-penalty-only
+  // when hard-rejection empties the candidate list (small saturated pools).
+  private shuffleNovel(players: Player[]): Teammate[] {
+    const maxRetries = 10;
+    const totalPlayers = players.length;
+    const forceMap = this.getForceTeamatesMap();
+    const nemesisSet = this.getNemesisSet();
+    let bestPairs: Teammate[] = [];
+    let bestScore = Infinity;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const offset = Math.ceil((attempt + 1) / 3);
+      const shuffled = this.sortByPoint(players, () => this.rng.random());
+      const used = new Set<string>();
+      const pairs: Teammate[] = [];
+      let totalScore = 0;
+      let failed = false;
+
+      this.lockForcePairs(players, forceMap, used, pairs);
+      pairs.forEach(p => { totalScore += this.noveltyScore(p.player1, p.player2, totalPlayers); });
+
+      for (const player of shuffled) {
+        if (used.has(player.name)) continue;
+
+        // Primary: exclude nemesis AND recently-paired (hard rejection)
+        const strictCandidates = shuffled
+          .filter(p =>
+            !used.has(p.name) && p.name !== player.name &&
+            !this.isNemesisPair(player.name, p.name, nemesisSet) &&
+            !this.isRecentTeammatePair(player, p, totalPlayers, offset)
+          )
+          .sort((a, b) => this.noveltyScore(player, a, totalPlayers) - this.noveltyScore(player, b, totalPlayers));
+
+        // Fallback: drop recency constraint when hard rejection empties candidates
+        const candidates = strictCandidates.length > 0 ? strictCandidates :
+          shuffled
+            .filter(p =>
+              !used.has(p.name) && p.name !== player.name &&
+              !this.isNemesisPair(player.name, p.name, nemesisSet)
+            )
+            .sort((a, b) => this.noveltyScore(player, a, totalPlayers) - this.noveltyScore(player, b, totalPlayers));
+
+        if (candidates.length === 0) { failed = true; break; }
+        const partner = candidates[0];
+        pairs.push({ player1: player, player2: partner });
+        used.add(player.name);
+        used.add(partner.name);
+        totalScore += this.noveltyScore(player, partner, totalPlayers);
+      }
+
+      if (!failed && totalScore < bestScore) {
+        bestScore = totalScore;
+        bestPairs = pairs;
+      }
+    }
+    return bestPairs;
+  }
+
+  // Penalty scales with how recently they paired relative to pool size.
+  // 8-player pool + paired 2 rounds ago → max(0, 8-2)*100 = 600.
+  // Same pairing in 4-player pool → max(0, 4-2)*100 = 200.
+  // Penalty = 0 when elapsed rounds ≥ totalPlayers.
+  private noveltyScore(playerA: Player, playerB: Player, totalPlayers: number): number {
+    const lastIdx = playerA.teamateHistory.lastIndexOf(playerB.name);
+    const teammatePenalty = lastIdx >= 0
+      ? Math.max(0, totalPlayers - (playerA.totalRoundsPlayed - lastIdx)) * 100
+      : 0;
+    const opponentList = this.playersOpponents.get(playerA.name) ?? [];
+    const opponentPenalty = opponentList.includes(playerB.name)
+      ? opponentList.length - opponentList.lastIndexOf(playerB.name)
+      : 0;
+    return teammatePenalty + opponentPenalty;
+  }
+
+  // === Court Pairing (rank-sum balanced) ============
+  private calculateMatchInCourtsRankBased(teamateList: Teammate[]): {team1: Teammate, team2: Teammate}[] {
+    const result: {team1: Teammate, team2: Teammate}[] = [];
+    let remaining = [...teamateList];
+
+    while (remaining.length > 1) {
+      const currentTeam = remaining[0];
+      const rest = remaining.slice(1);
+      const currentRankSum = (currentTeam.player1.rank ?? 5) + (currentTeam.player2.rank ?? 5);
+
+      rest.sort((a, b) => {
+        const aRankSum = (a.player1.rank ?? 5) + (a.player2.rank ?? 5);
+        const bRankSum = (b.player1.rank ?? 5) + (b.player2.rank ?? 5);
+        const aDiff = Math.abs(currentRankSum - aRankSum);
+        const bDiff = Math.abs(currentRankSum - bRankSum);
+        if (aDiff !== bDiff) return aDiff - bDiff;
+        // Secondary tiebreak: when rank-sums are effectively equal (diff ≤ 1), prefer closer win-rate
+        if (aDiff <= 1 && bDiff <= 1) {
+          const laplace = (p: Player) => (p.roundsWon + 1) / (p.actualTotalRoundsPlayed + 2);
+          const currentWR = laplace(currentTeam.player1) + laplace(currentTeam.player2);
+          const aWRDiff = Math.abs(currentWR - (laplace(a.player1) + laplace(a.player2)));
+          const bWRDiff = Math.abs(currentWR - (laplace(b.player1) + laplace(b.player2)));
+          if (Math.abs(aWRDiff - bWRDiff) > 0.001) return aWRDiff - bWRDiff;
+        }
+        // Tertiary tiebreak: prefer opponents not recently faced
+        const aPoint = this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player1.name)
+          + this.calculateOppositePlayerPoint(currentTeam.player1.name, a.player2.name)
+          + this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player1.name)
+          + this.calculateOppositePlayerPoint(currentTeam.player2.name, a.player2.name);
+        const bPoint = this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player1.name)
+          + this.calculateOppositePlayerPoint(currentTeam.player1.name, b.player2.name)
+          + this.calculateOppositePlayerPoint(currentTeam.player2.name, b.player1.name)
+          + this.calculateOppositePlayerPoint(currentTeam.player2.name, b.player2.name);
         return aPoint - bPoint;
-      })
-      remainingTeams = remainingTeams.filter(each => each != currentTeam && each != otherTeam[0]);
-      result = [...result, {team1: currentTeam, team2: otherTeam[0]}];
+      });
+
+      result.push({ team1: currentTeam, team2: rest[0] });
+      remaining = remaining.filter(t => t !== currentTeam && t !== rest[0]);
     }
     return result;
   }

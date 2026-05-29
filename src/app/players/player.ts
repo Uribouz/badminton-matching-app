@@ -1,5 +1,6 @@
 export class Player {
   name: string = '';
+  rank: number = 5;
   totalRoundsPlayed: number = 0;
   actualTotalRoundsPlayed: number = 0;
   roundsWaited: number = 0;

@@ -3,9 +3,61 @@
     border-radius: 10px;
     width: 25px;
     height: 25px;
-  }
+}
+
+/* Shuffle Mode */
+.shuffleModeContainer {
+    margin-bottom: 20px;
+}
+.shuffleModeButtons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.shuffleModeBtn {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 2px solid #aaa;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.15s, border-color 0.15s;
+}
+.shuffleModeBtn:hover {
+    border-color: #555;
+}
+.shuffleModeBtnActive {
+    background-color: #a5e9e8;
+    border-color: #555;
+    font-weight: bold;
+}
+.shuffleModeDesc {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #555;
+}
+
+/* Player Rank Table */
+.playerRankContainer {
+    margin-bottom: 20px;
+}
+.playerRankTable {
+    border-collapse: collapse;
+}
+.playerRankTable th,
+.playerRankTable td {
+    padding: 5px 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+.playerRankTable select {
+    padding: 3px 6px;
+    border-radius: 6px;
+    border: 1px solid #aaa;
+}
+
 .btnClearAllData {
-    margin-top: 1000px;
+    margin-top: 20px;
     background-color: #D77B7B;
 }
 .btnLogout {
