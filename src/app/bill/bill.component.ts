@@ -55,7 +55,13 @@ export class BillComponent {
   }
 
   buildPaymentText(): string {
-    const lines = [`💳 Payment Summary`, `Total: ${this.totalPrice()}`, ``];
+    const lines = [
+      `💳 Payment Summary`,
+      `Court: ${this.courtPrice()} × ${this.totalCourts()} = ${this.totalCourtPrice()}`,
+      `Shuttle: ${this.shuttlePrice()} × ${this.totalShuttleUsed()} = ${this.totalShuttlePrice()}`,
+      `Total: ${this.totalPrice()}`,
+      ``,
+    ];
     this.getPlayerList().forEach(p => {
       lines.push(`${p.name} [G:${p.actualTotalRoundsPlayed}]: ${this.getWhatPlayerHaveToPay(p)}`);
     });

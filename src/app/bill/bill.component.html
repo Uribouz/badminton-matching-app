@@ -1,4 +1,5 @@
 <div class="body">
+  <div #captureRef class="captureSection">
   <h2 class="payment-heading"> PAYMENT </h2>
   <div class="paymentDetail">
     <table>
@@ -70,7 +71,7 @@
     </table>
   </div>
 
-  <div class="playerContainer" #captureRef>
+  <div class="playerContainer">
     <h2>How much to pay for each</h2>
     <table class="playerTable">
       <tr class="player" *ngFor="let player of getPlayerList()">
@@ -82,6 +83,7 @@
       <span>Total</span>
       <span class="totalPrice">{{ totalPrice() }}</span>
     </div>
+  </div>
   </div>
 
   <button class="btn-share-bill" (click)="shareScreenshot()">
