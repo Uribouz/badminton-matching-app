@@ -279,10 +279,17 @@ export class MatchListComponent {
   shareGuestUrl() {
     const eventKey = `root-event:${new Date().toLocaleDateString()}`;
     const url = `${window.location.origin}/guest/event/${encodeURIComponent(eventKey)}/matches`;
+    const courtLines = this.matchList
+      .filter((match) => match.teamA.player1.name && match.teamB.player1.name)
+      .map((match) =>
+        `Court ${match.courtNo}: ${match.teamA.player1.name} & ${match.teamA.player2.name} vs ${match.teamB.player1.name} & ${match.teamB.player2.name}`
+      );
+    const title = courtLines.length ? `🏸 ${courtLines.join(' | ')}` : '🏸 Badminton Match';
+    const text = courtLines.length ? courtLines.join('\n') : 'Badminton Match';
     if (navigator.share) {
-      navigator.share({ title: 'Badminton Match', url });
+      navigator.share({ title, text, url });
     } else {
-      navigator.clipboard.writeText(url).then(() => alert('Link copied!'));
+      navigator.clipboard.writeText(`${text}\n${url}`).then(() => alert('Link copied!'));
     }
   }
 
