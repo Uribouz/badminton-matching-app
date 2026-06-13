@@ -43,7 +43,21 @@ export class MatchService {
     localStorage.setItem('match-history', JSON.stringify(matchHistory))
     return matchHistory
   }
-
+  updateMatchHistory(match:Match):Match[] {
+    let matchHistory: Match[] = []
+    let data = localStorage.getItem('match-history')
+    if (data) {
+      matchHistory = JSON.parse(data)
+    }
+    match = structuredClone(match)
+    const key = (m: Match) => `${m.courtNo}:${new Date(m.matchTime).getTime()}`;
+    let mapMatchHistory = new Map (matchHistory.map(match => [key(match), match]))
+    mapMatchHistory.set(key(match), match)
+    matchHistory = [...mapMatchHistory.values()];
+    localStorage.setItem('match-history', JSON.stringify(matchHistory))
+    this.syncMatchToSupabase(match);
+    return matchHistory
+  }
   loadMatchHistory():Match[]{
     let data = localStorage.getItem('match-history')
     if (!data) {
@@ -96,7 +110,7 @@ export class MatchService {
       who_won: match.whoWon,
     };
 
-    const { error } = await supabase.from('matches').insert(row);
+    const { error } = await supabase.from('matches').upsert(row)
 
     if (error) {
       console.error(`Error syncing match court ${match.courtNo} to Supabase:`, error);

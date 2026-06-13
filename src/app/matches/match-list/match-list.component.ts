@@ -12,6 +12,7 @@ import { SettingService } from '../../settings/setting.service';
 enum COURT_STATUS {
   AVAILABLE = 'available',
   PLAYING = 'playing',
+  DONE = 'done',
 }
 enum PLAYER_STATUS {
   READY = 'ready',
@@ -121,7 +122,9 @@ export class MatchListComponent {
       return;
     }
     if (currentCourt.status === COURT_STATUS.PLAYING) {
-      this.matchHistory = this.matchService.addMatchHistory(currentCourt);
+      currentCourt.status = COURT_STATUS.DONE
+      this.matchHistory = this.matchService.updateMatchHistory(currentCourt);
+      this.playersMap = this.confirmPlayersInCourt(this.playersMap, currentCourt);
       this.playersOpponents = this.matchService.loadPlayerOpponents();
     }
     currentCourt.status = COURT_STATUS.AVAILABLE;
@@ -354,7 +357,7 @@ export class MatchListComponent {
       this.playersMap,
       confirmedPlayerNames
     );
-    this.playersMap = this.confirmPlayersInCourt(this.playersMap, court);
+    this.matchHistory = this.matchService.addMatchHistory(court);
   }
   private confirmPlayersWait() {
     let playingPlayersName = this.matchList

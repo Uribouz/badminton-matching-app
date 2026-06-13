@@ -64,7 +64,7 @@ export class GuestService {
       .from('matches')
       .select('court_no, match_time, status, team_a_player_1, team_a_player_2, team_b_player_1, team_b_player_2, who_won')
       .eq('event_id', eventKey)
-      .order('match_time', { ascending: false });
+      .order('match_time', { ascending: true });
     if (error) {
       console.error('Error loading match history:', error);
       return [];

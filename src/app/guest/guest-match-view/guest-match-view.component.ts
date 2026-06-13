@@ -3,6 +3,12 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { GuestService, GuestMatch, GuestPlayer } from '../guest.service';
 
+enum COURT_STATUS {
+  AVAILABLE = 'available',
+  PLAYING = 'playing',
+  DONE = 'done',
+}
+
 @Component({
   selector: 'app-guest-match-view',
   standalone: true,
@@ -41,6 +47,7 @@ export class GuestMatchViewComponent implements OnInit {
   get activeCourts(): GuestMatch[] {
     const latest = new Map<number, GuestMatch>();
     for (const match of this.matchHistory) {
+      if (match.status != COURT_STATUS.PLAYING) continue;
       const existing = latest.get(match.courtNo);
       if (!existing || new Date(match.matchTime) > new Date(existing.matchTime)) {
         latest.set(match.courtNo, match);
