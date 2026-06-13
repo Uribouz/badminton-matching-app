@@ -23,6 +23,8 @@ const PLAYERS_PER_COURT = 4;
 const TEAMS_PER_COURT = 2;
 const DEFAULT_TOTAL_COURT = 2;
 const DEFAULT_PLAYER_POINT = 0.5;
+// Games needed before win-rate fully influences effectiveRank (see effectiveRank).
+const CONFIDENCE_GAMES = 3;
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -546,12 +548,23 @@ export class MatchListComponent {
   }
 
   // === Effective Rank ==============================
-  // Lower = stronger. Win-rate can shift a player up to 2 full rank positions,
-  // so a high-win-rate lower-ranked player can naturally fall into a better quad.
+  // Lower = stronger. At full confidence, win-rate can shift a player up to 1 full
+  // rank tier from their baseline (rank-1)*1000, so a high-win-rate lower-ranked
+  // player can naturally fall into a better quad.
+  // Early-session results are deweighted: with few games played, winRate sits near
+  // 0.5 anyway (Laplace smoothing), but `confidence` also shrinks any deviation from
+  // 0.5 so a single early win/loss can't swing a player by a third of a tier.
   private effectiveRank(player: Player): number {
     const rank = player.rank ?? 5;
     const winRate = (player.roundsWon + 1) / (player.actualTotalRoundsPlayed + 2);
-    return rank * 1000 - winRate * 2000;
+    const confidence = Math.min(1, player.actualTotalRoundsPlayed / CONFIDENCE_GAMES);
+    return rank * 1000 - (winRate - 0.5) * 2000 * confidence - 1000;
+  }
+
+  // Convenience accessor: effectiveRank expressed on the same 1-10 scale as raw `rank`,
+  // so it can be compared against MAX_RANK_DIFF and summed for court rank-sums.
+  private effectiveRankScore(player: Player): number {
+    return this.effectiveRank(player) / 1000;
   }
 
   // === Constraint Helpers ==========================
@@ -676,11 +689,13 @@ export class MatchListComponent {
     // Priority order — rank diversity always beats recency freshness:
     // Pass A: rank ≤3, not nemesis, not recent, cross-rank (rd > 0 for both pairs)  ← best
     // Pass B: rank ≤3, not nemesis,             cross-rank (recency relaxed)
-    // Pass C: rank ≤3, not nemesis, not recent  (same-raw-rank allowed)
+    // Pass C: rank ≤3, not nemesis, not recent  (same-effective-rank allowed)
     // Pass D: rank ≤3, not nemesis              (recency also relaxed)
     // Pass E: not nemesis only                  (rank + recency both relaxed)
+    // rd compares effectiveRank (rank + win-rate), not raw rank, so a player who's
+    // over/under-performing their assigned rank is balanced against their actual form.
     type CheckFn = (ai: number, bi: number, ci: number, di: number) => boolean;
-    const rd = (a: number, b: number) => Math.abs((q[a].rank ?? 5) - (q[b].rank ?? 5));
+    const rd = (a: number, b: number) => Math.abs(this.effectiveRankScore(q[a]) - this.effectiveRankScore(q[b]));
     const nem = (a: number, b: number) => this.isNemesisPair(q[a].name, q[b].name, nemesisSet);
     const recent = (a: number, b: number) => this.isRecentTeammatePair(q[a], q[b], totalPlayers, RECENCY_OFFSET);
 
@@ -807,6 +822,8 @@ export class MatchListComponent {
   }
 
   // === Court Pairing (rank-sum balanced) ============
+  // Rank-sums use effectiveRank (rank + win-rate), so a team's recent form — not just
+  // their assigned ranks — determines which courts are considered "evenly matched".
   private calculateMatchInCourtsRankBased(teamateList: Teammate[]): {team1: Teammate, team2: Teammate}[] {
     const result: {team1: Teammate, team2: Teammate}[] = [];
     let remaining = [...teamateList];
@@ -814,11 +831,11 @@ export class MatchListComponent {
     while (remaining.length > 1) {
       const currentTeam = remaining[0];
       const rest = remaining.slice(1);
-      const currentRankSum = (currentTeam.player1.rank ?? 5) + (currentTeam.player2.rank ?? 5);
+      const currentRankSum = this.effectiveRankScore(currentTeam.player1) + this.effectiveRankScore(currentTeam.player2);
 
       rest.sort((a, b) => {
-        const aRankSum = (a.player1.rank ?? 5) + (a.player2.rank ?? 5);
-        const bRankSum = (b.player1.rank ?? 5) + (b.player2.rank ?? 5);
+        const aRankSum = this.effectiveRankScore(a.player1) + this.effectiveRankScore(a.player2);
+        const bRankSum = this.effectiveRankScore(b.player1) + this.effectiveRankScore(b.player2);
         const aDiff = Math.abs(currentRankSum - aRankSum);
         const bDiff = Math.abs(currentRankSum - bRankSum);
         if (aDiff !== bDiff) return aDiff - bDiff;
