@@ -51,29 +51,29 @@ export class SettingService {
     this.saveForceTeamates(newForceTeamates);
     return
   }
-  saveShuffleMode(mode: 'balanced' | 'mixed' | 'novel' | 'auto') {
+  saveShuffleMode(mode: 'tiered' | 'spread' | 'mixed' | 'novel' | 'auto') {
     localStorage.setItem('shuffle-mode', mode);
     this.syncSettingsToSupabase();
   }
-  loadShuffleMode(): 'balanced' | 'mixed' | 'novel' | 'auto' {
+  loadShuffleMode(): 'tiered' | 'spread' | 'mixed' | 'novel' | 'auto' {
     const val = localStorage.getItem('shuffle-mode');
-    if (val === 'balanced' || val === 'mixed' || val === 'novel' || val === 'auto') return val;
+    if (val === 'tiered' || val === 'spread' || val === 'mixed' || val === 'novel' || val === 'auto') return val;
     return 'auto';
   }
-  saveShuffleModeWeights(weights: {balanced: number, mixed: number, novel: number}) {
+  saveShuffleModeWeights(weights: {tiered: number, spread: number, mixed: number, novel: number}) {
     localStorage.setItem('shuffle-mode-weights', JSON.stringify(weights));
   }
-  loadShuffleModeWeights(): {balanced: number, mixed: number, novel: number} {
+  loadShuffleModeWeights(): {tiered: number, spread: number, mixed: number, novel: number} {
     const val = localStorage.getItem('shuffle-mode-weights');
     if (val) {
       try {
         const parsed = JSON.parse(val);
-        if (typeof parsed.balanced === 'number' && typeof parsed.mixed === 'number' && typeof parsed.novel === 'number') {
+        if (typeof parsed.tiered === 'number' && typeof parsed.spread === 'number' && typeof parsed.mixed === 'number' && typeof parsed.novel === 'number') {
           return parsed;
         }
       } catch {}
     }
-    return { balanced: 60, mixed: 30, novel: 10 };
+    return { tiered: 40, spread: 20, mixed: 30, novel: 10 };
   }
 
   deleteNemesisTeamate(deleteNemesisTeamate: {player1:string, player2: string}){

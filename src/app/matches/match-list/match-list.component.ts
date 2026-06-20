@@ -192,10 +192,18 @@ export class MatchListComponent {
     this.log(`SHUFFLE mode: ${mode}`);
 
     let teamateList: Teammate[];
-    if (mode === 'balanced') {
-      const result = this.shuffleBalanced(eligiblePlayers);
+    if (mode === 'tiered') {
+      const result = this.shuffleTiered(eligiblePlayers);
       if (result === null) {
-        this.log('Balanced fallback → novel (no same-rank partners available)');
+        this.log('Tiered fallback → novel (no nemesis-safe pairing in a quad)');
+        teamateList = this.shuffleNovel(eligiblePlayers);
+      } else {
+        teamateList = result;
+      }
+    } else if (mode === 'spread') {
+      const result = this.shuffleSpread(eligiblePlayers);
+      if (result === null) {
+        this.log('Spread fallback → novel (no nemesis-safe pairing in a quad)');
         teamateList = this.shuffleNovel(eligiblePlayers);
       } else {
         teamateList = result;
@@ -538,13 +546,14 @@ export class MatchListComponent {
     return returnPlayerList.slice(0, totalAvailableSlots);
   }
   // === Mode Resolution =============================
-  private resolveMode(): 'balanced' | 'mixed' | 'novel' {
+  private resolveMode(): 'tiered' | 'spread' | 'mixed' | 'novel' {
     const saved = this.settingService.loadShuffleMode();
     if (saved !== 'auto') return saved;
     const weights = this.settingService.loadShuffleModeWeights();
     const roll = this.rng.random() * 100;
-    if (roll < weights.balanced) return 'balanced';
-    if (roll < weights.balanced + weights.mixed) return 'mixed';
+    if (roll < weights.tiered) return 'tiered';
+    if (roll < weights.tiered + weights.spread) return 'spread';
+    if (roll < weights.tiered + weights.spread + weights.mixed) return 'mixed';
     return 'novel';
   }
 
@@ -622,16 +631,16 @@ export class MatchListComponent {
     }
   }
 
-  // === Mode A — Balanced ============================
-  // Sort all eligible players by effectiveRank, group into quads of 4.
-  // Within each quad, pair players so no partner pair exceeds 3 raw rank apart.
+  // === Modes A/B — Tiered & Spread ===================
+  // Sort all eligible players by effectiveRank, group into quads of 4, then
+  // pair within each quad via formQuadPairs (rank-diff/nemesis/recency rules).
   // A lower-ranked player with a high win-rate sorts into a higher-skill quad
-  // automatically via effectiveRank.
-  // Interleaved assignment: player at sorted position i goes to quad i % numQuads.
-  // For 8 players / 2 quads: Quad 0 = positions [0,2,4,6], Quad 1 = [1,3,5,7].
-  // This guarantees each quad spans the full skill range instead of clustering
-  // the bottom rank tier together when many same-rank players are in the pool.
-  private shuffleBalanced(players: Player[]): Teammate[] | null {
+  // automatically via effectiveRank. Tiered and Spread only differ in how
+  // players are assigned into quads — buildQuad below.
+  private shuffleByQuads(
+    players: Player[],
+    buildQuad: (sorted: Player[], numQuads: number, qi: number) => Player[]
+  ): Teammate[] | null {
     const totalPlayers = players.length;
     const numQuads = Math.floor(players.length / 4);
     const sorted = [...players].sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
@@ -640,13 +649,31 @@ export class MatchListComponent {
     const pairs: Teammate[] = [];
 
     for (let qi = 0; qi < numQuads; qi++) {
-      // Interleaved positions are already in ascending effectiveRank order — no re-sort needed
-      const q = [0, 1, 2, 3].map(k => sorted[qi + k * numQuads]);
+      const q = buildQuad(sorted, numQuads, qi);
       const quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers);
       if (!quadPair) return null;
       pairs.push(quadPair[0], quadPair[1]);
     }
     return pairs;
+  }
+
+  // Mode A — Tiered: contiguous slicing — quad 0 = the 4 strongest, quad 1 =
+  // the next 4, etc. Deliberately clusters same-rank players, producing a
+  // strong court and a weak court.
+  private shuffleTiered(players: Player[]): Teammate[] | null {
+    return this.shuffleByQuads(players, (sorted, _numQuads, qi) =>
+      [0, 1, 2, 3].map(k => sorted[qi * 4 + k])
+    );
+  }
+
+  // Mode B — Spread: interleaved striding — player at sorted position i goes
+  // to quad i % numQuads. For 8 players / 2 quads: Quad 0 = positions
+  // [0,2,4,6], Quad 1 = [1,3,5,7]. This guarantees each quad spans the full
+  // skill range instead of clustering the bottom rank tier together.
+  private shuffleSpread(players: Player[]): Teammate[] | null {
+    return this.shuffleByQuads(players, (sorted, numQuads, qi) =>
+      [0, 1, 2, 3].map(k => sorted[qi + k * numQuads])
+    );
   }
 
   // Within a quad of 4 players (sorted best→worst by effectiveRank):

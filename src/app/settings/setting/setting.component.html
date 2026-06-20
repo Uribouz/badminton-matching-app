@@ -103,18 +103,23 @@
 <div class="shuffleModeContainer">
     <h3>Shuffle Mode</h3>
     <div class="shuffleModeButtons">
-        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'balanced'" (click)="setShuffleMode('balanced')">Balanced</button>
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'tiered'" (click)="setShuffleMode('tiered')">Tiered</button>
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'spread'" (click)="setShuffleMode('spread')">Spread</button>
         <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'mixed'" (click)="setShuffleMode('mixed')">Mixed</button>
         <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'novel'" (click)="setShuffleMode('novel')">Novel</button>
         <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'auto'" (click)="setShuffleMode('auto')">Auto</button>
     </div>
-    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'balanced'">Pairs players within ±3 rank of each other.</p>
+    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'tiered'">Groups similarly-ranked players together, creating a strong court and a weak court.</p>
+    <p class="shuffleModeDesc" *ngIf="shuffleMode === 'spread'">Deals players round-robin by rank so every court spans the full skill range.</p>
     <p class="shuffleModeDesc" *ngIf="shuffleMode === 'mixed'">Pairs best player with weakest; opposing team balances the rank sum.</p>
     <p class="shuffleModeDesc" *ngIf="shuffleMode === 'novel'">Prioritises pairings where players have never met before.</p>
     <div class="autoMixSlider" *ngIf="shuffleMode === 'auto'">
       <div class="mixBar">
-        <div class="mixSeg mixSeg--balanced" [style.width.%]="balancedPct">
-          <span *ngIf="balancedPct >= 12">{{balancedPct}}%</span>
+        <div class="mixSeg mixSeg--tiered" [style.width.%]="tieredPct">
+          <span *ngIf="tieredPct >= 12">{{tieredPct}}%</span>
+        </div>
+        <div class="mixSeg mixSeg--spread" [style.width.%]="spreadPct">
+          <span *ngIf="spreadPct >= 12">{{spreadPct}}%</span>
         </div>
         <div class="mixSeg mixSeg--mixed" [style.width.%]="mixedPct">
           <span *ngIf="mixedPct >= 12">{{mixedPct}}%</span>
@@ -124,9 +129,14 @@
         </div>
       </div>
       <div class="mixSliderRow">
-        <span class="mixLabel mixLabel--balanced">Balanced</span>
-        <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="balancedPct" (ngModelChange)="onBalancedPctChange()">
-        <span class="mixPct">{{balancedPct}}%</span>
+        <span class="mixLabel mixLabel--tiered">Tiered</span>
+        <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="tieredPct" (ngModelChange)="onTieredPctChange()">
+        <span class="mixPct">{{tieredPct}}%</span>
+      </div>
+      <div class="mixSliderRow">
+        <span class="mixLabel mixLabel--spread">Spread</span>
+        <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="spreadPct" (ngModelChange)="onSpreadPctChange()">
+        <span class="mixPct">{{spreadPct}}%</span>
       </div>
       <div class="mixSliderRow">
         <span class="mixLabel mixLabel--novel">Novel</span>

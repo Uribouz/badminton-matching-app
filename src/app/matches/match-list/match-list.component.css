@@ -365,9 +365,13 @@
   background: var(--color-border);
   color: var(--color-text-muted);
 }
-.modeBadge--balanced {
+.modeBadge--spread {
   background: #d1fae5;
   color: #065f46;
+}
+.modeBadge--tiered {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 .modeBadge--mixed {
   background: #dbeafe;

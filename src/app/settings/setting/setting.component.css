@@ -71,7 +71,8 @@
     min-width: 0;
     overflow: hidden;
 }
-.mixSeg--balanced { background: #059669; }
+.mixSeg--tiered   { background: #5b21b6; }
+.mixSeg--spread   { background: #059669; }
 .mixSeg--mixed    { background: #2563eb; }
 .mixSeg--novel    { background: #d97706; }
 .mixSliderRow {
@@ -91,7 +92,8 @@
     width: 64px;
     flex-shrink: 0;
 }
-.mixLabel--balanced { color: #059669; }
+.mixLabel--tiered   { color: #5b21b6; }
+.mixLabel--spread   { color: #059669; }
 .mixLabel--mixed    { color: #2563eb; }
 .mixLabel--novel    { color: #d97706; }
 .mixSlider {

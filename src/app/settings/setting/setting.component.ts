@@ -22,10 +22,11 @@ export class SettingComponent {
   nemesisTeamatePlayer1: string = "";
   nemesisTeamatePlayer2: string = "";
 
-  shuffleMode: 'balanced' | 'mixed' | 'novel' | 'auto' = 'auto';
-  balancedPct = 60;
+  shuffleMode: 'tiered' | 'spread' | 'mixed' | 'novel' | 'auto' = 'auto';
+  tieredPct = 40;
+  spreadPct = 20;
   novelPct = 10;
-  get mixedPct() { return 100 - this.balancedPct - this.novelPct; }
+  get mixedPct() { return 100 - this.tieredPct - this.spreadPct - this.novelPct; }
   playerNames: string[] = [];
 
   constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService, private authService: AuthService, private router: Router) {
@@ -33,26 +34,42 @@ export class SettingComponent {
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();
       this.shuffleMode = this.settingService.loadShuffleMode();
       const weights = this.settingService.loadShuffleModeWeights();
-      this.balancedPct = weights.balanced;
+      this.tieredPct = weights.tiered;
+      this.spreadPct = weights.spread;
       this.novelPct = weights.novel;
       this.playerNames = Array.from(this.playerService.loadPlayerList().keys());
   }
 
-  setShuffleMode(mode: 'balanced' | 'mixed' | 'novel' | 'auto') {
+  setShuffleMode(mode: 'tiered' | 'spread' | 'mixed' | 'novel' | 'auto') {
     this.shuffleMode = mode;
     this.settingService.saveShuffleMode(mode);
   }
 
-  onBalancedPctChange() {
-    if (this.balancedPct + this.novelPct > 100) this.novelPct = 100 - this.balancedPct;
+  onTieredPctChange() {
+    this.clampOthers(['spreadPct', 'novelPct']);
+    this.saveWeights();
+  }
+  onSpreadPctChange() {
+    this.clampOthers(['novelPct', 'tieredPct']);
     this.saveWeights();
   }
   onNovelPctChange() {
-    if (this.balancedPct + this.novelPct > 100) this.balancedPct = 100 - this.novelPct;
+    this.clampOthers(['spreadPct', 'tieredPct']);
     this.saveWeights();
   }
+  // Reduces the listed sliders (in order) so tiered+spread+novel never exceeds 100;
+  // mixed is always the remainder.
+  private clampOthers(others: Array<'tieredPct' | 'spreadPct' | 'novelPct'>) {
+    let excess = this.tieredPct + this.spreadPct + this.novelPct - 100;
+    for (const key of others) {
+      if (excess <= 0) break;
+      const reduce = Math.min(this[key], excess);
+      this[key] -= reduce;
+      excess -= reduce;
+    }
+  }
   private saveWeights() {
-    this.settingService.saveShuffleModeWeights({ balanced: this.balancedPct, mixed: this.mixedPct, novel: this.novelPct });
+    this.settingService.saveShuffleModeWeights({ tiered: this.tieredPct, spread: this.spreadPct, mixed: this.mixedPct, novel: this.novelPct });
   }
 
   onSelectForcePlayer(name: string) {

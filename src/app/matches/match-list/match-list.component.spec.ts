@@ -86,189 +86,214 @@ describe('MatchListComponent', () => {
     }
   });
 
-  describe('shuffleBalanced — partner rank constraint (≤3)', () => {
-    function partnerRankDiff(pair: Teammate): number {
-      return Math.abs((pair.player1.rank ?? 5) - (pair.player2.rank ?? 5));
-    }
+  // Shared formQuadPairs-level constraints (rank-diff ≤3, nemesis, recency) apply
+  // identically to both quad-construction strategies — run them against both.
+  (['shuffleTiered', 'shuffleSpread'] as const).forEach(methodName => {
+    describe(`${methodName} — partner rank constraint (≤3)`, () => {
+      function partnerRankDiff(pair: Teammate): number {
+        return Math.abs((pair.player1.rank ?? 5) - (pair.player2.rank ?? 5));
+      }
+      function shuffle(players: Player[]): Teammate[] | null {
+        return component[methodName](players);
+      }
 
-    it('should return 2 pairs for 4 players all within 3 ranks and use [0,3]+[1,2] (most balanced teams)', () => {
-      // Sorted by effectiveRank: rank1, rank2, rank3, rank4
-      // [0,3]=rank1+rank4 diff=3 ≤3 ✓; [1,2]=rank2+rank3 diff=1 ≤3 ✓ → use [0,3]+[1,2]
-      const players = [
-        makeRankedPlayer('A', 1),
-        makeRankedPlayer('B', 2),
-        makeRankedPlayer('C', 3),
-        makeRankedPlayer('D', 4),
-      ];
-      const result: Teammate[] | null = component['shuffleBalanced'](players);
-      expect(result).not.toBeNull();
-      expect(result!.length).toBe(2);
-      result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
-      // [0,3] pairing should be chosen: A with D, B with C
-      const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
-      expect(result!.map(names)).toContain('A,D');
-      expect(result!.map(names)).toContain('B,C');
+      it('should return 2 pairs for 4 players all within 3 ranks and use [0,3]+[1,2] (most balanced teams)', () => {
+        // Sorted by effectiveRank: rank1, rank2, rank3, rank4
+        // [0,3]=rank1+rank4 diff=3 ≤3 ✓; [1,2]=rank2+rank3 diff=1 ≤3 ✓ → use [0,3]+[1,2]
+        const players = [
+          makeRankedPlayer('A', 1),
+          makeRankedPlayer('B', 2),
+          makeRankedPlayer('C', 3),
+          makeRankedPlayer('D', 4),
+        ];
+        const result: Teammate[] | null = shuffle(players);
+        expect(result).not.toBeNull();
+        expect(result!.length).toBe(2);
+        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
+        // [0,3] pairing should be chosen: A with D, B with C
+        const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
+        expect(result!.map(names)).toContain('A,D');
+        expect(result!.map(names)).toContain('B,C');
+      });
+
+      it('should not pair rank-1 player with rank-5 player when a valid alternative exists', () => {
+        // [rank1, rank2, rank3, rank5]: [0,3]=diff4 skipped; [0,2]=rank1+rank3 diff2 + [1,3]=rank2+rank5 diff3 → valid
+        const players = [
+          makeRankedPlayer('A', 1),
+          makeRankedPlayer('B', 2),
+          makeRankedPlayer('C', 3),
+          makeRankedPlayer('D', 5),
+        ];
+        const result: Teammate[] | null = shuffle(players);
+        expect(result).not.toBeNull();
+        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
+        // A(rank1) must NOT be paired with D(rank5)
+        const pairedWithA = result!
+          .filter(pair => pair.player1.name === 'A' || pair.player2.name === 'A')
+          .flatMap(pair => [pair.player1.name, pair.player2.name])
+          .filter(name => name !== 'A');
+        expect(pairedWithA).not.toContain('D');
+      });
+
+      it('should skip [0,3] and use [0,1]+[2,3] for widely-spread rank groups', () => {
+        // [rank1, rank2, rank5, rank6]: [0,3]=diff5 skip, [0,2]=diff4 skip, [0,1]=diff1 + [2,3]=diff1 ✓
+        const players = [
+          makeRankedPlayer('A', 1),
+          makeRankedPlayer('B', 2),
+          makeRankedPlayer('E', 5),
+          makeRankedPlayer('F', 6),
+        ];
+        const result: Teammate[] | null = shuffle(players);
+        expect(result).not.toBeNull();
+        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
+      });
+
+      it('should handle 8 players split into two rank-valid quads', () => {
+        // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
+        // Both contiguous and interleaved slicing land on the same two trivially-valid quads here.
+        const players = [
+          makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
+          makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
+          makeRankedPlayer('E', 5), makeRankedPlayer('F', 5),
+          makeRankedPlayer('G', 6), makeRankedPlayer('H', 6),
+        ];
+        const result: Teammate[] | null = shuffle(players);
+        expect(result).not.toBeNull();
+        expect(result!.length).toBe(4);
+        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
+      });
+
+      it('should choose [0,2]+[1,3] over [0,3]+[1,2] when [0,3] violates rank constraint', () => {
+        // [rank1, rank2, rank4, rank5]: [0,3]=rank1+rank5 diff4 skip; [0,2]=rank1+rank4 diff3 + [1,3]=rank2+rank5 diff3 ✓
+        const players = [
+          makeRankedPlayer('A', 1),
+          makeRankedPlayer('B', 2),
+          makeRankedPlayer('C', 4),
+          makeRankedPlayer('D', 5),
+        ];
+        const result: Teammate[] | null = shuffle(players);
+        expect(result).not.toBeNull();
+        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
+        const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
+        expect(result!.map(names)).toContain('A,C'); // rank1 with rank4 (diff=3)
+        expect(result!.map(names)).toContain('B,D'); // rank2 with rank5 (diff=3)
+      });
+
+      it('should rotate partners when preferred [0,3] pairing was used too recently', () => {
+        // rank1A+rank4D have paired repeatedly (recent), so pass 0 skips [0,3]+[1,2]
+        // and should choose [0,2]+[1,3] = rank1A+rank3C, rank2B+rank4D  OR  [0,1]+[2,3]
+        const players = [
+          makePlayerWithHistory('rank1A', 1, 6, ['rank4D','rank2B','rank4D','rank4D','rank4D','rank2B']),
+          makePlayerWithHistory('rank2B', 2, 6, ['rank3C','rank1A','rank3C','rank3C','rank1A','rank3C']),
+          makePlayerWithHistory('rank3C', 3, 6, ['rank2B','rank4D','rank2B','rank2B','rank4D','rank2B']),
+          makePlayerWithHistory('rank4D', 4, 6, ['rank1A','rank3C','rank1A','rank1A','rank3C','rank1A']),
+        ];
+        // effectiveRank sorts as: rank1A, rank2B, rank3C, rank4D (no win-rate adjustment needed)
+        // [0,3] = rank1A+rank4D → lastIdx=4, elapsed=6-4=2, cooldown=max(1,4-1)=3, 2<3 → RECENT → skip
+        // [0,2] = rank1A+rank3C, [1,3] = rank2B+rank4D → check recency for each:
+        //   rank1A+rank3C: not in rank1A history → not recent ✓
+        //   rank2B+rank4D: not in rank2B history → not recent ✓
+        // → should use [0,2]+[1,3]
+        const result = shuffle(players);
+        expect(result).not.toBeNull();
+        const pairNames = result!.map(p => [p.player1.name, p.player2.name].sort().join('+'));
+        expect(pairNames).not.toContain('rank1A+rank4D');
+      });
+
+      it('should return null when nemesis constraints block all pairings in a quad', () => {
+        // All 3 pairing options blocked by nemesis
+        component['nemesisTeamate'] = [
+          { player1: 'A', player2: 'D' },
+          { player1: 'A', player2: 'C' },
+          { player1: 'A', player2: 'B' },
+        ];
+        const players = [
+          makeRankedPlayer('A', 1),
+          makeRankedPlayer('B', 2),
+          makeRankedPlayer('C', 3),
+          makeRankedPlayer('D', 4),
+        ];
+        const result = shuffle(players);
+        expect(result).toBeNull();
+        component['nemesisTeamate'] = []; // cleanup
+      });
     });
+  });
 
-    it('should not pair rank-1 player with rank-5 player when a valid alternative exists', () => {
-      // [rank1, rank2, rank3, rank5]: [0,3]=diff4 skipped; [0,2]=rank1+rank3 diff2 + [1,3]=rank2+rank5 diff3 → valid
+  describe('shuffleSpread — round-robin quad diversity', () => {
+    it('does not create rank4+rank4 partnerships when 4 rank4 players are in an 8-player pool', () => {
+      // Contiguous slicing would give Quad2=[rank4A,rank4B,rank4C,rank4D] → forced rank4+rank4.
+      // Interleaved gives each quad one rank2, one rank3, two rank4 players → cross-rank pairings.
       const players = [
-        makeRankedPlayer('A', 1),
-        makeRankedPlayer('B', 2),
-        makeRankedPlayer('C', 3),
-        makeRankedPlayer('D', 5),
+        makeRankedPlayer('rank2A', 2), makeRankedPlayer('rank2B', 2),
+        makeRankedPlayer('rank3A', 3), makeRankedPlayer('rank3B', 3),
+        makeRankedPlayer('rank4A', 4), makeRankedPlayer('rank4B', 4),
+        makeRankedPlayer('rank4C', 4), makeRankedPlayer('rank4D', 4),
       ];
-      const result: Teammate[] | null = component['shuffleBalanced'](players);
-      expect(result).not.toBeNull();
-      result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
-      // A(rank1) must NOT be paired with D(rank5)
-      const pairedWithA = result!
-        .filter(pair => pair.player1.name === 'A' || pair.player2.name === 'A')
-        .flatMap(pair => [pair.player1.name, pair.player2.name])
-        .filter(name => name !== 'A');
-      expect(pairedWithA).not.toContain('D');
-    });
-
-    it('should skip [0,3] and use [0,1]+[2,3] for widely-spread rank groups', () => {
-      // [rank1, rank2, rank5, rank6]: [0,3]=diff5 skip, [0,2]=diff4 skip, [0,1]=diff1 + [2,3]=diff1 ✓
-      const players = [
-        makeRankedPlayer('A', 1),
-        makeRankedPlayer('B', 2),
-        makeRankedPlayer('E', 5),
-        makeRankedPlayer('F', 6),
-      ];
-      const result: Teammate[] | null = component['shuffleBalanced'](players);
-      expect(result).not.toBeNull();
-      result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
-    });
-
-    it('should handle 8 players split into two rank-valid quads', () => {
-      // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
-      // Quad1 all within 1 rank; Quad2 all within 1 rank → both trivially valid
-      const players = [
-        makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
-        makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
-        makeRankedPlayer('E', 5), makeRankedPlayer('F', 5),
-        makeRankedPlayer('G', 6), makeRankedPlayer('H', 6),
-      ];
-      const result: Teammate[] | null = component['shuffleBalanced'](players);
+      const result = component['shuffleSpread'](players);
       expect(result).not.toBeNull();
       expect(result!.length).toBe(4);
-      result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
+      for (const pair of result!) {
+        const r1 = pair.player1.rank ?? 5;
+        const r2 = pair.player2.rank ?? 5;
+        expect(r1 === 4 && r2 === 4).toBeFalse();
+      }
     });
 
-    it('should choose [0,2]+[1,3] over [0,3]+[1,2] when [0,3] violates rank constraint', () => {
-      // [rank1, rank2, rank4, rank5]: [0,3]=rank1+rank5 diff4 skip; [0,2]=rank1+rank4 diff3 + [1,3]=rank2+rank5 diff3 ✓
+    it('spreads top and bottom players across both quads for a 8-player pool', () => {
+      // Interleaved: Quad0 = [rank1, rank3, rank4, rank4], Quad1 = [rank2, rank3, rank4, rank4]
+      // Neither quad should be all same rank.
       const players = [
-        makeRankedPlayer('A', 1),
-        makeRankedPlayer('B', 2),
-        makeRankedPlayer('C', 4),
-        makeRankedPlayer('D', 5),
+        makeRankedPlayer('A', 1), makeRankedPlayer('B', 2),
+        makeRankedPlayer('C', 3), makeRankedPlayer('D', 3),
+        makeRankedPlayer('E', 4), makeRankedPlayer('F', 4),
+        makeRankedPlayer('G', 4), makeRankedPlayer('H', 4),
       ];
-      const result: Teammate[] | null = component['shuffleBalanced'](players);
+      const result = component['shuffleSpread'](players);
       expect(result).not.toBeNull();
-      result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
-      const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
-      expect(result!.map(names)).toContain('A,C'); // rank1 with rank4 (diff=3)
-      expect(result!.map(names)).toContain('B,D'); // rank2 with rank5 (diff=3)
+      expect(result!.length).toBe(4);
+      const rank4Pairs = result!.filter(p => (p.player1.rank ?? 5) === 4 && (p.player2.rank ?? 5) === 4);
+      expect(rank4Pairs.length).toBe(0);
     });
 
-    describe('interleaved quad diversity', () => {
-      it('does not create rank4+rank4 partnerships when 4 rank4 players are in an 8-player pool', () => {
-        // Consecutive slicing would give Quad2=[rank4A,rank4B,rank4C,rank4D] → forced rank4+rank4.
-        // Interleaved gives each quad one rank2, one rank3, two rank4 players → cross-rank pairings.
-        const players = [
-          makeRankedPlayer('rank2A', 2), makeRankedPlayer('rank2B', 2),
-          makeRankedPlayer('rank3A', 3), makeRankedPlayer('rank3B', 3),
-          makeRankedPlayer('rank4A', 4), makeRankedPlayer('rank4B', 4),
-          makeRankedPlayer('rank4C', 4), makeRankedPlayer('rank4D', 4),
-        ];
-        const result = component['shuffleBalanced'](players);
-        expect(result).not.toBeNull();
-        expect(result!.length).toBe(4);
-        for (const pair of result!) {
-          const r1 = pair.player1.rank ?? 5;
-          const r2 = pair.player2.rank ?? 5;
-          expect(r1 === 4 && r2 === 4).toBeFalse();
-        }
-      });
-
-      it('spreads top and bottom players across both quads for a 8-player pool', () => {
-        // Interleaved: Quad0 = [rank1, rank3, rank4, rank4], Quad1 = [rank2, rank3, rank4, rank4]
-        // Neither quad should be all same rank.
-        const players = [
-          makeRankedPlayer('A', 1), makeRankedPlayer('B', 2),
-          makeRankedPlayer('C', 3), makeRankedPlayer('D', 3),
-          makeRankedPlayer('E', 4), makeRankedPlayer('F', 4),
-          makeRankedPlayer('G', 4), makeRankedPlayer('H', 4),
-        ];
-        const result = component['shuffleBalanced'](players);
-        expect(result).not.toBeNull();
-        expect(result!.length).toBe(4);
-        const rank4Pairs = result!.filter(p => (p.player1.rank ?? 5) === 4 && (p.player2.rank ?? 5) === 4);
-        expect(rank4Pairs.length).toBe(0);
-      });
-
-      it('prefers stale cross-rank over fresh same-rank when recency forces [0,1]+[2,3] on rank4+rank4', () => {
-        // Quad: [rank2A, rank3B, rank4C, rank4D]
-        // rank2A has been recently paired with both rank4C (pos2) and rank4D (pos3).
-        // Pass 0b would fall to [0,1]+[2,3] = rank2A+rank3B, rank4C+rank4D (same-raw-rank!).
-        // Pass 1 should instead use [0,3] (rank2A+rank4D, stale but cross-rank).
-        component['forceMatchTeamate'] = [];
-        component['nemesisTeamate'] = [];
-        const players = [
-          // rank2A: recently paired with rank4C (idx=3) and rank4D (idx=4), total rounds=5
-          makePlayerWithHistory('rank2A', 2, 5, ['rank4D','rank4C','rank4D','rank4C','rank4D']),
-          makePlayerWithHistory('rank3B', 3, 5, []),
-          makePlayerWithHistory('rank4C', 4, 5, []),
-          makePlayerWithHistory('rank4D', 4, 5, []),
-        ];
-        const result = component['shuffleBalanced'](players);
-        expect(result).not.toBeNull();
-        const rank4Pairs = result!.filter(p =>
-          (p.player1.rank ?? 5) === 4 && (p.player2.rank ?? 5) === 4
-        );
-        expect(rank4Pairs.length).toBe(0);
-      });
-    });
-
-    it('should rotate partners when preferred [0,3] pairing was used too recently', () => {
-      // rank1A+rank4D have paired repeatedly (recent), so pass 0 skips [0,3]+[1,2]
-      // and should choose [0,2]+[1,3] = rank1A+rank3C, rank2B+rank4D  OR  [0,1]+[2,3]
+    it('prefers stale cross-rank over fresh same-rank when recency forces [0,1]+[2,3] on rank4+rank4', () => {
+      // Quad: [rank2A, rank3B, rank4C, rank4D]
+      // rank2A has been recently paired with both rank4C (pos2) and rank4D (pos3).
+      // Pass 0b would fall to [0,1]+[2,3] = rank2A+rank3B, rank4C+rank4D (same-raw-rank!).
+      // Pass 1 should instead use [0,3] (rank2A+rank4D, stale but cross-rank).
+      component['forceMatchTeamate'] = [];
+      component['nemesisTeamate'] = [];
       const players = [
-        makePlayerWithHistory('rank1A', 1, 6, ['rank4D','rank2B','rank4D','rank4D','rank4D','rank2B']),
-        makePlayerWithHistory('rank2B', 2, 6, ['rank3C','rank1A','rank3C','rank3C','rank1A','rank3C']),
-        makePlayerWithHistory('rank3C', 3, 6, ['rank2B','rank4D','rank2B','rank2B','rank4D','rank2B']),
-        makePlayerWithHistory('rank4D', 4, 6, ['rank1A','rank3C','rank1A','rank1A','rank3C','rank1A']),
+        // rank2A: recently paired with rank4C (idx=3) and rank4D (idx=4), total rounds=5
+        makePlayerWithHistory('rank2A', 2, 5, ['rank4D','rank4C','rank4D','rank4C','rank4D']),
+        makePlayerWithHistory('rank3B', 3, 5, []),
+        makePlayerWithHistory('rank4C', 4, 5, []),
+        makePlayerWithHistory('rank4D', 4, 5, []),
       ];
-      // effectiveRank sorts as: rank1A, rank2B, rank3C, rank4D (no win-rate adjustment needed)
-      // [0,3] = rank1A+rank4D → lastIdx=4, elapsed=6-4=2, cooldown=max(1,4-1)=3, 2<3 → RECENT → skip
-      // [0,2] = rank1A+rank3C, [1,3] = rank2B+rank4D → check recency for each:
-      //   rank1A+rank3C: not in rank1A history → not recent ✓
-      //   rank2B+rank4D: not in rank2B history → not recent ✓
-      // → should use [0,2]+[1,3]
-      const result = component['shuffleBalanced'](players);
+      const result = component['shuffleSpread'](players);
       expect(result).not.toBeNull();
-      const pairNames = result!.map(p => [p.player1.name, p.player2.name].sort().join('+'));
-      expect(pairNames).not.toContain('rank1A+rank4D');
+      const rank4Pairs = result!.filter(p =>
+        (p.player1.rank ?? 5) === 4 && (p.player2.rank ?? 5) === 4
+      );
+      expect(rank4Pairs.length).toBe(0);
     });
+  });
 
-    it('should return null when nemesis constraints block all pairings in a quad', () => {
-      // All 3 pairing options blocked by nemesis
-      component['nemesisTeamate'] = [
-        { player1: 'A', player2: 'D' },
-        { player1: 'A', player2: 'C' },
-        { player1: 'A', player2: 'B' },
-      ];
+  describe('shuffleTiered — same-rank grouping', () => {
+    it('groups same-rank players into the same quad, creating a strong court and a weak court', () => {
+      // Contiguous slicing: Quad0 = the 4 strongest (rank2,2,3,3), Quad1 = the 4 weakest (all rank4)
+      // Quad1 has no cross-rank alternative — a rank4+rank4 pair is expected here.
       const players = [
-        makeRankedPlayer('A', 1),
-        makeRankedPlayer('B', 2),
-        makeRankedPlayer('C', 3),
-        makeRankedPlayer('D', 4),
+        makeRankedPlayer('rank2A', 2), makeRankedPlayer('rank2B', 2),
+        makeRankedPlayer('rank3A', 3), makeRankedPlayer('rank3B', 3),
+        makeRankedPlayer('rank4A', 4), makeRankedPlayer('rank4B', 4),
+        makeRankedPlayer('rank4C', 4), makeRankedPlayer('rank4D', 4),
       ];
-      const result = component['shuffleBalanced'](players);
-      expect(result).toBeNull();
-      component['nemesisTeamate'] = []; // cleanup
+      const result = component['shuffleTiered'](players);
+      expect(result).not.toBeNull();
+      expect(result!.length).toBe(4);
+      const rank4Pairs = result!.filter(p => (p.player1.rank ?? 5) === 4 && (p.player2.rank ?? 5) === 4);
+      expect(rank4Pairs.length).toBeGreaterThan(0);
     });
   });
 
