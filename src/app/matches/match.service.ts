@@ -89,8 +89,7 @@ export class MatchService {
   }
 
   async syncMatchToSupabase(match: Match) {
-    const today = new Date();
-    const eventKey = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
+    const eventKey = Constants.todayEventKey();
 
     await this.eventService.ensureEventExists(eventKey);
 

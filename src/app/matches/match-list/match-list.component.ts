@@ -8,6 +8,7 @@ import { XorShift } from '../../shared/random/xorshift';
 import { Status } from '../../players/status';
 import { BillComponent } from '../../bill/bill.component';
 import { SettingService } from '../../settings/setting.service';
+import { Constants } from '../../shared/constants';
 
 enum COURT_STATUS {
   AVAILABLE = 'available',
@@ -279,7 +280,7 @@ export class MatchListComponent {
 
   // Others =================================
   shareGuestUrl() {
-    const eventKey = `root-event:${new Date().toLocaleDateString()}`;
+    const eventKey = Constants.todayEventKey();
     const url = `${window.location.origin}/guest/event/${encodeURIComponent(eventKey)}/matches`;
     const courtLines = this.matchList
       .filter((match) => match.teamA.player1.name && match.teamB.player1.name)

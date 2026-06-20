@@ -167,8 +167,7 @@ export class PlayerService {
   }
 
   async syncPlayersToSupabase(playersMap: Map<string, Player>) {
-    const today = new Date();
-    const eventKey = `${Constants.eventIdPrefix}:${today.toLocaleDateString()}`;
+    const eventKey = Constants.todayEventKey();
 
     await this.eventService.ensureEventExists(eventKey);
 
