@@ -8,6 +8,11 @@
             (click)="deleteCourt(i)"
           ></button>
           <h1>Court {{ i + 1 }}</h1>
+          <span
+            *ngIf="match.mode"
+            class="modeBadge"
+            [class]="'modeBadge--' + match.mode"
+          >{{ match.mode }}</span>
         </div>
         <div class="court">
           <button
@@ -72,57 +77,57 @@
           ></button>
         </div>
       </div>
-      <div class="standbyContainer">
-        <span class="standbyLabel">Standby</span>
-        <div class="standbyChips">
-          <div
-            class="standbyChip"
-            *ngFor="let player of standbyList"
-            [ngClass]="{
-              playerStatusBreak: player.status === playerStatus.BREAK,
-              playerStatusSelected: player.status === playerStatus.SELECTED
-            }"
-            (click)="changePlayerStatus(player.name)"
-          >
-            <span class="standbyChipName">{{ player.name }}</span>
-            <div class="standbyChipActions">
-              <button
-                class="statusDot dotBreak"
-                [class.dotActive]="player.status === playerStatus.BREAK"
-                (click)="$event.stopPropagation(); setPlayerStatus(player.name, playerStatus.BREAK)"
-                title="Break"
-              ></button>
-              <button
-                class="statusDot dotSelected"
-                [class.dotActive]="player.status === playerStatus.SELECTED"
-                (click)="$event.stopPropagation(); setPlayerStatus(player.name, playerStatus.SELECTED)"
-                title="Selected"
-              ></button>
-              <button
-                class="statusDot dotReady"
-                [class.dotActive]="player.status === playerStatus.READY"
-                (click)="$event.stopPropagation(); setPlayerStatus(player.name, playerStatus.READY)"
-                title="Free"
-              ></button>
-            </div>
-          </div>
+    </div>
+  </div>
+  <div class="btnContainer">
+    <button class="btn_large btn_court_add" (click)="addCourt()"></button>
+    <button
+      class="btn_large btn_court_confirm"
+      (click)="confirmCourts()"
+    ></button>
+    <button
+      class="btn_large btn_court_shuffle"
+      (click)="shufflePlayersIntoCourt()"
+    ></button>
+    <button
+      class="btn_large btn_share_guest"
+      (click)="shareGuestUrl()"
+      title="Share guest link"
+    ></button>
+  </div>
+  <div class="standbyContainer">
+    <span class="standbyLabel">Standby</span>
+    <div class="standbyChips">
+      <div
+        class="standbyChip"
+        *ngFor="let player of standbyList"
+        [ngClass]="{
+          playerStatusBreak: player.status === playerStatus.BREAK,
+          playerStatusSelected: player.status === playerStatus.SELECTED
+        }"
+        (click)="changePlayerStatus(player.name)"
+      >
+        <span class="standbyChipName">{{ player.name }}</span>
+        <div class="standbyChipActions">
+          <button
+            class="statusDot dotBreak"
+            [class.dotActive]="player.status === playerStatus.BREAK"
+            (click)="$event.stopPropagation(); setPlayerStatus(player.name, playerStatus.BREAK)"
+            title="Break"
+          ></button>
+          <button
+            class="statusDot dotSelected"
+            [class.dotActive]="player.status === playerStatus.SELECTED"
+            (click)="$event.stopPropagation(); setPlayerStatus(player.name, playerStatus.SELECTED)"
+            title="Selected"
+          ></button>
+          <button
+            class="statusDot dotReady"
+            [class.dotActive]="player.status === playerStatus.READY"
+            (click)="$event.stopPropagation(); setPlayerStatus(player.name, playerStatus.READY)"
+            title="Free"
+          ></button>
         </div>
-      </div>
-      <div class="btnContainer">
-        <button class="btn_large btn_court_add" (click)="addCourt()"></button>
-        <button
-          class="btn_large btn_court_confirm"
-          (click)="confirmCourts()"
-        ></button>
-        <button
-          class="btn_large btn_court_shuffle"
-          (click)="shufflePlayersIntoCourt()"
-        ></button>
-        <button
-          class="btn_large btn_share_guest"
-          (click)="shareGuestUrl()"
-          title="Share guest link"
-        ></button>
       </div>
     </div>
   </div>

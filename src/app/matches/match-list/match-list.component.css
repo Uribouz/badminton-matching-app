@@ -47,6 +47,9 @@
   margin: 0;
   display: inline;
 }
+.courtHeader .modeBadge {
+  margin-left: 0;
+}
 .court {
   padding: var(--space-2);
   border: 2px solid var(--color-border-strong);
