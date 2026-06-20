@@ -522,7 +522,7 @@ export class MatchListComponent {
     this.forceMatchTeamate.forEach(each => {
       let indexPlayer1 = playerNameList.indexOf(each.player1);
       let indexPlayer2 = playerNameList.indexOf(each.player2);
-      if (indexPlayer1 <= 0 || indexPlayer2 <= 0) {
+      if (indexPlayer1 < 0 || indexPlayer2 < 0) {
         return;
       }
       if (indexPlayer1 >= totalAvailableSlots && indexPlayer2 >= totalAvailableSlots) {
@@ -742,6 +742,18 @@ export class MatchListComponent {
     return pairs;
   }
 
+  // Standard Fisher–Yates: walk backwards, swap each element with a uniformly
+  // random earlier-or-equal index. Every permutation is equally likely, unlike
+  // sort()-with-random-comparator (engine-dependent, not a uniform shuffle).
+  private fisherYatesShuffle<T>(items: T[]): T[] {
+    const result = [...items];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+
   // === Mode C — Novel (prioritise never-met) ========
   // 10 attempts divided into 3 phases of progressive relaxation (same formula as old isAllTeamatesValid):
   //   attempts 0-2: offset=1 (strict cooldown = totalPlayers-1 rounds)
@@ -760,7 +772,7 @@ export class MatchListComponent {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const offset = Math.ceil((attempt + 1) / 3);
-      const shuffled = this.sortByPoint(players, () => this.rng.random());
+      const shuffled = this.fisherYatesShuffle(players);
       const used = new Set<string>();
       const pairs: Teammate[] = [];
       let totalScore = 0;

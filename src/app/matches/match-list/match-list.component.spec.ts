@@ -375,6 +375,93 @@ describe('MatchListComponent', () => {
     });
   });
 
+  describe('fisherYatesShuffle — uniform permutation', () => {
+    it('returns a permutation of the input (same elements, same length)', () => {
+      const items = ['A', 'B', 'C', 'D', 'E'];
+      const result = component['fisherYatesShuffle'](items);
+      expect(result.length).toBe(items.length);
+      expect([...result].sort()).toEqual([...items].sort());
+    });
+
+    it('does not mutate the input array', () => {
+      const items = ['A', 'B', 'C'];
+      const original = [...items];
+      component['fisherYatesShuffle'](items);
+      expect(items).toEqual(original);
+    });
+
+    it('produces a roughly uniform distribution across all 6 permutations of 3 items', () => {
+      // Seeded RNG for reproducibility. A correct Fisher–Yates gives each of the
+      // 3! = 6 orderings equal probability; a biased shuffle (e.g. the old
+      // sort(() => rng.random()) anti-pattern) would skew this distribution.
+      component['rng'] = new XorShift(42);
+      const counts = new Map<string, number>();
+      const trials = 6000;
+      for (let i = 0; i < trials; i++) {
+        const key = component['fisherYatesShuffle'](['a', 'b', 'c']).join('');
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      expect(counts.size).toBe(6); // all 6 permutations must occur at least once
+      const expected = trials / 6;
+      counts.forEach((count) => {
+        expect(count).toBeGreaterThan(expected * 0.7);
+        expect(count).toBeLessThan(expected * 1.3);
+      });
+    });
+  });
+
+  describe('shuffleNovel — driven by real randomness, not a fixed order', () => {
+    it('explores different pairings across different rng seeds on a fully symmetric pool', () => {
+      const signatures = new Set<string>();
+      for (let seed = 1; seed <= 30; seed++) {
+        component['rng'] = new XorShift(seed);
+        const players = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+          .map(name => makePlayerWithHistory(name, 3, 0, []));
+        const result = component['shuffleNovel'](players);
+        const signature = result
+          .map((p: Teammate) => [p.player1.name, p.player2.name].sort().join('-'))
+          .sort()
+          .join('|');
+        signatures.add(signature);
+      }
+      // With no teammate/opponent history, every pairing scores equally (0), so the
+      // result is driven entirely by the rng-shuffled order. If the shuffle were
+      // deterministic or badly biased, every seed would collapse onto one signature.
+      expect(signatures.size).toBeGreaterThan(1);
+    });
+
+    it('still honors a force-teammate pair inside novel mode', () => {
+      component['forceMatchTeamate'] = [{ player1: 'A', player2: 'B' }];
+      const players = [
+        makePlayerWithHistory('A', 3, 0, []),
+        makePlayerWithHistory('B', 3, 0, []),
+        makePlayerWithHistory('C', 3, 0, []),
+        makePlayerWithHistory('D', 3, 0, []),
+      ];
+      const result = component['shuffleNovel'](players);
+      const pairNames = result.map(p => [p.player1.name, p.player2.name].sort().join(','));
+      expect(pairNames).toContain('A,B');
+      component['forceMatchTeamate'] = []; // cleanup
+    });
+
+    it('never pairs a hard nemesis pair, regardless of rng seed', () => {
+      component['nemesisTeamate'] = [{ player1: 'A', player2: 'B' }];
+      for (let seed = 1; seed <= 10; seed++) {
+        component['rng'] = new XorShift(seed);
+        const players = [
+          makePlayerWithHistory('A', 3, 0, []),
+          makePlayerWithHistory('B', 3, 0, []),
+          makePlayerWithHistory('C', 3, 0, []),
+          makePlayerWithHistory('D', 3, 0, []),
+        ];
+        const result = component['shuffleNovel'](players);
+        const pairNames = result.map(p => [p.player1.name, p.player2.name].sort().join(','));
+        expect(pairNames).not.toContain('A,B');
+      }
+      component['nemesisTeamate'] = []; // cleanup
+    });
+  });
+
   describe('calculateMatchInCourtsRankBased — win-rate tiebreaker', () => {
     it('prefers opponent with closer win-rate when rank-sums are equal', () => {
       // currentTeam: both players have 0 wins, 4 games → ~25% win rate each → sumWR ≈ 0.5
