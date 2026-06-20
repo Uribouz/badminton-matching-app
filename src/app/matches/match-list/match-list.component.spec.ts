@@ -135,8 +135,9 @@ describe('MatchListComponent', () => {
         expect(pairedWithA).not.toContain('D');
       });
 
-      it('should skip [0,3] and use [0,1]+[2,3] for widely-spread rank groups', () => {
-        // [rank1, rank2, rank5, rank6]: [0,3]=diff5 skip, [0,2]=diff4 skip, [0,1]=diff1 + [2,3]=diff1 ✓
+      it('falls back to [0,3]+[1,2] (best+worst) when no split keeps rank-diff ≤3', () => {
+        // [rank1, rank2, rank5, rank6]: [0,3]=diff5 skip, [0,2]=diff4 skip → neither rank-bounded
+        // split qualifies, so the nemesis-only pass picks the first (most balanced) option.
         const players = [
           makeRankedPlayer('A', 1),
           makeRankedPlayer('B', 2),
@@ -145,22 +146,10 @@ describe('MatchListComponent', () => {
         ];
         const result: Teammate[] | null = shuffle(players);
         expect(result).not.toBeNull();
-        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
-      });
-
-      it('should handle 8 players split into two rank-valid quads', () => {
-        // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
-        // Both contiguous and interleaved slicing land on the same two trivially-valid quads here.
-        const players = [
-          makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
-          makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
-          makeRankedPlayer('E', 5), makeRankedPlayer('F', 5),
-          makeRankedPlayer('G', 6), makeRankedPlayer('H', 6),
-        ];
-        const result: Teammate[] | null = shuffle(players);
-        expect(result).not.toBeNull();
-        expect(result!.length).toBe(4);
-        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
+        expect(result!.length).toBe(2);
+        const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
+        expect(result!.map(names)).toContain('A,F');
+        expect(result!.map(names)).toContain('B,E');
       });
 
       it('should choose [0,2]+[1,3] over [0,3]+[1,2] when [0,3] violates rank constraint', () => {
@@ -256,11 +245,10 @@ describe('MatchListComponent', () => {
       expect(rank4Pairs.length).toBe(0);
     });
 
-    it('prefers stale cross-rank over fresh same-rank when recency forces [0,1]+[2,3] on rank4+rank4', () => {
+    it('does not force rank4+rank4 onto a recently-paired rank2A when a fresh cross-rank split exists', () => {
       // Quad: [rank2A, rank3B, rank4C, rank4D]
-      // rank2A has been recently paired with both rank4C (pos2) and rank4D (pos3).
-      // Pass 0b would fall to [0,1]+[2,3] = rank2A+rank3B, rank4C+rank4D (same-raw-rank!).
-      // Pass 1 should instead use [0,3] (rank2A+rank4D, stale but cross-rank).
+      // rank2A has been recently paired with both rank4C (pos2) and rank4D (pos3), but rank3B+rank4C
+      // (the other pair in [0,3]+[1,2]) is fresh — only one pair needs to be fresh to pass.
       component['forceMatchTeamate'] = [];
       component['nemesisTeamate'] = [];
       const players = [
@@ -276,6 +264,26 @@ describe('MatchListComponent', () => {
         (p.player1.rank ?? 5) === 4 && (p.player2.rank ?? 5) === 4
       );
       expect(rank4Pairs.length).toBe(0);
+    });
+
+    it('falls back to [0,3]+[1,2] (best+worst) when interleaving spreads a quad too wide for [0,2]/[1,3] either', () => {
+      // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
+      // Interleaved quads = [rank1,rank2,rank5,rank6] each: [0,3]=diff5, [0,2]=diff4 — neither ≤3,
+      // so the nemesis-only pass picks the first (most balanced) option regardless of rank diff.
+      const players = [
+        makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
+        makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
+        makeRankedPlayer('E', 5), makeRankedPlayer('F', 5),
+        makeRankedPlayer('G', 6), makeRankedPlayer('H', 6),
+      ];
+      const result = component['shuffleSpread'](players);
+      expect(result).not.toBeNull();
+      expect(result!.length).toBe(4);
+      const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
+      expect(result!.map(names)).toContain('A,G');
+      expect(result!.map(names)).toContain('C,E');
+      expect(result!.map(names)).toContain('B,H');
+      expect(result!.map(names)).toContain('D,F');
     });
   });
 
@@ -294,6 +302,22 @@ describe('MatchListComponent', () => {
       expect(result!.length).toBe(4);
       const rank4Pairs = result!.filter(p => (p.player1.rank ?? 5) === 4 && (p.player2.rank ?? 5) === 4);
       expect(rank4Pairs.length).toBeGreaterThan(0);
+    });
+
+    it('contiguous slicing keeps tightly-grouped quads rank-valid for an 8-player pool', () => {
+      // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
+      // Contiguous quads = [rank1,rank1,rank2,rank2] and [rank5,rank5,rank6,rank6] — trivially ≤3.
+      const players = [
+        makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
+        makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
+        makeRankedPlayer('E', 5), makeRankedPlayer('F', 5),
+        makeRankedPlayer('G', 6), makeRankedPlayer('H', 6),
+      ];
+      const result = component['shuffleTiered'](players);
+      expect(result).not.toBeNull();
+      expect(result!.length).toBe(4);
+      const rankDiff = (p: Teammate) => Math.abs((p.player1.rank ?? 5) - (p.player2.rank ?? 5));
+      result!.forEach(pair => expect(rankDiff(pair)).toBeLessThanOrEqual(3));
     });
   });
 

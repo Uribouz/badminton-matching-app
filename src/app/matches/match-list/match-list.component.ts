@@ -707,25 +707,26 @@ export class MatchListComponent {
 
     // [0,3] vs [1,2]: (best+worst) vs (2nd+3rd) → most equal team strength
     // [0,2] vs [1,3]: (best+3rd) vs (2nd+worst)
-    // [0,1] vs [2,3]: (best+2nd) vs (3rd+worst) → least balanced teams, last resort
     const options: [[number, number], [number, number]][] = [
       [[0, 3], [1, 2]],
       [[0, 2], [1, 3]],
-      [[0, 1], [2, 3]],
     ];
 
-    // Priority order — rank diversity always beats recency freshness:
-    // Pass A: rank ≤3, not nemesis, not recent, cross-rank (rd > 0 for both pairs)  ← best
-    // Pass B: rank ≤3, not nemesis,             cross-rank (recency relaxed)
-    // Pass C: rank ≤3, not nemesis, not recent  (same-effective-rank allowed)
-    // Pass D: rank ≤3, not nemesis              (recency also relaxed)
-    // Pass E: not nemesis only                  (rank + recency both relaxed)
+    // Priority order — always prefer the most balanced split (option order above):
+    // Pass A: rank ≤3, not nemesis, not both-recent  ← best
+    // Pass B: rank ≤3, not nemesis                    (recency relaxed)
+    // Pass C: not nemesis only                        (rank + recency both relaxed)
     // rd compares effectiveRank (rank + win-rate), not raw rank, so a player who's
     // over/under-performing their assigned rank is balanced against their actual form.
+    // No "rd > 0" requirement here: requiring a non-zero rank diff on the middle pair
+    // would skip the best+worst split whenever the quad has a rank tie, pairing the
+    // strongest player with the wrong partner instead of the weakest.
     type CheckFn = (ai: number, bi: number, ci: number, di: number) => boolean;
     const rd = (a: number, b: number) => Math.abs(this.effectiveRankScore(q[a]) - this.effectiveRankScore(q[b]));
     const nem = (a: number, b: number) => this.isNemesisPair(q[a].name, q[b].name, nemesisSet);
     const recent = (a: number, b: number) => this.isRecentTeammatePair(q[a], q[b], totalPlayers, RECENCY_OFFSET);
+    // Only reject the court when BOTH pairs are repeat partnerships — one fresh pair is enough to pass.
+    const bothRecent = (ai: number, bi: number, ci: number, di: number) => recent(ai, bi) && recent(ci, di);
 
     const tryOptions = (accept: CheckFn): [Teammate, Teammate] | null => {
       for (const [[ai, bi], [ci, di]] of options) {
@@ -740,9 +741,7 @@ export class MatchListComponent {
     };
 
     return (
-      tryOptions((ai,bi,ci,di) => rd(ai,bi)>0 && rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)>0 && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di) && !recent(ai,bi) && !recent(ci,di)) ??
-      tryOptions((ai,bi,ci,di) => rd(ai,bi)>0 && rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)>0 && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di)) ??
-      tryOptions((ai,bi,ci,di) => rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di) && !recent(ai,bi) && !recent(ci,di)) ??
+      tryOptions((ai,bi,ci,di) => rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di) && !bothRecent(ai,bi,ci,di)) ??
       tryOptions((ai,bi,ci,di) => rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di)) ??
       tryOptions((ai,bi,ci,di) => !nem(ai,bi) && !nem(ci,di)) ??
       null
