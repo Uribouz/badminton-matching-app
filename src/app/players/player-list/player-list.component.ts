@@ -31,9 +31,9 @@ export class PlayerListComponent {
   getPreviousPlayerList(): string[] {
     return Array.from(this.previousPlayerMap.keys()).filter(name => !this.playersMap.has(name));
   }
-  addPreviousPlayerToList(name: string) {
+  async addPreviousPlayerToList(name: string) {
     const savedRank = this.previousPlayerMap.get(name)?.rank;
-    this.addPlayer(name);
+    await this.addPlayer(name);
     if (savedRank != null) {
       const player = this.playersMap.get(name);
       if (player) {
@@ -73,12 +73,12 @@ export class PlayerListComponent {
     this.addPlayer(this.playerTextArea);
     this.playerTextArea = '';
   }
-  addPlayer(newPlayerName: string) {
+  async addPlayer(newPlayerName: string) {
     if (this.playersMap.has(newPlayerName)) {
       return;
       }
-    console.log('New player: ' + newPlayerName);
-    let newPlayer = new Player(newPlayerName);
+    console.debug('New player: ' + newPlayerName);
+    const newPlayer = await this.playerService.loadPlayerRanksFromSupabaseWithName(newPlayerName).then(player => player)
     newPlayer.totalRoundsPlayed = this.status.leastPlayed;
     this.playersMap = this.playerService.savePlayer(newPlayer);
     this.previousPlayerMap = this.playerService.savePreviousPlayer(newPlayer);

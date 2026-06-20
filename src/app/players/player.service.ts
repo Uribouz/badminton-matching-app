@@ -12,6 +12,7 @@ export class PlayerService {
   constructor(private authService: AuthService, private eventService: EventService) {}
 
   savePlayer(player: Player): Map<string, Player> {
+    console.debug(`saving player: ${player?.name}: ${player?.rank}`)
     let playerMap = this.loadPlayerList();
     playerMap.set(player.name, player);
     this.savePlayerList(playerMap);
@@ -223,5 +224,32 @@ export class PlayerService {
       }
     }
     return rankMap;
+  }
+
+  async loadPlayerRanksFromSupabaseWithName(playerName: string): Promise<Player> {
+    const player = new Player(playerName);
+    try {
+      const supabase = this.authService.getClient();
+      const session = await this.authService.getSession();
+      const userId = session?.user?.id ?? null;
+      if (!userId) return player;
+
+      const { data, error } = await supabase
+        .from('players')
+        .select('player_name, rank, updated_at')
+        .eq('user_id', userId)
+        .eq('player_name', playerName)
+        .limit(1)
+        .not('rank', 'is', null)
+        .order('updated_at', { ascending: false })
+        .single();
+      console.debug(`adding player: ${data?.player_name}: ${data?.rank}, ${error}`)
+      if (!error && data) {
+        player.rank = data.rank;
+      }
+    } catch {
+      // network or auth failure — return player without rank
+    }
+    return player;
   }
 }
