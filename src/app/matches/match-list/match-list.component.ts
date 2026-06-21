@@ -639,7 +639,7 @@ export class MatchListComponent {
   // players are assigned into quads — buildQuad below.
   private shuffleByQuads(
     players: Player[],
-    buildQuad: (sorted: Player[], numQuads: number, qi: number) => Player[]
+    buildQuad: (sorted: Player[], numQuads: number, quadIndex: number) => Player[]
   ): Teammate[] | null {
     const totalPlayers = players.length;
     const numQuads = Math.floor(players.length / 4);
@@ -648,8 +648,8 @@ export class MatchListComponent {
     const nemesisSet = this.getNemesisSet();
     const pairs: Teammate[] = [];
 
-    for (let qi = 0; qi < numQuads; qi++) {
-      const q = buildQuad(sorted, numQuads, qi);
+    for (let quadIndex = 0; quadIndex < numQuads; quadIndex++) {
+      const q = buildQuad(sorted, numQuads, quadIndex);
       const quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers);
       if (!quadPair) return null;
       pairs.push(quadPair[0], quadPair[1]);
@@ -661,8 +661,8 @@ export class MatchListComponent {
   // the next 4, etc. Deliberately clusters same-rank players, producing a
   // strong court and a weak court.
   private shuffleTiered(players: Player[]): Teammate[] | null {
-    return this.shuffleByQuads(players, (sorted, _numQuads, qi) =>
-      [0, 1, 2, 3].map(k => sorted[qi * 4 + k])
+    return this.shuffleByQuads(players, (sorted, _numQuads, quadIndex) =>
+      [0, 1, 2, 3].map(k => sorted[quadIndex * 4 + k])
     );
   }
 
@@ -671,16 +671,17 @@ export class MatchListComponent {
   // [0,2,4,6], Quad 1 = [1,3,5,7]. This guarantees each quad spans the full
   // skill range instead of clustering the bottom rank tier together.
   private shuffleSpread(players: Player[]): Teammate[] | null {
-    return this.shuffleByQuads(players, (sorted, numQuads, qi) =>
-      [0, 1, 2, 3].map(k => sorted[qi + k * numQuads])
+    return this.shuffleByQuads(players, (sorted, numQuads, quadIndex) =>
+      [0, 1, 2, 3].map(k => sorted[quadIndex + k * numQuads])
     );
   }
 
   // Within a quad of 4 players (sorted best→worst by effectiveRank):
-  // Pass 0: rank ≤3, not nemesis, AND not recently paired — prevents deterministic repeat pairings.
-  // Pass 1: rank ≤3, not nemesis (recency relaxed).
-  // Pass 2: not nemesis only (rank and recency both relaxed).
-  // Returns null only when every option is blocked by a nemesis conflict.
+  // Every pass checks rank ≤3 and not-nemesis; only the recency check regresses across 7 passes:
+  // Pass 0-2: reject only if BOTH pairs are recent, lookback 3 → 2 → 1 rounds (weak, easy to satisfy).
+  // Pass 3-5: reject if EITHER pair is recent, lookback 3 → 2 → 1 rounds (strong, harder to satisfy).
+  // Pass 6: recency dropped entirely (rank ≤3 + not-nemesis only).
+  // Returns null only when every pass is blocked by rank diff or a nemesis conflict.
   private formQuadPairs(
     q: Player[],
     forceMap: Map<string, string>,
@@ -688,7 +689,7 @@ export class MatchListComponent {
     totalPlayers: number
   ): [Teammate, Teammate] | null {
     const MAX_RANK_DIFF = 3;
-    const RECENCY_OFFSET = 1; // strict: cooldown = totalPlayers-1 rounds
+    const RECENCY_LOOKBACKS = [3, 2, 1]; // rounds-back window, regressing pass over pass
 
     // Detect any force pair inside this quad
     for (let a = 0; a < 4; a++) {
@@ -713,9 +714,9 @@ export class MatchListComponent {
     ];
 
     // Priority order — always prefer the most balanced split (option order above):
-    // Pass A: rank ≤3, not nemesis, not both-recent  ← best
-    // Pass B: rank ≤3, not nemesis                    (recency relaxed)
-    // Pass C: not nemesis only                        (rank + recency both relaxed)
+    // Pass 0-2: rank ≤3, not nemesis, not both-recent within a shrinking lookback (3 → 2 → 1 rounds).
+    // Pass 3-5: rank ≤3, not nemesis, not either-recent within a shrinking lookback (3 → 2 → 1 rounds).
+    // Pass 6:   rank ≤3, not nemesis                    (recency dropped entirely)
     // rd compares effectiveRank (rank + win-rate), not raw rank, so a player who's
     // over/under-performing their assigned rank is balanced against their actual form.
     // No "rd > 0" requirement here: requiring a non-zero rank diff on the middle pair
@@ -724,9 +725,17 @@ export class MatchListComponent {
     type CheckFn = (ai: number, bi: number, ci: number, di: number) => boolean;
     const rd = (a: number, b: number) => Math.abs(this.effectiveRankScore(q[a]) - this.effectiveRankScore(q[b]));
     const nem = (a: number, b: number) => this.isNemesisPair(q[a].name, q[b].name, nemesisSet);
-    const recent = (a: number, b: number) => this.isRecentTeammatePair(q[a], q[b], totalPlayers, RECENCY_OFFSET);
-    // Only reject the court when BOTH pairs are repeat partnerships — one fresh pair is enough to pass.
-    const bothRecent = (ai: number, bi: number, ci: number, di: number) => recent(ai, bi) && recent(ci, di);
+    const rankAndNemOk = (ai: number, bi: number, ci: number, di: number) =>
+      rd(ai, bi) <= MAX_RANK_DIFF && rd(ci, di) <= MAX_RANK_DIFF && !nem(ai, bi) && !nem(ci, di);
+    // recentWithin(a, b, lookback): true if a/b were teammates within the last `lookback` rounds.
+    const recentWithin = (a: number, b: number, lookback: number) =>
+      this.isRecentTeammatePair(q[a], q[b], totalPlayers, totalPlayers - lookback);
+    // "Both" — reject only when BOTH pairs are repeat partnerships (weak: one fresh pair is enough).
+    const bothRecentWithin = (ai: number, bi: number, ci: number, di: number, lookback: number) =>
+      recentWithin(ai, bi, lookback) && recentWithin(ci, di, lookback);
+    // "Either" — reject when EITHER pair is a repeat partnership (strong: both pairs must be fresh).
+    const eitherRecentWithin = (ai: number, bi: number, ci: number, di: number, lookback: number) =>
+      recentWithin(ai, bi, lookback) || recentWithin(ci, di, lookback);
 
     const tryOptions = (accept: CheckFn): [Teammate, Teammate] | null => {
       for (const [[ai, bi], [ci, di]] of options) {
@@ -740,12 +749,19 @@ export class MatchListComponent {
       return null;
     };
 
-    return (
-      tryOptions((ai,bi,ci,di) => rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di) && !bothRecent(ai,bi,ci,di)) ??
-      tryOptions((ai,bi,ci,di) => rd(ai,bi)<=MAX_RANK_DIFF && rd(ci,di)<=MAX_RANK_DIFF && !nem(ai,bi) && !nem(ci,di)) ??
-      tryOptions((ai,bi,ci,di) => !nem(ai,bi) && !nem(ci,di)) ??
-      null
-    );
+    for (const lookback of RECENCY_LOOKBACKS) {
+      const result = tryOptions((ai, bi, ci, di) =>
+        rankAndNemOk(ai, bi, ci, di) && !bothRecentWithin(ai, bi, ci, di, lookback)
+      );
+      if (result) return result;
+    }
+    for (const lookback of RECENCY_LOOKBACKS) {
+      const result = tryOptions((ai, bi, ci, di) =>
+        rankAndNemOk(ai, bi, ci, di) && !eitherRecentWithin(ai, bi, ci, di, lookback)
+      );
+      if (result) return result;
+    }
+    return tryOptions(rankAndNemOk);
   }
 
   // === Mode B — Mixed (top↔bottom) ==================

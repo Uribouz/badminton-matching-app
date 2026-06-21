@@ -135,9 +135,9 @@ describe('MatchListComponent', () => {
         expect(pairedWithA).not.toContain('D');
       });
 
-      it('falls back to [0,3]+[1,2] (best+worst) when no split keeps rank-diff ≤3', () => {
-        // [rank1, rank2, rank5, rank6]: [0,3]=diff5 skip, [0,2]=diff4 skip → neither rank-bounded
-        // split qualifies, so the nemesis-only pass picks the first (most balanced) option.
+      it('returns null when no split keeps rank-diff ≤3 in any pass', () => {
+        // [rank1, rank2, rank5, rank6]: [0,3]=diff5 skip, [0,2]=diff4 skip → neither split is ever
+        // rank-bounded, and every pass (recency lookback 3→2→1→none) still requires rank-diff ≤3.
         const players = [
           makeRankedPlayer('A', 1),
           makeRankedPlayer('B', 2),
@@ -145,11 +145,7 @@ describe('MatchListComponent', () => {
           makeRankedPlayer('F', 6),
         ];
         const result: Teammate[] | null = shuffle(players);
-        expect(result).not.toBeNull();
-        expect(result!.length).toBe(2);
-        const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
-        expect(result!.map(names)).toContain('A,F');
-        expect(result!.map(names)).toContain('B,E');
+        expect(result).toBeNull();
       });
 
       it('should choose [0,2]+[1,3] over [0,3]+[1,2] when [0,3] violates rank constraint', () => {
@@ -266,10 +262,11 @@ describe('MatchListComponent', () => {
       expect(rank4Pairs.length).toBe(0);
     });
 
-    it('falls back to [0,3]+[1,2] (best+worst) when interleaving spreads a quad too wide for [0,2]/[1,3] either', () => {
+    it('returns null when interleaving spreads a quad too wide for any split to keep rank-diff ≤3', () => {
       // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
-      // Interleaved quads = [rank1,rank2,rank5,rank6] each: [0,3]=diff5, [0,2]=diff4 — neither ≤3,
-      // so the nemesis-only pass picks the first (most balanced) option regardless of rank diff.
+      // Interleaved quads = [rank1,rank2,rank5,rank6] each: [0,3]=diff5, [0,2]=diff4 — neither ≤3
+      // in any pass (rank-diff ≤3 is required even once recency is dropped), so the quad fails and
+      // shuffleByQuads propagates null for the whole shuffle.
       const players = [
         makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
         makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
@@ -277,13 +274,7 @@ describe('MatchListComponent', () => {
         makeRankedPlayer('G', 6), makeRankedPlayer('H', 6),
       ];
       const result = component['shuffleSpread'](players);
-      expect(result).not.toBeNull();
-      expect(result!.length).toBe(4);
-      const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
-      expect(result!.map(names)).toContain('A,G');
-      expect(result!.map(names)).toContain('C,E');
-      expect(result!.map(names)).toContain('B,H');
-      expect(result!.map(names)).toContain('D,F');
+      expect(result).toBeNull();
     });
   });
 
