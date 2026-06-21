@@ -26,6 +26,11 @@ const DEFAULT_TOTAL_COURT = 2;
 const DEFAULT_PLAYER_POINT = 0.5;
 // Games needed before win-rate fully influences effectiveRank (see effectiveRank).
 const CONFIDENCE_GAMES = 3;
+
+// Players tied on priority point at the eligiblePlayers cutoff: boundaryIn made it in
+// (by the random tiebreaker), boundaryOut didn't, even though neither is more deserving.
+// Used by Tiered/Spread's quad rescue (see rescueQuadWithSwap) to swap between them.
+type BoundarySwapPool = { boundaryIn: Player[]; boundaryOut: Player[] };
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -187,6 +192,7 @@ export class MatchListComponent {
     const sortedPlayerList = this.getSortedPlayerList(availablePlayerList);
     totalAvailableSlots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length);
     const eligiblePlayers = this.getAvailablePlayers(sortedPlayerList, totalAvailableSlots);
+    const swapPool = this.getBoundaryTieGroup(sortedPlayerList, eligiblePlayers, totalAvailableSlots);
 
     let mode = this.resolveMode();
     this.log(`SHUFFLE mode: ${mode}`);
@@ -194,12 +200,12 @@ export class MatchListComponent {
     let teamateList: Teammate[] | null;
     switch (mode) {
       case 'tiered':
-        teamateList = this.shuffleTiered(eligiblePlayers);
+        teamateList = this.shuffleTiered(eligiblePlayers, swapPool);
         if (teamateList != null) break;
         this.log('Tiered fallback → spread (no nemesis-safe pairing in a quad)');
-      case 'spread': 
+      case 'spread':
         mode = 'spread'
-        teamateList = this.shuffleSpread(eligiblePlayers);
+        teamateList = this.shuffleSpread(eligiblePlayers, swapPool);
         if (teamateList != null) break;
         this.log('Spread fallback → mixed (no nemesis-safe pairing in a quad)');
       case 'mixed': 
@@ -521,25 +527,47 @@ export class MatchListComponent {
   }
   private getAvailablePlayers(players: Player[], totalAvailableSlots: number) {
     let returnPlayerList = [...players];
-    let playerNameList = players.map(each => each.name);
+    // let playerNameList = players.map(each => each.name);
     // let selectedPlayers = players.slice(0, totalAvailableSlots);
-    this.forceMatchTeamate.forEach(each => {
-      let indexPlayer1 = playerNameList.indexOf(each.player1);
-      let indexPlayer2 = playerNameList.indexOf(each.player2);
-      if (indexPlayer1 < 0 || indexPlayer2 < 0) {
-        return;
-      }
-      if (indexPlayer1 >= totalAvailableSlots && indexPlayer2 >= totalAvailableSlots) {
-        return;
-      }
-      if ((indexPlayer1 >= totalAvailableSlots) || (indexPlayer2 >= totalAvailableSlots)) {
-        let player1 = players[indexPlayer1];
-        let player2 = players[indexPlayer2];
-        returnPlayerList = returnPlayerList.filter(player => (player.name != each.player1) && (player.name != each.player2));
-        returnPlayerList = [player1, player2, ...returnPlayerList.slice(0,totalAvailableSlots-1)];
-      }
-    })
+    // this.forceMatchTeamate.forEach(each => {
+    //   let indexPlayer1 = playerNameList.indexOf(each.player1);
+    //   let indexPlayer2 = playerNameList.indexOf(each.player2);
+    //   if (indexPlayer1 < 0 || indexPlayer2 < 0) {
+    //     return;
+    //   }
+    //   if (indexPlayer1 >= totalAvailableSlots && indexPlayer2 >= totalAvailableSlots) {
+    //     return;
+    //   }
+    //   if ((indexPlayer1 >= totalAvailableSlots) || (indexPlayer2 >= totalAvailableSlots)) {
+    //     let player1 = players[indexPlayer1];
+    //     let player2 = players[indexPlayer2];
+    //     returnPlayerList = returnPlayerList.filter(player => (player.name != each.player1) && (player.name != each.player2));
+    //     returnPlayerList = [player1, player2, ...returnPlayerList.slice(0,totalAvailableSlots-1)];
+    //   }
+    // })
     return returnPlayerList.slice(0, totalAvailableSlots);
+  }
+  // Players tied on priority point at the cutoff: boundaryIn (made the slice) vs
+  // boundaryOut (just missed it). Both groups share the exact same priority point,
+  // so swapping between them never lets a more-deserving player (fewer rounds played)
+  // get bumped — it only changes which equally-deserving player fills the slot.
+  private getBoundaryTieGroup(
+    sortedPlayerList: Player[],
+    eligiblePlayers: Player[],
+    totalAvailableSlots: number
+  ): BoundarySwapPool {
+    if (totalAvailableSlots <= 0 || totalAvailableSlots > sortedPlayerList.length) {
+      return { boundaryIn: [], boundaryOut: [] };
+    }
+    const boundaryPoint = this.calculatePlayerPriorityPoint(sortedPlayerList[totalAvailableSlots - 1]);
+    const boundaryIn = eligiblePlayers.filter(p => this.calculatePlayerPriorityPoint(p) === boundaryPoint);
+    const boundaryOut: Player[] = [];
+    for (let i = totalAvailableSlots; i < sortedPlayerList.length; i++) {
+      if (this.calculatePlayerPriorityPoint(sortedPlayerList[i]) !== boundaryPoint) break;
+      boundaryOut.push(sortedPlayerList[i]);
+    }
+    this.log('boundaryTieGroup:', { in: boundaryIn.map(p => p.name), out: boundaryOut.map(p => p.name) });
+    return { boundaryIn, boundaryOut };
   }
   // === Mode Resolution =============================
   private resolveMode(): 'tiered' | 'spread' | 'mixed' | 'novel' {
@@ -635,7 +663,8 @@ export class MatchListComponent {
   // players are assigned into quads — buildQuad below.
   private shuffleByQuads(
     players: Player[],
-    buildQuad: (sorted: Player[], numQuads: number, quadIndex: number) => Player[]
+    buildQuad: (sorted: Player[], numQuads: number, quadIndex: number) => Player[],
+    swapPool?: BoundarySwapPool
   ): Teammate[] | null {
     const totalPlayers = players.length;
     const numQuads = Math.floor(players.length / 4);
@@ -644,21 +673,61 @@ export class MatchListComponent {
     const nemesisSet = this.getNemesisSet();
     const pairs: Teammate[] = [];
 
+    const boundaryInNames = new Set((swapPool?.boundaryIn ?? []).map(p => p.name));
+    const availableOut = [...(swapPool?.boundaryOut ?? [])];
+
     for (let quadIndex = 0; quadIndex < numQuads; quadIndex++) {
       const q = buildQuad(sorted, numQuads, quadIndex);
-      const quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers);
+      let quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers);
+      if (!quadPair) {
+        quadPair = this.rescueQuadWithSwap(q, forceMap, nemesisSet, totalPlayers, boundaryInNames, availableOut);
+        if (quadPair) this.log('quad rescued via boundary tie swap:', q.map(p => p.name));
+      }
       if (!quadPair) return null;
       pairs.push(quadPair[0], quadPair[1]);
     }
     return pairs;
   }
 
+  // When a quad has no nemesis/rank-safe split, try swapping one boundary-tied member
+  // (who got into eligiblePlayers by the random tiebreaker) for an equally-tied
+  // candidate who got cut by that same coin flip (see getBoundaryTieGroup). Force-paired
+  // players are never swap candidates. Consumes the chosen candidate from availableOut
+  // so a later quad in the same shuffle can't reuse them.
+  private rescueQuadWithSwap(
+    q: Player[],
+    forceMap: Map<string, string>,
+    nemesisSet: Set<string>,
+    totalPlayers: number,
+    boundaryInNames: Set<string>,
+    availableOut: Player[]
+  ): [Teammate, Teammate] | null {
+    if (availableOut.length === 0) return null;
+
+    const swappableIndices = q
+      .map((_, idx) => idx)
+      .filter(idx => boundaryInNames.has(q[idx].name) && !forceMap.has(q[idx].name));
+
+    for (const idx of swappableIndices) {
+      for (let outIdx = 0; outIdx < availableOut.length; outIdx++) {
+        const swappedQuad = [...q];
+        swappedQuad[idx] = availableOut[outIdx];
+        const result = this.formQuadPairs(swappedQuad, forceMap, nemesisSet, totalPlayers);
+        if (result) {
+          availableOut.splice(outIdx, 1);
+          return result;
+        }
+      }
+    }
+    return null;
+  }
+
   // Mode A — Tiered: contiguous slicing — quad 0 = the 4 strongest, quad 1 =
   // the next 4, etc. Deliberately clusters same-rank players, producing a
   // strong court and a weak court.
-  private shuffleTiered(players: Player[]): Teammate[] | null {
+  private shuffleTiered(players: Player[], swapPool?: BoundarySwapPool): Teammate[] | null {
     return this.shuffleByQuads(players, (sorted, _numQuads, quadIndex) =>
-      [0, 1, 2, 3].map(k => sorted[quadIndex * 4 + k])
+      [0, 1, 2, 3].map(k => sorted[quadIndex * 4 + k]), swapPool
     );
   }
 
@@ -666,9 +735,9 @@ export class MatchListComponent {
   // to quad i % numQuads. For 8 players / 2 quads: Quad 0 = positions
   // [0,2,4,6], Quad 1 = [1,3,5,7]. This guarantees each quad spans the full
   // skill range instead of clustering the bottom rank tier together.
-  private shuffleSpread(players: Player[]): Teammate[] | null {
+  private shuffleSpread(players: Player[], swapPool?: BoundarySwapPool): Teammate[] | null {
     return this.shuffleByQuads(players, (sorted, numQuads, quadIndex) =>
-      [0, 1, 2, 3].map(k => sorted[quadIndex + k * numQuads])
+      [0, 1, 2, 3].map(k => sorted[quadIndex + k * numQuads]), swapPool
     );
   }
 

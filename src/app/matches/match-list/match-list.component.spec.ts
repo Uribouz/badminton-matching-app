@@ -202,6 +202,31 @@ describe('MatchListComponent', () => {
         expect(result).toBeNull();
         component['nemesisTeamate'] = []; // cleanup
       });
+
+      it('rescues an otherwise-deadlocked quad by swapping in a boundary-tied standby player', () => {
+        // Same nemesis deadlock as above (A blocked from every partner in the quad),
+        // but now a boundary-tied standby player E is available to swap in for D.
+        component['nemesisTeamate'] = [
+          { player1: 'A', player2: 'B' },
+          { player1: 'A', player2: 'C' },
+          { player1: 'A', player2: 'D' },
+        ];
+        const A = makeRankedPlayer('A', 1);
+        const B = makeRankedPlayer('B', 2);
+        const C = makeRankedPlayer('C', 3);
+        const D = makeRankedPlayer('D', 4);
+        const E = makeRankedPlayer('E', 2);
+
+        const swapPool = { boundaryIn: [D], boundaryOut: [E] };
+        const result = component[methodName]([A, B, C, D], swapPool);
+
+        expect(result).not.toBeNull();
+        const allNames = result!.flatMap(p => [p.player1.name, p.player2.name]);
+        expect(allNames).toContain('E');
+        expect(allNames).not.toContain('D');
+
+        component['nemesisTeamate'] = []; // cleanup
+      });
     });
   });
 
