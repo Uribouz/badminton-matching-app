@@ -188,30 +188,26 @@ export class MatchListComponent {
     totalAvailableSlots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length);
     const eligiblePlayers = this.getAvailablePlayers(sortedPlayerList, totalAvailableSlots);
 
-    const mode = this.resolveMode();
+    let mode = this.resolveMode();
     this.log(`SHUFFLE mode: ${mode}`);
 
-    let teamateList: Teammate[];
-    if (mode === 'tiered') {
-      const result = this.shuffleTiered(eligiblePlayers);
-      if (result === null) {
-        this.log('Tiered fallback → novel (no nemesis-safe pairing in a quad)');
+    let teamateList: Teammate[] | null;
+    switch (mode) {
+      case 'tiered':
+        teamateList = this.shuffleTiered(eligiblePlayers);
+        if (teamateList != null) break;
+        this.log('Tiered fallback → spread (no nemesis-safe pairing in a quad)');
+      case 'spread': 
+        mode = 'spread'
+        teamateList = this.shuffleSpread(eligiblePlayers);
+        if (teamateList != null) break;
+        this.log('Spread fallback → mixed (no nemesis-safe pairing in a quad)');
+      case 'mixed': 
+        mode = 'mixed'
+        teamateList = this.shuffleMixed(eligiblePlayers);
+        break;
+      default:
         teamateList = this.shuffleNovel(eligiblePlayers);
-      } else {
-        teamateList = result;
-      }
-    } else if (mode === 'spread') {
-      const result = this.shuffleSpread(eligiblePlayers);
-      if (result === null) {
-        this.log('Spread fallback → novel (no nemesis-safe pairing in a quad)');
-        teamateList = this.shuffleNovel(eligiblePlayers);
-      } else {
-        teamateList = result;
-      }
-    } else if (mode === 'mixed') {
-      teamateList = this.shuffleMixed(eligiblePlayers);
-    } else {
-      teamateList = this.shuffleNovel(eligiblePlayers);
     }
 
     const resultCourt = this.calculateMatchInCourtsRankBased(teamateList);
