@@ -19,12 +19,12 @@ export class BillComponent {
   totalShuttleUsed = signal<number>(defaults.DEFAULT_TOTAL_SHUTTLE_USED);
   shuttlePrice = signal<number>(defaults.DEFAULT_SHUTTLE_PRICE);
 
-  totalCourtPrice = computed(() => this.courtPrice() * this.totalCourts());
+  totalCourtPrice = computed(() => Math.round(this.courtPrice() * this.totalCourts() *100)/100);
   totalShuttlePrice = computed(
-    () => this.totalShuttleUsed() * this.shuttlePrice()
+    () => Math.round(this.totalShuttleUsed() * this.shuttlePrice()*100)/100
   );
   totalPrice = computed(
-    () => this.totalCourtPrice() + this.totalShuttlePrice()
+    () => Math.round((this.totalCourtPrice() + this.totalShuttlePrice())*100)/100
   );
   totalGamesPlayedFromAllPlayer = computed(() => {
     return this.players().reduce(
