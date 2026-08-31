@@ -27,6 +27,25 @@ const DEFAULT_PLAYER_POINT = 0.5;
 // Games needed before win-rate fully influences effectiveRank (see effectiveRank).
 const CONFIDENCE_GAMES = 3;
 
+// One way to split a quad of 4 into two teams, by position in the quad (sorted best→worst).
+type QuadSplit = [[number, number], [number, number]];
+// [0,3] vs [1,2]: (best+worst) vs (2nd+3rd) — the most equal team strength.
+// [0,2] vs [1,3]: (best+3rd) vs (2nd+worst).
+// [0,1] vs [2,3]: (the two strongest) vs (the two weakest) — lopsided by construction.
+// Tiered quads are contiguous, so their four players are already close in strength and
+// even the lopsided split stays playable; it is the last resort when the other two are blocked.
+const TIERED_SPLITS: QuadSplit[] = [
+  [[0, 3], [1, 2]],
+  [[0, 2], [1, 3]],
+  [[0, 1], [2, 3]],
+];
+// Spread quads deliberately span the full skill range, so only best+worst vs the two
+// middles produces two evenly-matched teams. Any other split would hand one team the
+// session's strongest player alongside a middle. No second choice: the quad fails instead.
+const SPREAD_SPLITS: QuadSplit[] = [
+  [[0, 3], [1, 2]],
+];
+
 // Players tied on priority point at the eligiblePlayers cutoff: boundaryIn made it in
 // (by the random tiebreaker), boundaryOut didn't, even though neither is more deserving.
 // Used by Tiered/Spread's quad rescue (see rescueQuadWithSwap) to swap between them.
@@ -683,13 +702,15 @@ export class MatchListComponent {
 
   // === Modes A/B — Tiered & Spread ===================
   // Sort all eligible players by effectiveRank, group into quads of 4, then
-  // pair within each quad via formQuadPairs (rank-diff/nemesis/recency rules).
+  // pair within each quad via formQuadPairs (nemesis/recency rules).
   // A lower-ranked player with a high win-rate sorts into a higher-skill quad
-  // automatically via effectiveRank. Tiered and Spread only differ in how
-  // players are assigned into quads — buildQuad below.
+  // automatically via effectiveRank. Tiered and Spread differ in two things only:
+  // how players are assigned into quads (buildQuad) and which splits are allowed
+  // once they are there (splits).
   private shuffleByQuads(
     players: Player[],
     buildQuad: (sorted: Player[], numQuads: number, quadIndex: number) => Player[],
+    splits: QuadSplit[],
     swapPool?: BoundarySwapPool
   ): Teammate[] | null {
     const totalPlayers = players.length;
@@ -709,9 +730,9 @@ export class MatchListComponent {
     this.regroupForcePairsIntoSameQuad(quads, forceMap);
 
     for (const q of quads) {
-      let quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers);
+      let quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers, splits);
       if (!quadPair) {
-        quadPair = this.rescueQuadWithSwap(q, forceMap, nemesisSet, totalPlayers, boundaryInNames, availableOut);
+        quadPair = this.rescueQuadWithSwap(q, forceMap, nemesisSet, totalPlayers, splits, boundaryInNames, availableOut);
         if (quadPair) this.log('quad rescued via boundary tie swap:', q.map(p => p.name));
       }
       if (!quadPair) return null;
@@ -757,7 +778,7 @@ export class MatchListComponent {
     quads.forEach(q => q.sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b)));
   }
 
-  // When a quad has no nemesis/rank-safe split, try swapping one boundary-tied member
+  // When a quad has no legal split, try swapping one boundary-tied member
   // (who got into eligiblePlayers by the random tiebreaker) for an equally-tied
   // candidate who got cut by that same coin flip (see getBoundaryTieGroup). Force-paired
   // players are never swap candidates. Consumes the chosen candidate from availableOut
@@ -767,6 +788,7 @@ export class MatchListComponent {
     forceMap: Map<string, string>,
     nemesisSet: Set<string>,
     totalPlayers: number,
+    splits: QuadSplit[],
     boundaryInNames: Set<string>,
     availableOut: Player[]
   ): [Teammate, Teammate] | null {
@@ -780,7 +802,7 @@ export class MatchListComponent {
       for (let outIdx = 0; outIdx < availableOut.length; outIdx++) {
         const swappedQuad = [...q];
         swappedQuad[idx] = availableOut[outIdx];
-        const result = this.formQuadPairs(swappedQuad, forceMap, nemesisSet, totalPlayers);
+        const result = this.formQuadPairs(swappedQuad, forceMap, nemesisSet, totalPlayers, splits);
         if (result) {
           availableOut.splice(outIdx, 1);
           return result;
@@ -795,7 +817,7 @@ export class MatchListComponent {
   // strong court and a weak court.
   private shuffleTiered(players: Player[], swapPool?: BoundarySwapPool): Teammate[] | null {
     return this.shuffleByQuads(players, (sorted, _numQuads, quadIndex) =>
-      [0, 1, 2, 3].map(k => sorted[quadIndex * 4 + k]), swapPool
+      [0, 1, 2, 3].map(k => sorted[quadIndex * 4 + k]), TIERED_SPLITS, swapPool
     );
   }
 
@@ -805,15 +827,18 @@ export class MatchListComponent {
   // skill range instead of clustering the bottom rank tier together.
   private shuffleSpread(players: Player[], swapPool?: BoundarySwapPool): Teammate[] | null {
     return this.shuffleByQuads(players, (sorted, numQuads, quadIndex) =>
-      [0, 1, 2, 3].map(k => sorted[quadIndex + k * numQuads]), swapPool
+      [0, 1, 2, 3].map(k => sorted[quadIndex + k * numQuads]), SPREAD_SPLITS, swapPool
     );
   }
 
   // Within a quad of 4 players (sorted best→worst by effectiveRank):
-  // Every pass checks not-nemesis; only the recency check regresses across 7 passes:
-  // Pass 0-2: reject only if BOTH pairs are recent, lookback 3 → 2 → 1 rounds (weak, easy to satisfy).
-  // Pass 3-5: reject if EITHER pair is recent, lookback 3 → 2 → 1 rounds (strong, harder to satisfy).
-  // Pass 6: recency dropped entirely (not-nemesis only).
+  // Every pass checks not-nemesis; only the recency check regresses across 11 passes,
+  // strictest first so the freshest legal pairing always wins:
+  // Pass 0-4:  reject if EITHER pair is recent, lookback 5 → 1 rounds (strong: both pairs must be fresh).
+  // Pass 5-9:  reject only if BOTH pairs are recent, lookback 5 → 1 rounds (weak: one fresh pair is enough).
+  // Pass 10:   recency dropped entirely (not-nemesis only).
+  // Splits are tried in the caller's order within every pass, so the preferred split always
+  // wins a tie — a later split is only reached when the preferred one is blocked.
   // Partner rank distance is deliberately unbounded: the quad is already the skill
   // bracket, and the preferred [0,3] split pairs its strongest with its weakest.
   // Returns null only when a nemesis conflict blocks every pass.
@@ -821,9 +846,10 @@ export class MatchListComponent {
     q: Player[],
     forceMap: Map<string, string>,
     nemesisSet: Set<string>,
-    totalPlayers: number
+    totalPlayers: number,
+    splits: QuadSplit[]
   ): [Teammate, Teammate] | null {
-    const RECENCY_LOOKBACKS = [3, 2, 1]; // rounds-back window, regressing pass over pass
+    const RECENCY_LOOKBACKS = [5, 4, 3, 2, 1]; // rounds-back window, regressing pass over pass
 
     // Detect any force pair inside this quad
     for (let a = 0; a < 4; a++) {
@@ -840,17 +866,13 @@ export class MatchListComponent {
       ];
     }
 
-    // [0,3] vs [1,2]: (best+worst) vs (2nd+3rd) → most equal team strength
-    // [0,2] vs [1,3]: (best+3rd) vs (2nd+worst)
-    const options: [[number, number], [number, number]][] = [
-      [[0, 3], [1, 2]],
-      [[0, 2], [1, 3]],
-    ];
+    // Which splits are on the table is the caller's choice — see TIERED_SPLITS / SPREAD_SPLITS.
+    const options = splits;
 
-    // Priority order — always prefer the most balanced split (option order above):
-    // Pass 0-2: not nemesis, not both-recent within a shrinking lookback (3 → 2 → 1 rounds).
-    // Pass 3-5: not nemesis, not either-recent within a shrinking lookback (3 → 2 → 1 rounds).
-    // Pass 6:   not nemesis                              (recency dropped entirely)
+    // Priority order — always prefer the caller's first split:
+    // Pass 0-4:  not nemesis, not either-recent within a shrinking lookback (5 → 1 rounds).
+    // Pass 5-9:  not nemesis, not both-recent within a shrinking lookback (5 → 1 rounds).
+    // Pass 10:   not nemesis                             (recency dropped entirely)
     type CheckFn = (ai: number, bi: number, ci: number, di: number) => boolean;
     const nem = (a: number, b: number) => this.isNemesisPair(q[a].name, q[b].name, nemesisSet);
     const nemesisOk = (ai: number, bi: number, ci: number, di: number) =>
@@ -879,13 +901,13 @@ export class MatchListComponent {
 
     for (const lookback of RECENCY_LOOKBACKS) {
       const result = tryOptions((ai, bi, ci, di) =>
-        nemesisOk(ai, bi, ci, di) && !bothRecentWithin(ai, bi, ci, di, lookback)
+        nemesisOk(ai, bi, ci, di) && !eitherRecentWithin(ai, bi, ci, di, lookback)
       );
       if (result) return result;
     }
     for (const lookback of RECENCY_LOOKBACKS) {
       const result = tryOptions((ai, bi, ci, di) =>
-        nemesisOk(ai, bi, ci, di) && !eitherRecentWithin(ai, bi, ci, di, lookback)
+        nemesisOk(ai, bi, ci, di) && !bothRecentWithin(ai, bi, ci, di, lookback)
       );
       if (result) return result;
     }

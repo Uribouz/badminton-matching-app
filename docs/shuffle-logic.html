@@ -714,7 +714,7 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
     <h3>Inside a quad</h3>
     <div class="prose">
       <p>Given four players sorted strongest to weakest, there are two candidate splits, tried in this order: <code>[0,3] v [1,2]</code> (best with worst &mdash; the most even teams) and <code>[0,2] v [1,3]</code>. A force pair inside the quad short-circuits both: the pair is locked and the other two become the opposing team.</p>
-      <p>Each split is then run through a ladder of passes. Every pass insists on no nemesis partnership; only the repeat-partner rule relaxes as the ladder descends. There is deliberately <strong>no ceiling on the rank gap between partners</strong> &mdash; the quad is already the skill bracket, and the preferred split exists precisely to put its strongest player with its weakest.</p>
+      <p>Each split is then run through a ladder of passes, <strong>strictest first</strong>: pass 1 demands that <em>both</em> partnerships be fresh, and only once no split can manage that does the ladder settle for one fresh pair. Every pass insists on no nemesis partnership. There is deliberately <strong>no ceiling on the rank gap between partners</strong> &mdash; the quad is already the skill bracket, and the preferred split exists precisely to put its strongest player with its weakest.</p>
     </div>
 
     <div class="table-wrap">
@@ -723,19 +723,19 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
           <tr><th class="num">Pass</th><th>No nemesis</th><th>Repeat-partner rule</th><th>Fires?</th></tr>
         </thead>
         <tbody>
-          <tr><td class="num">1</td><td>required</td><td>reject only if <em>both</em> pairs met within 3 rounds</td><td>yes</td></tr>
+          <tr><td class="num">1</td><td>required</td><td>reject if <em>either</em> pair met within 3 rounds</td><td>yes</td></tr>
           <tr><td class="num">2</td><td>required</td><td>&hellip; within 2 rounds</td><td>yes</td></tr>
-          <tr><td class="num">3</td><td>required</td><td>&hellip; within 1 round</td><td>yes</td></tr>
-          <tr class="dead"><td class="num">4</td><td>required</td><td>reject if <em>either</em> pair met within 3 rounds</td><td>never</td></tr>
-          <tr class="dead"><td class="num">5</td><td>required</td><td>&hellip; within 2 rounds</td><td>never</td></tr>
-          <tr class="dead"><td class="num">6</td><td>required</td><td>&hellip; within 1 round</td><td>never</td></tr>
-          <tr><td class="num">7</td><td>required</td><td>dropped entirely</td><td>rarely</td></tr>
+          <tr><td class="num">3</td><td>required</td><td>&hellip; within 1 round</td><td>yes &mdash; catches the rest</td></tr>
+          <tr class="dead"><td class="num">4</td><td>required</td><td>reject only if <em>both</em> pairs met within 3 rounds</td><td>reset histories only</td></tr>
+          <tr class="dead"><td class="num">5</td><td>required</td><td>&hellip; within 2 rounds</td><td>reset histories only</td></tr>
+          <tr class="dead"><td class="num">6</td><td>required</td><td>&hellip; within 1 round</td><td>reset histories only</td></tr>
+          <tr class="dead"><td class="num">7</td><td>required</td><td>dropped entirely</td><td>reset histories only</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="prose">
-      <p>Passes 4&ndash;6 are unreachable &mdash; see <a href="#f-dead">the review notes</a>. If no pass accepts either split, the quad tries a boundary swap (bringing in one of those equally-tied standby players) and, failing that, the whole mode returns <code>null</code> and the switch falls through.</p>
+      <p>Pass 3's window of one round is vacuous, so passes 4&ndash;7 are unreachable in ordinary play &mdash; see <a href="#f-dead">the review notes</a>. If no pass accepts either split, the quad tries a boundary swap (bringing in one of those equally-tied standby players) and, failing that, the whole mode returns <code>null</code> and the switch falls through.</p>
     </div>
   </section>
 
@@ -879,11 +879,12 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
     </div>
 
     <div class="finding" id="f-dead">
-      <div class="finding-tag tag-dead">dead code</div>
+      <div class="finding-tag tag-dead">vacuous pass</div>
       <div>
-        <h3>Three of the seven quad passes can never fire</h3>
-        <p>The ladder tries &ldquo;reject only if <em>both</em> pairs are repeats&rdquo; at windows 3, 2, 1 before &ldquo;reject if <em>either</em> pair is a repeat&rdquo; at the same windows. But rejecting on <em>either</em> is strictly stronger than rejecting on <em>both</em>, so any split the later passes would accept was already accepted by an earlier one. An exhaustive check over every combination of pair histories confirms passes 4&ndash;6 never return a result.</p>
-        <p>In ordinary play a pair's last meeting is at least one round ago, so pass 3 accepts anything the nemesis guard allows, and the effective ladder is just two passes: window 3, then window 2, then accept. Ordering the ladder strict-to-relaxed (either&rarr;both) would make all seven passes meaningful.</p>
+        <h3>The tail of the ladder is unreachable in ordinary play</h3>
+        <p>The ladder now runs strict-first, so passes 1&ndash;3 do the real work: a split is taken only when <em>both</em> partnerships are fresh, at a window that shrinks 3 &rarr; 2 &rarr; 1. That was the fix for the previous ordering, where the weak test ran first and made the strict passes dead code outright.</p>
+        <p>What remains is the window of 1. <code>recentWithin(&hellip;, 1)</code> asks whether a pair met <em>less than one round ago</em>, and a pair's last meeting is always at least one round back &mdash; so pass 3 accepts anything the nemesis guard allows, and passes 4&ndash;7 only ever run when a player's teammate history outlives their round counter (history carried over while <code>totalRoundsPlayed</code> resets). An exhaustive check over every combination of pair histories confirms it: with normal counters only <code>either/3</code>, <code>either/2</code> and <code>either/1</code> fire; the full seven only come alive once elapsed rounds can reach zero.</p>
+        <p>Widening the windows &mdash; or simply dropping the vacuous window-of-1 step &mdash; would give the back half of the ladder something to do.</p>
         <p class="src">match-list.component.ts:818 &middot; <code>formQuadPairs</code></p>
       </div>
     </div>
