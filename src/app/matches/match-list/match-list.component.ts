@@ -583,12 +583,15 @@ export class MatchListComponent {
       return { boundaryIn: [], boundaryOut: [] };
     }
     const boundaryPoint = this.calculatePlayerPriorityPoint(sortedPlayerList[totalAvailableSlots - 1]);
+    const eligibleNames = new Set(eligiblePlayers.map(p => p.name));
     const boundaryIn = eligiblePlayers.filter(p => this.calculatePlayerPriorityPoint(p) === boundaryPoint);
-    const boundaryOut: Player[] = [];
-    for (let i = totalAvailableSlots; i < sortedPlayerList.length; i++) {
-      if (this.calculatePlayerPriorityPoint(sortedPlayerList[i]) !== boundaryPoint) break;
-      boundaryOut.push(sortedPlayerList[i]);
-    }
+    // Membership, not cutoff index: the force-pair pull-in in getAvailablePlayers can move
+    // players across the boundary, so a player below the cutoff may already be in the round
+    // (swapping them in again would duplicate them on court) and the player it evicted —
+    // still tied at the boundary point — becomes a valid swap candidate.
+    const boundaryOut = sortedPlayerList.filter(p =>
+      !eligibleNames.has(p.name) && this.calculatePlayerPriorityPoint(p) === boundaryPoint
+    );
     this.log('boundaryTieGroup:', { in: boundaryIn.map(p => p.name), out: boundaryOut.map(p => p.name) });
     return { boundaryIn, boundaryOut };
   }
@@ -618,8 +621,8 @@ export class MatchListComponent {
     return rank * 1000 - (winRate - 0.5) * 2000 * confidence - 1000;
   }
 
-  // Convenience accessor: effectiveRank expressed on the same 1-10 scale as raw `rank`,
-  // so it can be compared against MAX_RANK_DIFF and summed for court rank-sums.
+  // Convenience accessor: effectiveRank back on the same tier scale as raw `rank`,
+  // so team strengths can be summed and compared for court rank-sums.
   private effectiveRankScore(player: Player): number {
     return this.effectiveRank(player) / 1000;
   }
@@ -807,18 +810,19 @@ export class MatchListComponent {
   }
 
   // Within a quad of 4 players (sorted best→worst by effectiveRank):
-  // Every pass checks rank ≤3 and not-nemesis; only the recency check regresses across 7 passes:
+  // Every pass checks not-nemesis; only the recency check regresses across 7 passes:
   // Pass 0-2: reject only if BOTH pairs are recent, lookback 3 → 2 → 1 rounds (weak, easy to satisfy).
   // Pass 3-5: reject if EITHER pair is recent, lookback 3 → 2 → 1 rounds (strong, harder to satisfy).
-  // Pass 6: recency dropped entirely (rank ≤3 + not-nemesis only).
-  // Returns null only when every pass is blocked by rank diff or a nemesis conflict.
+  // Pass 6: recency dropped entirely (not-nemesis only).
+  // Partner rank distance is deliberately unbounded: the quad is already the skill
+  // bracket, and the preferred [0,3] split pairs its strongest with its weakest.
+  // Returns null only when a nemesis conflict blocks every pass.
   private formQuadPairs(
     q: Player[],
     forceMap: Map<string, string>,
     nemesisSet: Set<string>,
     totalPlayers: number
   ): [Teammate, Teammate] | null {
-    const MAX_RANK_DIFF = 3;
     const RECENCY_LOOKBACKS = [3, 2, 1]; // rounds-back window, regressing pass over pass
 
     // Detect any force pair inside this quad
@@ -844,19 +848,13 @@ export class MatchListComponent {
     ];
 
     // Priority order — always prefer the most balanced split (option order above):
-    // Pass 0-2: rank ≤3, not nemesis, not both-recent within a shrinking lookback (3 → 2 → 1 rounds).
-    // Pass 3-5: rank ≤3, not nemesis, not either-recent within a shrinking lookback (3 → 2 → 1 rounds).
-    // Pass 6:   rank ≤3, not nemesis                    (recency dropped entirely)
-    // rd compares effectiveRank (rank + win-rate), not raw rank, so a player who's
-    // over/under-performing their assigned rank is balanced against their actual form.
-    // No "rd > 0" requirement here: requiring a non-zero rank diff on the middle pair
-    // would skip the best+worst split whenever the quad has a rank tie, pairing the
-    // strongest player with the wrong partner instead of the weakest.
+    // Pass 0-2: not nemesis, not both-recent within a shrinking lookback (3 → 2 → 1 rounds).
+    // Pass 3-5: not nemesis, not either-recent within a shrinking lookback (3 → 2 → 1 rounds).
+    // Pass 6:   not nemesis                              (recency dropped entirely)
     type CheckFn = (ai: number, bi: number, ci: number, di: number) => boolean;
-    const rd = (a: number, b: number) => Math.abs(this.effectiveRankScore(q[a]) - this.effectiveRankScore(q[b]));
     const nem = (a: number, b: number) => this.isNemesisPair(q[a].name, q[b].name, nemesisSet);
-    const rankAndNemOk = (ai: number, bi: number, ci: number, di: number) =>
-      rd(ai, bi) <= MAX_RANK_DIFF && rd(ci, di) <= MAX_RANK_DIFF && !nem(ai, bi) && !nem(ci, di);
+    const nemesisOk = (ai: number, bi: number, ci: number, di: number) =>
+      !nem(ai, bi) && !nem(ci, di);
     // recentWithin(a, b, lookback): true if a/b were teammates within the last `lookback` rounds.
     const recentWithin = (a: number, b: number, lookback: number) =>
       this.isRecentTeammatePair(q[a], q[b], totalPlayers, totalPlayers - lookback);
@@ -881,17 +879,17 @@ export class MatchListComponent {
 
     for (const lookback of RECENCY_LOOKBACKS) {
       const result = tryOptions((ai, bi, ci, di) =>
-        rankAndNemOk(ai, bi, ci, di) && !bothRecentWithin(ai, bi, ci, di, lookback)
+        nemesisOk(ai, bi, ci, di) && !bothRecentWithin(ai, bi, ci, di, lookback)
       );
       if (result) return result;
     }
     for (const lookback of RECENCY_LOOKBACKS) {
       const result = tryOptions((ai, bi, ci, di) =>
-        rankAndNemOk(ai, bi, ci, di) && !eitherRecentWithin(ai, bi, ci, di, lookback)
+        nemesisOk(ai, bi, ci, di) && !eitherRecentWithin(ai, bi, ci, di, lookback)
       );
       if (result) return result;
     }
-    return tryOptions(rankAndNemOk);
+    return tryOptions(nemesisOk);
   }
 
   // === Mode B — Mixed (top↔bottom) ==================

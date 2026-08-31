@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body>
+<title>Court Shuffle Internals</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Open+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #f5f7fa;
+    --surface: #ffffff;
+    --sunken: #eef1f6;
+    --hairline: #e4e8ee;
+    --rule: #c8ced9;
+    --ink: #1a1d23;
+    --muted: #5a6272;
+    --faint: #9099a8;
+    --accent: #1976d2;
+    --accent-soft: rgba(25, 118, 210, 0.09);
+    --teal: #0f7d78;
+    --teal-soft: rgba(15, 125, 120, 0.10);
+    --amber: #b06f00;
+    --amber-soft: rgba(247, 160, 7, 0.13);
+    --rose: #b8474b;
+    --rose-soft: rgba(215, 123, 123, 0.15);
+    --moss: #5f8410;
+
+    --font-display: 'Merriweather', Georgia, 'Times New Roman', serif;
+    --font-body: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101318;
+      --surface: #171b21;
+      --sunken: #1e232b;
+      --hairline: #262c35;
+      --rule: #39424f;
+      --ink: #e8ebf1;
+      --muted: #9aa3b2;
+      --faint: #6f7889;
+      --accent: #6aa9f0;
+      --accent-soft: rgba(106, 169, 240, 0.14);
+      --teal: #5cc7c1;
+      --teal-soft: rgba(92, 199, 193, 0.14);
+      --amber: #f0ab3c;
+      --amber-soft: rgba(240, 171, 60, 0.15);
+      --rose: #e79191;
+      --rose-soft: rgba(231, 145, 145, 0.16);
+      --moss: #a7cd5c;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101318;
+    --surface: #171b21;
+    --sunken: #1e232b;
+    --hairline: #262c35;
+    --rule: #39424f;
+    --ink: #e8ebf1;
+    --muted: #9aa3b2;
+    --faint: #6f7889;
+    --accent: #6aa9f0;
+    --accent-soft: rgba(106, 169, 240, 0.14);
+    --teal: #5cc7c1;
+    --teal-soft: rgba(92, 199, 193, 0.14);
+    --amber: #f0ab3c;
+    --amber-soft: rgba(240, 171, 60, 0.15);
+    --rose: #e79191;
+    --rose-soft: rgba(231, 145, 145, 0.16);
+    --moss: #a7cd5c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px 96px; }
+  .prose { max-width: 68ch; }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    border-bottom: 1px solid var(--hairline);
+    background: var(--surface);
+  }
+  .masthead-inner {
+    max-width: 1120px; margin: 0 auto; padding: 44px 24px 32px;
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-end; justify-content: space-between;
+  }
+  .masthead h1 {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(30px, 4.4vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .masthead p { margin: 0; color: var(--muted); max-width: 56ch; }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  .facts {
+    display: grid; gap: 2px 26px; grid-template-columns: auto auto;
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .facts dt { color: var(--faint); }
+  .facts dd { margin: 0; color: var(--ink); }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--ground);
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .nav-inner {
+    max-width: 1120px; margin: 0 auto; padding: 9px 24px;
+    display: flex; flex-wrap: wrap; gap: 4px 18px;
+    font-family: var(--font-mono); font-size: 11.5px;
+  }
+  nav a { color: var(--muted); text-decoration: none; padding: 3px 0; border-bottom: 1px solid transparent; }
+  nav a:hover, nav a:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
+  nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---------- sections ---------- */
+  section { padding-top: 56px; scroll-margin-top: 56px; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--faint); margin: 0 0 6px;
+  }
+  h2 {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 25px; line-height: 1.25; letter-spacing: -0.01em;
+    margin: 0 0 14px; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--font-body); font-weight: 700;
+    font-size: 16px; margin: 30px 0 8px; letter-spacing: -0.005em;
+  }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent); }
+  code {
+    font-family: var(--font-mono); font-size: 0.88em;
+    background: var(--sunken); border: 1px solid var(--hairline);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  strong { font-weight: 700; }
+  ul { margin: 0 0 14px; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+
+  .lede { font-size: 16.5px; color: var(--muted); }
+
+  /* ---------- figures ---------- */
+  figure {
+    margin: 26px 0 30px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 20px 20px 14px;
+    overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  figcaption {
+    font-size: 12.5px; color: var(--muted);
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--hairline);
+    max-width: 84ch;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* svg paint classes — every colour comes from the token set */
+  .s-surface { fill: var(--surface); }
+  .s-sunken  { fill: var(--sunken); }
+  .s-hair    { stroke: var(--hairline); fill: none; }
+  .s-rule    { stroke: var(--rule); fill: none; }
+  .s-ink     { fill: var(--ink); }
+  .s-muted   { fill: var(--muted); }
+  .s-faint   { fill: var(--faint); }
+  .s-accent  { fill: var(--accent); }
+  .s-accent-s{ stroke: var(--accent); fill: none; }
+  .s-accent-b{ fill: var(--accent-soft); }
+  .s-teal    { fill: var(--teal); }
+  .s-teal-s  { stroke: var(--teal); fill: none; }
+  .s-teal-b  { fill: var(--teal-soft); }
+  .s-rose    { fill: var(--rose); }
+  .s-rose-s  { stroke: var(--rose); fill: none; }
+  .s-rose-b  { fill: var(--rose-soft); }
+  .s-amber   { fill: var(--amber); }
+  .s-amber-s { stroke: var(--amber); fill: none; }
+  .s-amber-b { fill: var(--amber-soft); }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .sans { font-family: var(--font-body); }
+  .b { font-weight: 600; }
+
+  /* ---------- tables ---------- */
+  .table-wrap { overflow-x: auto; margin: 22px 0 26px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 560px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  thead th {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);
+    background: var(--sunken); border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td code { background: none; border: none; padding: 0; }
+  .step-n { font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+  .dead { color: var(--faint); }
+  .dead td { text-decoration: none; }
+
+  /* ---------- callouts ---------- */
+  .note {
+    border-left: 3px solid var(--rule);
+    background: var(--surface);
+    padding: 14px 18px; margin: 22px 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 14px;
+  }
+  .note.accent { border-left-color: var(--accent); }
+  .note.amber  { border-left-color: var(--amber); }
+  .note p:last-child { margin-bottom: 0; }
+  .note-label {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint);
+    display: block; margin-bottom: 4px;
+  }
+
+  .formula {
+    font-family: var(--font-mono); font-size: 13.5px;
+    background: var(--sunken); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 14px 18px; margin: 18px 0;
+    overflow-x: auto; white-space: pre; line-height: 1.75;
+  }
+
+  /* ---------- findings ---------- */
+  .finding {
+    display: grid; grid-template-columns: 92px 1fr; gap: 0 20px;
+    padding: 20px 0; border-top: 1px solid var(--hairline);
+  }
+  .finding:last-of-type { border-bottom: 1px solid var(--hairline); }
+  .finding-tag {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding-top: 3px;
+  }
+  .tag-bug   { color: var(--rose); }
+  .tag-dead  { color: var(--amber); }
+  .tag-note  { color: var(--faint); }
+  .tag-fixed { color: var(--moss); }
+  .finding h3 { margin: 0 0 6px; font-size: 15.5px; }
+  .finding p { margin: 0 0 8px; font-size: 14px; }
+  .finding p:last-child { margin-bottom: 0; }
+  .src {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--faint);
+  }
+
+  @media (max-width: 720px) {
+    .masthead-inner { padding: 32px 20px 24px; }
+    .wrap { padding: 0 20px 72px; }
+    .finding { grid-template-columns: 1fr; gap: 6px; }
+    .facts { grid-template-columns: auto auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <p class="kicker">Badminton Matching App &middot; algorithm reference</p>
+      <h1>Court Shuffle Internals</h1>
+      <p>How <code>shufflePlayersIntoCourt()</code> picks who plays this round, who partners whom, and which two teams meet on each court &mdash; read off the code as it stands on <code>main-ai</code>.</p>
+    </div>
+    <dl class="facts">
+      <dt>source</dt><dd>match-list.component.ts</dd>
+      <dt>entry</dt><dd>line 185</dd>
+      <dt>modes</dt><dd>tiered / spread / mixed / novel</dd>
+      <dt>specs</dt><dd>65 passing</dd>
+    </dl>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#pipeline">Pipeline</a>
+    <a href="#who-plays">Who plays</a>
+    <a href="#strength">Strength</a>
+    <a href="#modes">Mode choice</a>
+    <a href="#quads">Tiered &amp; Spread</a>
+    <a href="#mixed-novel">Mixed &amp; Novel</a>
+    <a href="#courts">Courts</a>
+    <a href="#constraints">Constraints</a>
+    <a href="#notes">Review notes</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section id="overview">
+    <div class="prose">
+      <p class="lede">One press of <em>Shuffle</em> answers three questions in order: which of the waiting players get a slot, who each of them is paired with, and which pairs face each other. Everything else in the function is a tie-break or an escape hatch for the two hard settings &mdash; forced teammates and nemesis pairs.</p>
+      <p>The shuffle only ever touches courts marked <code>available</code>. A court that has been confirmed is <code>playing</code>, and both the court and its four players are invisible to the shuffle until someone frees it. Players on <code>break</code> are skipped; players marked <code>selected</code> jump the queue.</p>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <p class="eyebrow">shufflePlayersIntoCourt() &middot; line 185</p>
+    <h2>The pipeline</h2>
+    <div class="prose">
+      <p>Five phases run start to finish on every press. Nothing is asynchronous and nothing is cached &mdash; the whole decision is recomputed from the player map and the match history each time.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 1050 300" role="img" aria-label="Five-phase pipeline: gather eligible players, rank and cut to the available slots, pick a mode, pair players into teammates, then seat teams on courts.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" class="s-faint" />
+          </marker>
+        </defs>
+
+        <!-- phase 1 -->
+        <rect x="6" y="56" width="150" height="180" rx="9" class="s-surface" />
+        <rect x="6" y="56" width="150" height="180" rx="9" class="s-hair" />
+        <text x="22" y="80" class="mono s-accent b" font-size="10.5">01</text>
+        <text x="22" y="102" class="sans s-ink b" font-size="14">Gather</text>
+        <text x="22" y="128" class="mono s-muted" font-size="10">drop status</text>
+        <text x="22" y="144" class="mono s-muted" font-size="10">= playing</text>
+        <text x="22" y="164" class="mono s-muted" font-size="10">drop status</text>
+        <text x="22" y="180" class="mono s-muted" font-size="10">= break</text>
+        <text x="22" y="210" class="mono s-faint" font-size="9.5">getAvailable-</text>
+        <text x="22" y="222" class="mono s-faint" font-size="9.5">PlayerList()</text>
+
+        <line x1="164" y1="146" x2="220" y2="146" class="s-rule" marker-end="url(#ar)" />
+        <text x="192" y="138" class="mono s-faint" font-size="9.5" text-anchor="middle">10 ready</text>
+
+        <!-- phase 2 -->
+        <rect x="228" y="56" width="150" height="180" rx="9" class="s-surface" />
+        <rect x="228" y="56" width="150" height="180" rx="9" class="s-hair" />
+        <text x="244" y="80" class="mono s-accent b" font-size="10.5">02</text>
+        <text x="244" y="102" class="sans s-ink b" font-size="14">Rank &amp; cut</text>
+        <text x="244" y="128" class="mono s-muted" font-size="10">fewest rounds</text>
+        <text x="244" y="144" class="mono s-muted" font-size="10">played first</text>
+        <text x="244" y="164" class="mono s-muted" font-size="10">floor to a</text>
+        <text x="244" y="180" class="mono s-muted" font-size="10">multiple of 4</text>
+        <text x="244" y="210" class="mono s-faint" font-size="9.5">getAvailable-</text>
+        <text x="244" y="222" class="mono s-faint" font-size="9.5">Players()</text>
+
+        <line x1="386" y1="146" x2="442" y2="146" class="s-rule" marker-end="url(#ar)" />
+        <text x="414" y="138" class="mono s-faint" font-size="9.5" text-anchor="middle">8 eligible</text>
+
+        <!-- phase 3 -->
+        <rect x="450" y="56" width="150" height="180" rx="9" class="s-surface" />
+        <rect x="450" y="56" width="150" height="180" rx="9" class="s-hair" />
+        <text x="466" y="80" class="mono s-accent b" font-size="10.5">03</text>
+        <text x="466" y="102" class="sans s-ink b" font-size="14">Pick mode</text>
+        <text x="466" y="128" class="mono s-muted" font-size="10">saved setting,</text>
+        <text x="466" y="144" class="mono s-muted" font-size="10">or a weighted</text>
+        <text x="466" y="160" class="mono s-muted" font-size="10">roll when auto</text>
+        <text x="466" y="210" class="mono s-faint" font-size="9.5">resolveMode()</text>
+
+        <line x1="608" y1="146" x2="664" y2="146" class="s-rule" marker-end="url(#ar)" />
+        <text x="636" y="138" class="mono s-faint" font-size="9.5" text-anchor="middle">tiered</text>
+
+        <!-- phase 4 -->
+        <rect x="672" y="56" width="150" height="180" rx="9" class="s-surface" />
+        <rect x="672" y="56" width="150" height="180" rx="9" class="s-hair" />
+        <text x="688" y="80" class="mono s-accent b" font-size="10.5">04</text>
+        <text x="688" y="102" class="sans s-ink b" font-size="14">Pair up</text>
+        <text x="688" y="128" class="mono s-muted" font-size="10">one of four</text>
+        <text x="688" y="144" class="mono s-muted" font-size="10">strategies,</text>
+        <text x="688" y="160" class="mono s-muted" font-size="10">falling through</text>
+        <text x="688" y="176" class="mono s-muted" font-size="10">on failure</text>
+        <text x="688" y="210" class="mono s-faint" font-size="9.5">shuffleTiered()</text>
+        <text x="688" y="222" class="mono s-faint" font-size="9.5">&hellip;and friends</text>
+
+        <line x1="830" y1="146" x2="886" y2="146" class="s-rule" marker-end="url(#ar)" />
+        <text x="858" y="138" class="mono s-faint" font-size="9.5" text-anchor="middle">4 pairs</text>
+
+        <!-- phase 5 -->
+        <rect x="894" y="56" width="150" height="180" rx="9" class="s-surface" />
+        <rect x="894" y="56" width="150" height="180" rx="9" class="s-hair" />
+        <text x="910" y="80" class="mono s-accent b" font-size="10.5">05</text>
+        <text x="910" y="102" class="sans s-ink b" font-size="14">Seat courts</text>
+        <text x="910" y="128" class="mono s-muted" font-size="10">match pairs by</text>
+        <text x="910" y="144" class="mono s-muted" font-size="10">closest combined</text>
+        <text x="910" y="160" class="mono s-muted" font-size="10">strength</text>
+        <text x="910" y="210" class="mono s-faint" font-size="9.5">calculateMatch-</text>
+        <text x="910" y="222" class="mono s-faint" font-size="9.5">InCourtsRankBased()</text>
+
+        <text x="6" y="270" class="mono s-faint" font-size="10">Each arrow carries the whole set forward &mdash; there is no early exit once slots &gt; 0.</text>
+      </svg>
+      <figcaption><b>The shuffle in five phases.</b> The counts follow one worked example used throughout this page: ten players waiting, two free courts, so eight slots. The only place the pipeline can stop early is phase 1 &mdash; if no court is <code>available</code>, it returns before touching anything.</figcaption>
+    </figure>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th class="num">Step</th><th>Call</th><th>What it decides</th><th class="num">Line</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num"><span class="step-n">1</span></td><td><code>getAvailablePlayerList()</code></td><td>Everyone not on a <code>playing</code> court and not on <code>break</code></td><td class="num">471</td></tr>
+          <tr><td class="num"><span class="step-n">2</span></td><td><code>getTotalAvailableSlotsInCourts()</code></td><td>4 &times; the number of <code>available</code> courts; returns early at 0</td><td class="num">491</td></tr>
+          <tr><td class="num"><span class="step-n">3</span></td><td><code>getSortedPlayerList()</code></td><td>Queue order: fewest rounds played first, <code>selected</code> players ahead of everyone</td><td class="num">501</td></tr>
+          <tr><td class="num"><span class="step-n">4</span></td><td><code>recalculateTotalAvailableSlots()</code></td><td>Caps slots to a whole number of courts &mdash; 10 players never fill 3 courts</td><td class="num">520</td></tr>
+          <tr><td class="num"><span class="step-n">5</span></td><td><code>getAvailablePlayers()</code></td><td>Takes the top N, then pulls in a forced partner from below the line</td><td class="num">533</td></tr>
+          <tr><td class="num"><span class="step-n">6</span></td><td><code>getBoundaryTieGroup()</code></td><td>Who is interchangeable at the cutoff, for later rescue swaps</td><td class="num">577</td></tr>
+          <tr><td class="num"><span class="step-n">7</span></td><td><code>resolveMode()</code></td><td>Which pairing strategy runs</td><td class="num">600</td></tr>
+          <tr><td class="num"><span class="step-n">8</span></td><td><code>shuffleTiered/Spread/Mixed/Novel()</code></td><td>The teammate pairs</td><td class="num">796&ndash;975</td></tr>
+          <tr><td class="num"><span class="step-n">9</span></td><td><code>calculateMatchInCourtsRankBased()</code></td><td>Which pair faces which</td><td class="num">1050</td></tr>
+          <tr><td class="num"><span class="step-n">10</span></td><td><code>putPlayerIntoCourts()</code></td><td>Writes teams onto the courts and stamps <code>match.mode</code></td><td class="num">1104</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="who-plays">
+    <p class="eyebrow">getAvailablePlayers() &middot; getBoundaryTieGroup()</p>
+    <h2>Who gets on court</h2>
+    <div class="prose">
+      <p>The queue is ordered by <strong>rounds played, fewest first</strong> &mdash; nothing else. Rank, win rate and waiting time play no part here; a player marked <code>selected</code> gets priority <code>-1</code> and sorts ahead of the field, and exact ties are broken by a per-shuffle random value so the same two people don't alternate forever.</p>
+      <p>Take the top eight and you have the round. Two mechanisms are allowed to reach across that line, and both are careful to only trade players who are equally deserving &mdash; or to make the imbalance explicit.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 1000 490" role="img" aria-label="Ten sorted players with a cutoff after the eighth. Ivy, forced to partner Ann, is pulled up from below the cutoff, and Hal — tied on rounds played — is evicted and sits out.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" class="s-accent" />
+          </marker>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" class="s-rose" />
+          </marker>
+        </defs>
+
+        <text x="40" y="34" class="mono s-faint" font-size="10.5">SORTED POOL &mdash; 10 WAITING</text>
+        <text x="600" y="34" class="mono s-faint" font-size="10.5">ELIGIBLE WINDOW &mdash; 8 SLOTS</text>
+        <text x="40" y="50" class="mono s-muted" font-size="10">name &middot; rounds played</text>
+
+        <!-- carry-over band -->
+        <path d="M 296 64 L 596 64 L 596 274 L 296 274 Z" class="s-accent-b" opacity="0.5" />
+        <text x="446" y="163" class="mono s-faint" font-size="10.5" text-anchor="middle">seven keep</text>
+        <text x="446" y="178" class="mono s-faint" font-size="10.5" text-anchor="middle">their slot</text>
+
+        <!-- left list -->
+        <g>
+          <rect x="40" y="64" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="82" class="mono s-ink" font-size="12">Ann</text><text x="274" y="82" class="mono s-muted" font-size="12" text-anchor="end">2</text>
+          <rect x="40" y="94" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="112" class="mono s-ink" font-size="12">Ben</text><text x="274" y="112" class="mono s-muted" font-size="12" text-anchor="end">2</text>
+          <rect x="40" y="124" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="142" class="mono s-ink" font-size="12">Cy</text><text x="274" y="142" class="mono s-muted" font-size="12" text-anchor="end">2</text>
+          <rect x="40" y="154" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="172" class="mono s-ink" font-size="12">Dee</text><text x="274" y="172" class="mono s-muted" font-size="12" text-anchor="end">3</text>
+          <rect x="40" y="184" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="202" class="mono s-ink" font-size="12">Eli</text><text x="274" y="202" class="mono s-muted" font-size="12" text-anchor="end">3</text>
+          <rect x="40" y="214" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="232" class="mono s-ink" font-size="12">Fay</text><text x="274" y="232" class="mono s-muted" font-size="12" text-anchor="end">3</text>
+          <rect x="40" y="244" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="262" class="mono s-ink" font-size="12">Gus</text><text x="274" y="262" class="mono s-muted" font-size="12" text-anchor="end">4</text>
+          <circle cx="48" cy="257" r="3" class="s-teal" />
+          <rect x="40" y="274" width="250" height="26" rx="5" class="s-rose-b" /><text x="56" y="292" class="mono s-ink" font-size="12">Hal</text><text x="274" y="292" class="mono s-muted" font-size="12" text-anchor="end">4</text>
+          <circle cx="48" cy="287" r="3" class="s-teal" />
+          <rect x="40" y="304" width="250" height="26" rx="5" class="s-accent-b" /><text x="56" y="322" class="mono s-ink" font-size="12">Ivy</text><text x="274" y="322" class="mono s-muted" font-size="12" text-anchor="end">4</text>
+          <circle cx="48" cy="317" r="3" class="s-teal" />
+          <rect x="40" y="334" width="250" height="26" rx="5" class="s-sunken" /><text x="56" y="352" class="mono s-faint" font-size="12">Jo</text><text x="274" y="352" class="mono s-faint" font-size="12" text-anchor="end">5</text>
+        </g>
+
+        <!-- cutoff -->
+        <line x1="28" y1="302" x2="302" y2="302" class="s-accent-s" stroke-dasharray="5 4" />
+        <text x="302" y="296" class="mono s-accent" font-size="10" text-anchor="end">cutoff &mdash; 8 slots</text>
+
+        <!-- right list -->
+        <g>
+          <rect x="600" y="64" width="250" height="26" rx="5" class="s-sunken" /><text x="616" y="82" class="mono s-ink" font-size="12">Ann</text><text x="834" y="82" class="mono s-muted" font-size="12" text-anchor="end">2</text>
+          <rect x="600" y="94" width="250" height="26" rx="5" class="s-sunken" /><text x="616" y="112" class="mono s-ink" font-size="12">Ben</text><text x="834" y="112" class="mono s-muted" font-size="12" text-anchor="end">2</text>
+          <rect x="600" y="124" width="250" height="26" rx="5" class="s-sunken" /><text x="616" y="142" class="mono s-ink" font-size="12">Cy</text><text x="834" y="142" class="mono s-muted" font-size="12" text-anchor="end">2</text>
+          <rect x="600" y="154" width="250" height="26" rx="5" class="s-sunken" /><text x="616" y="172" class="mono s-ink" font-size="12">Dee</text><text x="834" y="172" class="mono s-muted" font-size="12" text-anchor="end">3</text>
+          <rect x="600" y="184" width="250" height="26" rx="5" class="s-sunken" /><text x="616" y="202" class="mono s-ink" font-size="12">Eli</text><text x="834" y="202" class="mono s-muted" font-size="12" text-anchor="end">3</text>
+          <rect x="600" y="214" width="250" height="26" rx="5" class="s-sunken" /><text x="616" y="232" class="mono s-ink" font-size="12">Fay</text><text x="834" y="232" class="mono s-muted" font-size="12" text-anchor="end">3</text>
+          <rect x="600" y="244" width="250" height="26" rx="5" class="s-sunken" /><text x="616" y="262" class="mono s-ink" font-size="12">Gus</text><text x="834" y="262" class="mono s-muted" font-size="12" text-anchor="end">4</text>
+          <rect x="600" y="274" width="250" height="26" rx="5" class="s-accent-b" /><text x="616" y="292" class="mono s-ink" font-size="12">Ivy</text><text x="834" y="292" class="mono s-accent" font-size="10.5" text-anchor="end">forced with Ann</text>
+        </g>
+
+        <!-- pull-in arrow -->
+        <path d="M 296 317 C 420 317 470 289 592 287" class="s-accent-s" stroke-width="1.6" marker-end="url(#ar2)" />
+        <text x="446" y="330" class="mono s-accent" font-size="10.5" text-anchor="middle">force pair pulls Ivy up</text>
+
+        <!-- eviction arrow -->
+        <path d="M 296 287 C 360 300 380 380 428 396" class="s-rose-s" stroke-width="1.6" marker-end="url(#ar3)" />
+        <rect x="436" y="378" width="196" height="34" rx="6" class="s-rose-b" />
+        <text x="452" y="399" class="mono s-rose" font-size="11">Hal sits this round out</text>
+
+        <!-- legend -->
+        <line x1="40" y1="440" x2="960" y2="440" class="s-hair" />
+        <circle cx="48" cy="464" r="3" class="s-teal" />
+        <text x="60" y="468" class="mono s-muted" font-size="10.5">tied at 4 rounds &mdash; the boundary swap pool: interchangeable, so a deadlocked quad may trade between them</text>
+      </svg>
+      <figcaption><b>Two ways across the cutoff.</b> Ann is set to always partner Ivy, but Ivy sits ninth. The window pulls her in and evicts the last player who isn't already half of a satisfied force pair &mdash; Hal, who has played the most inside the window. Separately, Gus, Hal and Ivy are all tied on four rounds: none of them has a stronger claim than the others, which is what makes them safe to swap when a quad can't be paired.</figcaption>
+    </figure>
+
+    <div class="note accent">
+      <span class="note-label">Fairness invariant</span>
+      <p>The boundary pool only ever contains players on the <em>same</em> priority point. A rescue swap therefore never bumps someone who has played less in favour of someone who has played more &mdash; it only changes which of several equally-deserving players fills the slot. The force pull-in is the one exception, and it is deliberate: an explicit setting outranks the queue.</p>
+    </div>
+  </section>
+
+  <section id="strength">
+    <p class="eyebrow">effectiveRank() &middot; line 617</p>
+    <h2>How strong a player counts as</h2>
+    <div class="prose">
+      <p>Every strength comparison in the shuffle &mdash; quad ordering, partner rank gaps, court balance &mdash; runs through <code>effectiveRank</code> rather than the rank you set by hand. It nudges the manual rank by recent form, damped so that a lucky first game can't move anyone far.</p>
+    </div>
+
+    <div class="formula">rank &times; 1000  &minus;  (winRate &minus; 0.5) &times; 2000 &times; confidence  &minus;  1000
+
+winRate     = (roundsWon + 1) / (gamesPlayed + 2)     Laplace-smoothed, so a new player sits at 0.5
+confidence  = min(1, gamesPlayed / 3)                 full weight only from the third game on</div>
+
+    <figure>
+      <svg viewBox="0 0 1000 220" role="img" aria-label="A strength scale from rank 1 to 10. A rank-5 player on a winning streak and a rank-4 player on a losing one both shift half a tier and land on the same effective strength of 4.5.">
+        <defs>
+          <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" class="s-accent" />
+          </marker>
+        </defs>
+
+        <line x1="60" y1="120" x2="940" y2="120" class="s-rule" />
+        <g class="mono s-faint" font-size="11" text-anchor="middle">
+          <line x1="60" y1="114" x2="60" y2="126" class="s-rule" /><text x="60" y="146">1</text>
+          <line x1="158" y1="114" x2="158" y2="126" class="s-rule" /><text x="158" y="146">2</text>
+          <line x1="256" y1="114" x2="256" y2="126" class="s-rule" /><text x="256" y="146">3</text>
+          <line x1="353" y1="114" x2="353" y2="126" class="s-rule" /><text x="353" y="146">4</text>
+          <line x1="451" y1="114" x2="451" y2="126" class="s-rule" /><text x="451" y="146">5</text>
+          <line x1="549" y1="114" x2="549" y2="126" class="s-rule" /><text x="549" y="146">6</text>
+          <line x1="647" y1="114" x2="647" y2="126" class="s-rule" /><text x="647" y="146">7</text>
+          <line x1="744" y1="114" x2="744" y2="126" class="s-rule" /><text x="744" y="146">8</text>
+          <line x1="842" y1="114" x2="842" y2="126" class="s-rule" /><text x="842" y="146">9</text>
+          <line x1="940" y1="114" x2="940" y2="126" class="s-rule" /><text x="940" y="146">10</text>
+        </g>
+        <text x="60" y="168" class="mono s-faint" font-size="10">strongest</text>
+        <text x="940" y="168" class="mono s-faint" font-size="10" text-anchor="end">weakest</text>
+
+        <!-- convergence marker -->
+        <line x1="402" y1="52" x2="402" y2="188" class="s-accent-s" stroke-dasharray="4 4" opacity="0.6" />
+        <circle cx="402" cy="120" r="5.5" class="s-accent" />
+        <text x="402" y="206" class="mono s-accent" font-size="10.5" text-anchor="middle">both sort here &mdash; 4.5</text>
+
+        <!-- Dee, above -->
+        <circle cx="451" cy="120" r="4" class="s-surface" /><circle cx="451" cy="120" r="4" class="s-rule" fill="none" stroke-width="1.4" />
+        <path d="M 448 96 C 430 82 420 82 406 94" class="s-accent-s" stroke-width="1.5" marker-end="url(#ar4)" />
+        <text x="470" y="88" class="mono s-ink" font-size="11.5">Dee &mdash; rank 5, won 5 of 6</text>
+        <text x="470" y="72" class="mono s-muted" font-size="10.5">winning shifts her half a tier stronger</text>
+
+        <!-- Cy, below -->
+        <circle cx="353" cy="120" r="4" class="s-surface" /><circle cx="353" cy="120" r="4" class="s-rule" fill="none" stroke-width="1.4" />
+        <path d="M 356 144 C 374 158 384 158 398 146" class="s-accent-s" stroke-width="1.5" marker-end="url(#ar4)" />
+        <text x="70" y="186" class="mono s-ink" font-size="11.5">Cy &mdash; rank 4, won 1 of 6</text>
+        <text x="70" y="202" class="mono s-muted" font-size="10.5">losing shifts him half a tier weaker</text>
+
+        <text x="60" y="30" class="mono s-faint" font-size="10.5">MANUAL RANK, ADJUSTED BY RECENT FORM</text>
+      </svg>
+      <figcaption><b>Form moves a player up to one full tier, and no further.</b> At full confidence a 100% win rate is worth exactly &minus;1.0 tiers and a 0% rate +1.0. Here a winning rank&nbsp;5 and a losing rank&nbsp;4 meet in the middle and become interchangeable to every downstream comparison. <em>(The formula's trailing &minus;1000 shifts everyone equally and cancels out of every difference and sum the code takes.)</em></figcaption>
+    </figure>
+  </section>
+
+  <section id="modes">
+    <p class="eyebrow">resolveMode() &middot; line 599</p>
+    <h2>Choosing a mode &mdash; and falling through</h2>
+    <div class="prose">
+      <p>Settings holds one of five values. Four name a strategy directly; <code>auto</code> &mdash; the default &mdash; rolls a weighted die on every shuffle, so a session naturally mixes even courts with lopsided ones.</p>
+      <p>The strategies are not peers, though. Tiered and Spread can fail: if nemesis settings leave a quad with no legal pairing, they return <code>null</code> and the switch falls through to the next one down. Mixed is the floor &mdash; it always returns a pairing &mdash; and Novel sits outside the chain entirely.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 1000 300" role="img" aria-label="Mode weights as a bar — tiered 40 percent, spread 20, mixed 30, novel 10 — above the fallthrough chain, where tiered falls to spread, spread falls to mixed, and mixed always succeeds. Novel sits apart and is never a fallback.">
+        <defs>
+          <marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" class="s-rose" />
+          </marker>
+        </defs>
+
+        <text x="24" y="28" class="mono s-faint" font-size="10.5">WHEN THE MODE IS <tspan class="s-ink">auto</tspan> &mdash; ONE ROLL PER SHUFFLE</text>
+
+        <rect x="24"  y="42" width="381" height="42" rx="5" class="s-accent-b" />
+        <rect x="405" y="42" width="190" height="42" class="s-teal-b" />
+        <rect x="595" y="42" width="286" height="42" class="s-amber-b" />
+        <rect x="881" y="42" width="95"  height="42" rx="5" class="s-rose-b" />
+        <text x="40"  y="68" class="mono s-accent" font-size="11.5">tiered 40%</text>
+        <text x="421" y="68" class="mono s-teal" font-size="11.5">spread 20%</text>
+        <text x="611" y="68" class="mono s-amber" font-size="11.5">mixed 30%</text>
+        <text x="897" y="68" class="mono s-rose" font-size="11.5">novel 10%</text>
+
+        <text x="24" y="128" class="mono s-faint" font-size="10.5">WHAT HAPPENS WHEN NEMESIS SETTINGS LEAVE A QUAD UNPAIRABLE</text>
+
+        <!-- chain -->
+        <rect x="24" y="146" width="170" height="66" rx="8" class="s-surface" /><rect x="24" y="146" width="170" height="66" rx="8" class="s-hair" />
+        <text x="42" y="176" class="mono s-ink b" font-size="13">tiered</text>
+        <text x="42" y="196" class="mono s-muted" font-size="10">contiguous quads</text>
+
+        <path d="M 202 179 L 242 179" class="s-rose-s" stroke-width="1.5" marker-end="url(#ar5)" />
+        <text x="222" y="166" class="mono s-rose" font-size="9.5" text-anchor="middle">null</text>
+
+        <rect x="250" y="146" width="170" height="66" rx="8" class="s-surface" /><rect x="250" y="146" width="170" height="66" rx="8" class="s-hair" />
+        <text x="268" y="176" class="mono s-ink b" font-size="13">spread</text>
+        <text x="268" y="196" class="mono s-muted" font-size="10">interleaved quads</text>
+
+        <path d="M 428 179 L 468 179" class="s-rose-s" stroke-width="1.5" marker-end="url(#ar5)" />
+        <text x="448" y="166" class="mono s-rose" font-size="9.5" text-anchor="middle">null</text>
+
+        <rect x="476" y="146" width="170" height="66" rx="8" class="s-surface" /><rect x="476" y="146" width="170" height="66" rx="8" class="s-amber-s" stroke-width="1.4" />
+        <text x="494" y="176" class="mono s-ink b" font-size="13">mixed</text>
+        <text x="494" y="196" class="mono s-muted" font-size="10">strongest &harr; weakest</text>
+        <text x="476" y="236" class="mono s-amber" font-size="10.5">terminal &mdash; always returns a pairing</text>
+
+        <!-- divider -->
+        <line x1="716" y1="132" x2="716" y2="262" class="s-rule" stroke-dasharray="4 5" />
+
+        <rect x="770" y="146" width="170" height="66" rx="8" class="s-surface" /><rect x="770" y="146" width="170" height="66" rx="8" class="s-hair" />
+        <text x="788" y="176" class="mono s-ink b" font-size="13">novel</text>
+        <text x="788" y="196" class="mono s-muted" font-size="10">fewest repeat pairs</text>
+        <text x="770" y="236" class="mono s-faint" font-size="10.5">reached only by direct selection</text>
+        <text x="770" y="252" class="mono s-faint" font-size="10.5">&mdash; never a fallback target</text>
+      </svg>
+      <figcaption><b>Weights on top, control flow underneath.</b> The switch uses deliberate C-style fallthrough: each failing case rewrites <code>mode</code> before dropping into the next, so the mode stamped on the court is the one that actually produced the pairing, not the one that was rolled. Because <code>mixed</code> ends with <code>break</code>, a failure never reaches <code>novel</code> &mdash; which is why <code>mixed</code> has to enforce the nemesis rule itself.</figcaption>
+    </figure>
+  </section>
+
+  <section id="quads">
+    <p class="eyebrow">shuffleByQuads() &middot; formQuadPairs()</p>
+    <h2>Tiered and Spread &mdash; the same machine, two seating plans</h2>
+    <div class="prose">
+      <p>Both sort the eligible players by <code>effectiveRank</code>, cut them into groups of four, and pair inside each group. The <em>only</em> difference is how positions map to groups &mdash; and it is the difference between an even night and a lopsided one.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 1000 400" role="img" aria-label="Eight players sorted by strength, then split two ways: tiered takes contiguous blocks of four, producing one strong court and one weak court; spread strides through the list, so each court spans the full range and its pairs span wider rank gaps.">
+        <text x="24" y="24" class="mono s-faint" font-size="10.5">EIGHT ELIGIBLE PLAYERS, SORTED BY EFFECTIVE RANK &mdash; STRONGEST FIRST</text>
+
+        <g>
+          <rect x="24"  y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="36"  y="55" class="mono s-faint" font-size="9">0</text><text x="36"  y="68" class="mono s-ink" font-size="11.5">Ann 2.0</text>
+          <rect x="144" y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="156" y="55" class="mono s-faint" font-size="9">1</text><text x="156" y="68" class="mono s-ink" font-size="11.5">Ben 2.5</text>
+          <rect x="264" y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="276" y="55" class="mono s-faint" font-size="9">2</text><text x="276" y="68" class="mono s-ink" font-size="11.5">Cy 3.0</text>
+          <rect x="384" y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="396" y="55" class="mono s-faint" font-size="9">3</text><text x="396" y="68" class="mono s-ink" font-size="11.5">Dee 3.5</text>
+          <rect x="504" y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="516" y="55" class="mono s-faint" font-size="9">4</text><text x="516" y="68" class="mono s-ink" font-size="11.5">Eli 4.0</text>
+          <rect x="624" y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="636" y="55" class="mono s-faint" font-size="9">5</text><text x="636" y="68" class="mono s-ink" font-size="11.5">Fay 4.5</text>
+          <rect x="744" y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="756" y="55" class="mono s-faint" font-size="9">6</text><text x="756" y="68" class="mono s-ink" font-size="11.5">Gus 5.0</text>
+          <rect x="864" y="38" width="112" height="36" rx="6" class="s-sunken" /><text x="876" y="55" class="mono s-faint" font-size="9">7</text><text x="876" y="68" class="mono s-ink" font-size="11.5">Hal 6.0</text>
+        </g>
+
+        <!-- TIERED panel -->
+        <rect x="24" y="104" width="470" height="272" rx="9" class="s-surface" /><rect x="24" y="104" width="470" height="272" rx="9" class="s-hair" />
+        <text x="44" y="132" class="mono s-ink b" font-size="12.5">TIERED</text>
+        <text x="44" y="150" class="mono s-muted" font-size="10.5">sorted[quad &times; 4 + k] &mdash; contiguous</text>
+
+        <text x="44" y="182" class="mono s-faint" font-size="10">quad 0 &mdash; positions 0 1 2 3</text>
+        <g>
+          <rect x="44"  y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="54"  y="211" class="mono s-ink" font-size="11">Ann 2.0</text>
+          <rect x="150" y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="160" y="211" class="mono s-ink" font-size="11">Ben 2.5</text>
+          <rect x="256" y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="266" y="211" class="mono s-ink" font-size="11">Cy 3.0</text>
+          <rect x="362" y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="372" y="211" class="mono s-ink" font-size="11">Dee 3.5</text>
+        </g>
+        <text x="44" y="242" class="mono s-muted" font-size="10.5">&rarr; Ann+Dee vs Ben+Cy</text>
+
+        <text x="44" y="274" class="mono s-faint" font-size="10">quad 1 &mdash; positions 4 5 6 7</text>
+        <g>
+          <rect x="44"  y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="54"  y="303" class="mono s-ink" font-size="11">Eli 4.0</text>
+          <rect x="150" y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="160" y="303" class="mono s-ink" font-size="11">Fay 4.5</text>
+          <rect x="256" y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="266" y="303" class="mono s-ink" font-size="11">Gus 5.0</text>
+          <rect x="362" y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="372" y="303" class="mono s-ink" font-size="11">Hal 6.0</text>
+        </g>
+        <text x="44" y="334" class="mono s-muted" font-size="10.5">&rarr; Eli+Hal vs Fay+Gus</text>
+        <text x="44" y="360" class="mono s-amber" font-size="10.5">one strong court, one weak court</text>
+
+        <!-- SPREAD panel -->
+        <rect x="506" y="104" width="470" height="272" rx="9" class="s-surface" /><rect x="506" y="104" width="470" height="272" rx="9" class="s-hair" />
+        <text x="526" y="132" class="mono s-ink b" font-size="12.5">SPREAD</text>
+        <text x="526" y="150" class="mono s-muted" font-size="10.5">sorted[quad + k &times; numQuads] &mdash; strided</text>
+
+        <text x="526" y="182" class="mono s-faint" font-size="10">quad 0 &mdash; positions 0 2 4 6</text>
+        <g>
+          <rect x="526" y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="536" y="211" class="mono s-ink" font-size="11">Ann 2.0</text>
+          <rect x="632" y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="642" y="211" class="mono s-ink" font-size="11">Cy 3.0</text>
+          <rect x="738" y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="748" y="211" class="mono s-ink" font-size="11">Eli 4.0</text>
+          <rect x="844" y="190" width="98" height="32" rx="5" class="s-accent-b" /><text x="854" y="211" class="mono s-ink" font-size="11">Gus 5.0</text>
+        </g>
+        <text x="526" y="242" class="mono s-muted" font-size="10.5">&rarr; Ann+Gus vs Cy+Eli</text>
+
+        <text x="526" y="274" class="mono s-faint" font-size="10">quad 1 &mdash; positions 1 3 5 7</text>
+        <g>
+          <rect x="526" y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="536" y="303" class="mono s-ink" font-size="11">Ben 2.5</text>
+          <rect x="632" y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="642" y="303" class="mono s-ink" font-size="11">Dee 3.5</text>
+          <rect x="738" y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="748" y="303" class="mono s-ink" font-size="11">Fay 4.5</text>
+          <rect x="844" y="282" width="98" height="32" rx="5" class="s-teal-b" /><text x="854" y="303" class="mono s-ink" font-size="11">Hal 6.0</text>
+        </g>
+        <text x="526" y="334" class="mono s-muted" font-size="10.5">&rarr; Ben+Hal vs Dee+Fay &mdash; a 3.5-tier gap, by design</text>
+        <text x="526" y="360" class="mono s-teal" font-size="10.5">every court spans the full range</text>
+      </svg>
+      <figcaption><b>Contiguous versus strided, on the same eight players.</b> Tiered deliberately clusters like with like &mdash; good when people want a competitive court and a relaxed one. Spread guarantees each court holds a top, a bottom and two middles, which is why its pairs span wider gaps: <code>Ben+Hal</code> covers 3.5 tiers and is exactly what the <code>[0,3]</code> split is for. Nothing caps how far apart two partners may be.</figcaption>
+    </figure>
+
+    <h3>Inside a quad</h3>
+    <div class="prose">
+      <p>Given four players sorted strongest to weakest, there are two candidate splits, tried in this order: <code>[0,3] v [1,2]</code> (best with worst &mdash; the most even teams) and <code>[0,2] v [1,3]</code>. A force pair inside the quad short-circuits both: the pair is locked and the other two become the opposing team.</p>
+      <p>Each split is then run through a ladder of passes. Every pass insists on no nemesis partnership; only the repeat-partner rule relaxes as the ladder descends. There is deliberately <strong>no ceiling on the rank gap between partners</strong> &mdash; the quad is already the skill bracket, and the preferred split exists precisely to put its strongest player with its weakest.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th class="num">Pass</th><th>No nemesis</th><th>Repeat-partner rule</th><th>Fires?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">1</td><td>required</td><td>reject only if <em>both</em> pairs met within 3 rounds</td><td>yes</td></tr>
+          <tr><td class="num">2</td><td>required</td><td>&hellip; within 2 rounds</td><td>yes</td></tr>
+          <tr><td class="num">3</td><td>required</td><td>&hellip; within 1 round</td><td>yes</td></tr>
+          <tr class="dead"><td class="num">4</td><td>required</td><td>reject if <em>either</em> pair met within 3 rounds</td><td>never</td></tr>
+          <tr class="dead"><td class="num">5</td><td>required</td><td>&hellip; within 2 rounds</td><td>never</td></tr>
+          <tr class="dead"><td class="num">6</td><td>required</td><td>&hellip; within 1 round</td><td>never</td></tr>
+          <tr><td class="num">7</td><td>required</td><td>dropped entirely</td><td>rarely</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>Passes 4&ndash;6 are unreachable &mdash; see <a href="#f-dead">the review notes</a>. If no pass accepts either split, the quad tries a boundary swap (bringing in one of those equally-tied standby players) and, failing that, the whole mode returns <code>null</code> and the switch falls through.</p>
+    </div>
+  </section>
+
+  <section id="mixed-novel">
+    <p class="eyebrow">shuffleMixed() &middot; shuffleNovel()</p>
+    <h2>Mixed and Novel</h2>
+
+    <h3>Mixed &mdash; strongest with weakest</h3>
+    <div class="prose">
+      <p>Force pairs are locked first, then the rest are sorted and folded: first with last, second with second-last, inward. It is the simplest strategy and the only one that cannot fail, which is exactly why it is the end of the fallthrough chain.</p>
+      <p>Because the fold is mechanical, it can seat a nemesis pair together. A repair pass afterwards cross-swaps one member with another pair, keeping the first swap where both resulting partnerships are clean; force pairs are never touched. If the configuration makes the constraint impossible &mdash; two forced players leaving a nemesis pair with nobody else &mdash; the pairing is kept and the conflict logged, rather than dropping players from the round.</p>
+      <p>Mixed applies <strong>no repeat-partner rule at all</strong>. Nothing stops it reproducing last round's partnerships.</p>
+    </div>
+
+    <h3>Novel &mdash; fewest repeats</h3>
+    <div class="prose">
+      <p>Novel makes ten attempts and keeps the lowest-scoring one. Each attempt locks force pairs, shuffles the remaining players with Fisher&ndash;Yates, then walks the list greedily: for each unpaired player, take the candidate with the best novelty score, hard-excluding nemesis partners and anyone paired too recently. If that hard filter empties the candidate list, the recency rule is dropped for that pick and only the nemesis exclusion survives.</p>
+    </div>
+
+    <div class="formula">noveltyScore(a, b) = max(0, poolSize &minus; roundsSinceTheyPaired) &times; 100      teammate penalty
+                   + (opponentsOf(a).length &minus; lastTimeTheyFacedEachOther)  opponent penalty</div>
+
+    <div class="prose">
+      <p>The teammate penalty scales with the pool: in an eight-player pool, partners from two rounds ago cost 600; in a four-player pool the same pairing costs 200, because with four people repeats are unavoidable. The cooldown itself relaxes in phases across the ten attempts &mdash; attempts 1&ndash;3 demand the strictest gap, attempts 4&ndash;6 and 7&ndash;9 progressively less, and attempt 10 is the most permissive.</p>
+    </div>
+  </section>
+
+  <section id="courts">
+    <p class="eyebrow">calculateMatchInCourtsRankBased() &middot; line 1050</p>
+    <h2>Seating the pairs</h2>
+    <div class="prose">
+      <p>Pairing is done; now the pairs are matched into courts. The rule is greedy rather than globally optimal: take the first pair in the list, find the pair whose combined effective rank is closest to it, seat them together, remove both, repeat.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 1000 250" role="img" aria-label="Four teammate pairs with combined strength scores are matched greedily into two courts by closest combined strength.">
+        <defs>
+          <marker id="ar6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" class="s-faint" />
+          </marker>
+        </defs>
+
+        <text x="24" y="26" class="mono s-faint" font-size="10.5">PAIRS, IN THE ORDER THE MODE PRODUCED THEM &mdash; WITH COMBINED STRENGTH</text>
+
+        <rect x="24"  y="40" width="222" height="46" rx="7" class="s-accent-b" /><text x="40"  y="60" class="mono s-ink" font-size="11.5">Ann + Gus</text><text x="230" y="60" class="mono s-accent b" font-size="11.5" text-anchor="end">7.0</text><text x="40" y="77" class="mono s-faint" font-size="10">pairs[0] &mdash; picks first</text>
+        <rect x="262" y="40" width="222" height="46" rx="7" class="s-accent-b" /><text x="278" y="60" class="mono s-ink" font-size="11.5">Cy + Eli</text><text x="468" y="60" class="mono s-accent b" font-size="11.5" text-anchor="end">7.0</text><text x="278" y="77" class="mono s-faint" font-size="10">gap 0.0 &mdash; closest</text>
+        <rect x="500" y="40" width="222" height="46" rx="7" class="s-sunken" /><text x="516" y="60" class="mono s-ink" font-size="11.5">Ben + Fay</text><text x="706" y="60" class="mono s-muted b" font-size="11.5" text-anchor="end">7.0</text><text x="516" y="77" class="mono s-faint" font-size="10">gap 0.0 &mdash; loses the tie-break</text>
+        <rect x="738" y="40" width="222" height="46" rx="7" class="s-sunken" /><text x="754" y="60" class="mono s-ink" font-size="11.5">Dee + Hal</text><text x="944" y="60" class="mono s-muted b" font-size="11.5" text-anchor="end">9.5</text><text x="754" y="77" class="mono s-faint" font-size="10">gap 2.5</text>
+
+        <path d="M 135 96 L 135 128" class="s-rule" marker-end="url(#ar6)" />
+        <path d="M 373 96 L 373 128" class="s-rule" marker-end="url(#ar6)" />
+        <path d="M 611 96 C 611 118 700 110 700 128" class="s-rule" marker-end="url(#ar6)" />
+        <path d="M 849 96 C 849 118 760 110 760 128" class="s-rule" marker-end="url(#ar6)" />
+
+        <rect x="24"  y="136" width="460" height="70" rx="8" class="s-surface" /><rect x="24" y="136" width="460" height="70" rx="8" class="s-hair" />
+        <text x="44" y="162" class="mono s-faint" font-size="10">COURT 1</text>
+        <text x="44" y="186" class="mono s-ink" font-size="12.5">Ann + Gus &nbsp;vs&nbsp; Cy + Eli</text>
+        <text x="464" y="186" class="mono s-muted" font-size="11" text-anchor="end">gap 0.0</text>
+
+        <rect x="500" y="136" width="460" height="70" rx="8" class="s-surface" /><rect x="500" y="136" width="460" height="70" rx="8" class="s-hair" />
+        <text x="520" y="162" class="mono s-faint" font-size="10">COURT 2</text>
+        <text x="520" y="186" class="mono s-ink" font-size="12.5">Ben + Fay &nbsp;vs&nbsp; Dee + Hal</text>
+        <text x="940" y="186" class="mono s-muted" font-size="11" text-anchor="end">gap 2.5</text>
+
+        <text x="24" y="234" class="mono s-faint" font-size="10.5">Whoever is left over at the end takes each other &mdash; the last court is never optimised.</text>
+      </svg>
+      <figcaption><b>Greedy, in generation order.</b> Two pairs tie at gap 0.0, and the tie is broken first by similarity of win rate (when both gaps are within 1.0) and then by who has faced whom least recently. Because the first pair always takes its best available opponent, the pairs left at the end get whatever remains &mdash; here a 2.5 mismatch that a global matching would have avoided.</figcaption>
+    </figure>
+  </section>
+
+  <section id="constraints">
+    <p class="eyebrow">force pairs &middot; nemesis pairs &middot; recency</p>
+    <h2>What each mode actually enforces</h2>
+    <div class="prose">
+      <p>Force and nemesis pairs come from Settings; recency is derived from each player's <code>teamateHistory</code>. Coverage is no longer uniform by accident &mdash; but it is still not uniform.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Mode</th><th>Force pairs</th><th>Nemesis pairs</th><th>Repeat partners</th><th>Can fail</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num b">tiered</td>
+            <td>Honoured; partners split across quads are regrouped first</td>
+            <td>Hard &mdash; blocks a split, then the quad, then the mode</td>
+            <td>Ladder of passes, window of 3&rarr;2&rarr;1 rounds</td>
+            <td>yes &rarr; spread, on nemesis alone</td>
+          </tr>
+          <tr>
+            <td class="num b">spread</td>
+            <td>Same as tiered</td>
+            <td>Same as tiered</td>
+            <td>Same as tiered</td>
+            <td>yes &rarr; mixed, on nemesis alone</td>
+          </tr>
+          <tr>
+            <td class="num b">mixed</td>
+            <td>Locked before the fold; never disturbed by the repair pass</td>
+            <td>Repaired after the fold by cross-swapping pairs</td>
+            <td><span style="color:var(--rose)">none</span></td>
+            <td>no &mdash; terminal</td>
+          </tr>
+          <tr>
+            <td class="num b">novel</td>
+            <td>Locked before each attempt</td>
+            <td>Hard exclusion from the candidate list</td>
+            <td>Scored and hard-filtered, cooldown scaled to pool size</td>
+            <td>returns empty if every attempt fails</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note amber">
+      <span class="note-label">Removed &mdash; the partner rank cap</span>
+      <p>Until recently every quad pass also required partners to be within three tiers of each other. It is gone: partner rank distance is unbounded, the <code>[0,3]</code> best-with-worst split is never skipped for being too wide, and Tiered and Spread now fall through only on a nemesis conflict. In a wide-open pool that makes Spread pair the session's strongest player with its weakest &mdash; which is the point of striding the quads in the first place.</p>
+    </div>
+
+    <div class="note">
+      <span class="note-label">Two different clocks</span>
+      <p>&ldquo;Recently&rdquo; means different things in different modes. Novel's cooldown scales with the pool &mdash; in a twelve-player session it wants roughly eleven rounds between repeat partnerships. The quad modes use a flat window of three, two, then one round, regardless of how many people are playing. In a large session, Tiered and Spread are far more willing to repeat a partnership than Novel is.</p>
+    </div>
+  </section>
+
+  <section id="notes">
+    <p class="eyebrow">read against the code on main-ai</p>
+    <h2>Review notes</h2>
+    <div class="prose">
+      <p>Six things worth knowing, from reading the current implementation end to end. Only the first was acted on.</p>
+    </div>
+
+    <div class="finding" id="f-fixed">
+      <div class="finding-tag tag-fixed">fixed</div>
+      <div>
+        <h3>The rescue pool could put the same player on court twice</h3>
+        <p><code>getBoundaryTieGroup</code> built its list of swap candidates from <em>positions</em> below the cutoff. Once the force pull-in was able to move players across that line, a player already in the round could still appear as a candidate &mdash; and <code>rescueQuadWithSwap</code> copies a candidate into a quad without checking membership, so a rescue would have seated them twice and dropped someone else. It now selects by membership instead, which also makes the evicted player available, since they are genuinely free.</p>
+        <p class="src">match-list.component.ts:577 &middot; covered by two specs in <code>getBoundaryTieGroup — swap pool after a force pull-in</code></p>
+      </div>
+    </div>
+
+    <div class="finding" id="f-dead">
+      <div class="finding-tag tag-dead">dead code</div>
+      <div>
+        <h3>Three of the seven quad passes can never fire</h3>
+        <p>The ladder tries &ldquo;reject only if <em>both</em> pairs are repeats&rdquo; at windows 3, 2, 1 before &ldquo;reject if <em>either</em> pair is a repeat&rdquo; at the same windows. But rejecting on <em>either</em> is strictly stronger than rejecting on <em>both</em>, so any split the later passes would accept was already accepted by an earlier one. An exhaustive check over every combination of pair histories confirms passes 4&ndash;6 never return a result.</p>
+        <p>In ordinary play a pair's last meeting is at least one round ago, so pass 3 accepts anything the nemesis guard allows, and the effective ladder is just two passes: window 3, then window 2, then accept. Ordering the ladder strict-to-relaxed (either&rarr;both) would make all seven passes meaningful.</p>
+        <p class="src">match-list.component.ts:818 &middot; <code>formQuadPairs</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-note">behaviour</div>
+      <div>
+        <h3>The fallback mode is the one with no memory</h3>
+        <p>Tiered and Spread fall through to Mixed exactly when constraints are tight &mdash; and Mixed is the only mode that never consults <code>teamateHistory</code>. A session that keeps hitting the fallback will keep reproducing the same partnerships, silently, because the fold is deterministic on effective rank. Adding the quad modes' recency check to the fold, or falling through to Novel instead, would close it.</p>
+        <p class="src">match-list.component.ts:904 &middot; <code>shuffleMixed</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-note">edge case</div>
+      <div>
+        <h3>Novel can return no pairs at all</h3>
+        <p>If all ten attempts fail &mdash; possible when nemesis settings leave some player with no legal partner &mdash; <code>bestPairs</code> stays empty, and the shuffle writes nothing to the courts without reporting anything to the user. Novel has no fallback of its own, since the switch reaches it only by direct selection.</p>
+        <p class="src">match-list.component.ts:975 &middot; <code>shuffleNovel</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-note">fairness</div>
+      <div>
+        <h3>Waiting time is tracked but never used</h3>
+        <p><code>roundsWaited</code> is incremented every round a non-break player sits out, and reset on break, but <code>calculatePlayerPriorityPoint</code> only reads <code>totalRoundsPlayed</code>. Someone who arrives late has a low round count and jumps the queue ahead of people who have been waiting through several rounds. That may well be the intent &mdash; it equalises games played &mdash; but the waiting counter currently costs bookkeeping and buys nothing.</p>
+        <p class="src">match-list.component.ts:513 &middot; <code>calculatePlayerPriorityPoint</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-note">docs</div>
+      <div>
+        <h3>The written docs describe an older algorithm</h3>
+        <p>Both <code>CLAUDE.md</code> and <code>docs/architecture-overview.html</code> still describe three modes &mdash; <code>balanced</code>, <code>mixed</code>, <code>novel</code> &mdash; with weights of 60/30/10 and a fallback from balanced straight to novel. The code has four modes, weights of 40/20/30/10, and a different fallthrough chain. Anyone reading either file will reason about the wrong algorithm.</p>
+        <p class="src">CLAUDE.md &middot; docs/architecture-overview.html</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

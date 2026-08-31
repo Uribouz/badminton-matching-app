@@ -86,10 +86,11 @@ describe('MatchListComponent', () => {
     }
   });
 
-  // Shared formQuadPairs-level constraints (rank-diff ≤3, nemesis, recency) apply
-  // identically to both quad-construction strategies — run them against both.
+  // Shared formQuadPairs-level constraints (nemesis, recency) apply identically to both
+  // quad-construction strategies — run them against both. Partner rank distance is NOT
+  // constrained: the quad is the skill bracket, and [0,3] pairs its best with its worst.
   (['shuffleTiered', 'shuffleSpread'] as const).forEach(methodName => {
-    describe(`${methodName} — partner rank constraint (≤3)`, () => {
+    describe(`${methodName} — quad split preference`, () => {
       function partnerRankDiff(pair: Teammate): number {
         return Math.abs((pair.player1.rank ?? 5) - (pair.player2.rank ?? 5));
       }
@@ -97,9 +98,8 @@ describe('MatchListComponent', () => {
         return component[methodName](players);
       }
 
-      it('should return 2 pairs for 4 players all within 3 ranks and use [0,3]+[1,2] (most balanced teams)', () => {
-        // Sorted by effectiveRank: rank1, rank2, rank3, rank4
-        // [0,3]=rank1+rank4 diff=3 ≤3 ✓; [1,2]=rank2+rank3 diff=1 ≤3 ✓ → use [0,3]+[1,2]
+      it('should return 2 pairs and use [0,3]+[1,2] (most balanced teams)', () => {
+        // Sorted by effectiveRank: rank1, rank2, rank3, rank4 → [0,3]=A+D, [1,2]=B+C
         const players = [
           makeRankedPlayer('A', 1),
           makeRankedPlayer('B', 2),
@@ -109,15 +109,15 @@ describe('MatchListComponent', () => {
         const result: Teammate[] | null = shuffle(players);
         expect(result).not.toBeNull();
         expect(result!.length).toBe(2);
-        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
         // [0,3] pairing should be chosen: A with D, B with C
         const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
         expect(result!.map(names)).toContain('A,D');
         expect(result!.map(names)).toContain('B,C');
       });
 
-      it('should not pair rank-1 player with rank-5 player when a valid alternative exists', () => {
-        // [rank1, rank2, rank3, rank5]: [0,3]=diff4 skipped; [0,2]=rank1+rank3 diff2 + [1,3]=rank2+rank5 diff3 → valid
+      it('pairs the strongest with the weakest even when the gap is wide', () => {
+        // [rank1, rank2, rank3, rank5]: [0,3]=A+D spans 4 tiers and is still the preferred
+        // split — nothing caps how far apart two partners may be.
         const players = [
           makeRankedPlayer('A', 1),
           makeRankedPlayer('B', 2),
@@ -126,18 +126,14 @@ describe('MatchListComponent', () => {
         ];
         const result: Teammate[] | null = shuffle(players);
         expect(result).not.toBeNull();
-        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
-        // A(rank1) must NOT be paired with D(rank5)
-        const pairedWithA = result!
-          .filter(pair => pair.player1.name === 'A' || pair.player2.name === 'A')
-          .flatMap(pair => [pair.player1.name, pair.player2.name])
-          .filter(name => name !== 'A');
-        expect(pairedWithA).not.toContain('D');
+        const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
+        expect(result!.map(names)).toContain('A,D');
+        expect(result!.map(names)).toContain('B,C');
       });
 
-      it('returns null when no split keeps rank-diff ≤3 in any pass', () => {
-        // [rank1, rank2, rank5, rank6]: [0,3]=diff5 skip, [0,2]=diff4 skip → neither split is ever
-        // rank-bounded, and every pass (recency lookback 3→2→1→none) still requires rank-diff ≤3.
+      it('still pairs a quad that spans the whole rank scale', () => {
+        // [rank1, rank2, rank5, rank6]: a 5-tier gap on [0,3]. This quad used to have no legal
+        // split and failed the entire mode; now it simply pairs best with worst.
         const players = [
           makeRankedPlayer('A', 1),
           makeRankedPlayer('B', 2),
@@ -145,11 +141,17 @@ describe('MatchListComponent', () => {
           makeRankedPlayer('F', 6),
         ];
         const result: Teammate[] | null = shuffle(players);
-        expect(result).toBeNull();
+        expect(result).not.toBeNull();
+        expect(result!.length).toBe(2);
+        const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
+        expect(result!.map(names)).toContain('A,F');
+        expect(result!.map(names)).toContain('B,E');
+        expect(Math.max(...result!.map(partnerRankDiff))).toBe(5);
       });
 
-      it('should choose [0,2]+[1,3] over [0,3]+[1,2] when [0,3] violates rank constraint', () => {
-        // [rank1, rank2, rank4, rank5]: [0,3]=rank1+rank5 diff4 skip; [0,2]=rank1+rank4 diff3 + [1,3]=rank2+rank5 diff3 ✓
+      it('keeps [0,3]+[1,2] rather than evening out the gap with [0,2]+[1,3]', () => {
+        // [rank1, rank2, rank4, rank5]: [0,2]+[1,3] would give two 3-tier pairs, but the most
+        // balanced *teams* still come from best+worst against the two middles.
         const players = [
           makeRankedPlayer('A', 1),
           makeRankedPlayer('B', 2),
@@ -158,10 +160,9 @@ describe('MatchListComponent', () => {
         ];
         const result: Teammate[] | null = shuffle(players);
         expect(result).not.toBeNull();
-        result!.forEach(pair => expect(partnerRankDiff(pair)).toBeLessThanOrEqual(3));
         const names = (pair: Teammate) => [pair.player1.name, pair.player2.name].sort().join(',');
-        expect(result!.map(names)).toContain('A,C'); // rank1 with rank4 (diff=3)
-        expect(result!.map(names)).toContain('B,D'); // rank2 with rank5 (diff=3)
+        expect(result!.map(names)).toContain('A,D');
+        expect(result!.map(names)).toContain('B,C');
       });
 
       it('should rotate partners when preferred [0,3] pairing was used too recently', () => {
@@ -287,11 +288,11 @@ describe('MatchListComponent', () => {
       expect(rank4Pairs.length).toBe(0);
     });
 
-    it('returns null when interleaving spreads a quad too wide for any split to keep rank-diff ≤3', () => {
+    it('pairs an interleaved quad that spans five tiers instead of failing the mode', () => {
       // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
-      // Interleaved quads = [rank1,rank2,rank5,rank6] each: [0,3]=diff5, [0,2]=diff4 — neither ≤3
-      // in any pass (rank-diff ≤3 is required even once recency is dropped), so the quad fails and
-      // shuffleByQuads propagates null for the whole shuffle.
+      // Interleaved quads = [rank1,rank2,rank5,rank6] each. Both splits span more than three
+      // tiers, which used to fail every pass and propagate null for the whole shuffle; the
+      // preferred [0,3] split now stands, pairing each quad's best with its worst.
       const players = [
         makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
         makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
@@ -299,7 +300,13 @@ describe('MatchListComponent', () => {
         makeRankedPlayer('G', 6), makeRankedPlayer('H', 6),
       ];
       const result = component['shuffleSpread'](players);
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result!.length).toBe(4);
+      const names = result!.map(p => [p.player1.name, p.player2.name].sort().join(','));
+      expect(names).toContain('A,G'); // quad 0 = A(1) C(2) E(5) G(6) → [0,3]
+      expect(names).toContain('C,E');
+      expect(names).toContain('B,H'); // quad 1 = B(1) D(2) F(5) H(6) → [0,3]
+      expect(names).toContain('D,F');
     });
   });
 
@@ -645,6 +652,46 @@ describe('MatchListComponent', () => {
       component['forceMatchTeamate'] = [{ player1: 'A', player2: 'B' }];
       const result = component['getAvailablePlayers'](pool(), 4);
       expect(result.map(p => p.name)).toEqual(['A', 'B', 'C', 'D']);
+    });
+  });
+
+  describe('getBoundaryTieGroup — swap pool after a force pull-in', () => {
+    afterEach(() => { component['forceMatchTeamate'] = []; });
+
+    it('never offers a player who is already in the round as a swap candidate', () => {
+      // Ann is forced with Ivy, who sits just below the 8-slot cutoff, so Ivy is pulled in
+      // and Hal (also tied on 4 rounds) is evicted. Offering Ivy as a swap candidate would
+      // put her on court twice; Hal is the one who is now actually free.
+      component['forceMatchTeamate'] = [{ player1: 'Ann', player2: 'Ivy' }];
+      const rounds: [string, number][] = [
+        ['Ann', 2], ['Ben', 2], ['Cy', 2], ['Dee', 3],
+        ['Eli', 3], ['Fay', 3], ['Gus', 4], ['Hal', 4],
+        ['Ivy', 4], ['Jo', 5],
+      ];
+      const sorted = rounds.map(([name, played]) => makePlayerWithHistory(name, 3, played, []));
+      const eligible = component['getAvailablePlayers'](sorted, 8);
+      const pool = component['getBoundaryTieGroup'](sorted, eligible, 8);
+
+      expect(eligible.map(p => p.name).sort()).toEqual(['Ann', 'Ben', 'Cy', 'Dee', 'Eli', 'Fay', 'Gus', 'Ivy']);
+      expect(pool.boundaryOut.map(p => p.name)).not.toContain('Ivy');
+      expect(pool.boundaryOut.map(p => p.name)).toContain('Hal');
+      // and nobody can be in both halves of the pool
+      const inNames = pool.boundaryIn.map(p => p.name);
+      pool.boundaryOut.forEach(p => expect(inNames).not.toContain(p.name));
+    });
+
+    it('still pools the players tied at the cutoff when no force pair is set', () => {
+      const rounds: [string, number][] = [
+        ['Ann', 1], ['Ben', 1], ['Cy', 1], ['Dee', 2],
+        ['Eli', 2], ['Fay', 2], ['Gus', 2], ['Hal', 2],
+      ];
+      const sorted = rounds.map(([name, played]) => makePlayerWithHistory(name, 3, played, []));
+      const eligible = component['getAvailablePlayers'](sorted, 4);
+      const pool = component['getBoundaryTieGroup'](sorted, eligible, 4);
+
+      // Cutoff sits on Dee (2 rounds), so every other 2-round player is a swap candidate.
+      expect(pool.boundaryIn.map(p => p.name)).toEqual(['Dee']);
+      expect(pool.boundaryOut.map(p => p.name).sort()).toEqual(['Eli', 'Fay', 'Gus', 'Hal']);
     });
   });
 
