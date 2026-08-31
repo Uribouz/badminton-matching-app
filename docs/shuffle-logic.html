@@ -580,28 +580,26 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
     <p class="eyebrow">resolveMode() &middot; line 599</p>
     <h2>Choosing a mode &mdash; and falling through</h2>
     <div class="prose">
-      <p>Settings holds one of five values. Four name a strategy directly; <code>auto</code> &mdash; the default &mdash; rolls a weighted die on every shuffle, so a session naturally mixes even courts with lopsided ones.</p>
+      <p>Settings holds one of five values. Four name a strategy directly; <code>auto</code> &mdash; the default &mdash; rolls a weighted die on every shuffle, so a session naturally mixes even courts with lopsided ones. <strong>Auto rolls between three modes only.</strong> Novel is excluded: it ignores rank entirely, so letting it come up at random can drop a beginner onto a court of regulars. Settings offers no Novel weight to match &mdash; the three sliders total 100, and a weight saved before the change is folded into Mixed the next time the page loads. <code>resolveMode</code> renormalises regardless, so the roll stays correct even if the stored numbers don't add up.</p>
       <p>The strategies are not peers, though. Tiered and Spread can fail: if nemesis settings leave a quad with no legal pairing, they return <code>null</code> and the switch falls through to the next one down. Mixed is the floor &mdash; it always returns a pairing &mdash; and Novel sits outside the chain entirely.</p>
     </div>
 
     <figure>
-      <svg viewBox="0 0 1000 300" role="img" aria-label="Mode weights as a bar — tiered 40 percent, spread 20, mixed 30, novel 10 — above the fallthrough chain, where tiered falls to spread, spread falls to mixed, and mixed always succeeds. Novel sits apart and is never a fallback.">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="Mode weights as a bar — tiered 40 percent, spread 20, mixed 40, with novel absent from the roll entirely — above the fallthrough chain, where tiered falls to spread, spread falls to mixed, and mixed always succeeds. Novel sits apart: never rolled and never a fallback.">
         <defs>
           <marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M 0 1 L 9 5 L 0 9 z" class="s-rose" />
           </marker>
         </defs>
 
-        <text x="24" y="28" class="mono s-faint" font-size="10.5">WHEN THE MODE IS <tspan class="s-ink">auto</tspan> &mdash; ONE ROLL PER SHUFFLE</text>
+        <text x="24" y="28" class="mono s-faint" font-size="10.5">WHEN THE MODE IS <tspan class="s-ink">auto</tspan> &mdash; ONE ROLL PER SHUFFLE, NOVEL EXCLUDED</text>
 
         <rect x="24"  y="42" width="381" height="42" rx="5" class="s-accent-b" />
         <rect x="405" y="42" width="190" height="42" class="s-teal-b" />
-        <rect x="595" y="42" width="286" height="42" class="s-amber-b" />
-        <rect x="881" y="42" width="95"  height="42" rx="5" class="s-rose-b" />
+        <rect x="595" y="42" width="381" height="42" rx="5" class="s-amber-b" />
         <text x="40"  y="68" class="mono s-accent" font-size="11.5">tiered 40%</text>
         <text x="421" y="68" class="mono s-teal" font-size="11.5">spread 20%</text>
-        <text x="611" y="68" class="mono s-amber" font-size="11.5">mixed 30%</text>
-        <text x="897" y="68" class="mono s-rose" font-size="11.5">novel 10%</text>
+        <text x="611" y="68" class="mono s-amber" font-size="11.5">mixed 40%</text>
 
         <text x="24" y="128" class="mono s-faint" font-size="10.5">WHAT HAPPENS WHEN NEMESIS SETTINGS LEAVE A QUAD UNPAIRABLE</text>
 
@@ -632,9 +630,9 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
         <text x="788" y="176" class="mono s-ink b" font-size="13">novel</text>
         <text x="788" y="196" class="mono s-muted" font-size="10">fewest repeat pairs</text>
         <text x="770" y="236" class="mono s-faint" font-size="10.5">reached only by direct selection</text>
-        <text x="770" y="252" class="mono s-faint" font-size="10.5">&mdash; never a fallback target</text>
+        <text x="770" y="252" class="mono s-faint" font-size="10.5">&mdash; never rolled, never a fallback</text>
       </svg>
-      <figcaption><b>Weights on top, control flow underneath.</b> The switch uses deliberate C-style fallthrough: each failing case rewrites <code>mode</code> before dropping into the next, so the mode stamped on the court is the one that actually produced the pairing, not the one that was rolled. Because <code>mixed</code> ends with <code>break</code>, a failure never reaches <code>novel</code> &mdash; which is why <code>mixed</code> has to enforce the nemesis rule itself.</figcaption>
+      <figcaption><b>Weights on top, control flow underneath.</b> Three weights, totalling 100 &mdash; Settings has no Novel slider, and the 10% it used to hold now sits with Mixed. The switch uses deliberate C-style fallthrough: each failing case rewrites <code>mode</code> before dropping into the next, so the mode stamped on the court is the one that actually produced the pairing, not the one that was rolled. Because <code>mixed</code> ends with <code>break</code>, a failure never reaches <code>novel</code> &mdash; which is why <code>mixed</code> has to enforce the nemesis rule itself.</figcaption>
     </figure>
   </section>
 
@@ -713,29 +711,63 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
 
     <h3>Inside a quad</h3>
     <div class="prose">
-      <p>Given four players sorted strongest to weakest, there are two candidate splits, tried in this order: <code>[0,3] v [1,2]</code> (best with worst &mdash; the most even teams) and <code>[0,2] v [1,3]</code>. A force pair inside the quad short-circuits both: the pair is locked and the other two become the opposing team.</p>
-      <p>Each split is then run through a ladder of passes, <strong>strictest first</strong>: pass 1 demands that <em>both</em> partnerships be fresh, and only once no split can manage that does the ladder settle for one fresh pair. Every pass insists on no nemesis partnership. There is deliberately <strong>no ceiling on the rank gap between partners</strong> &mdash; the quad is already the skill bracket, and the preferred split exists precisely to put its strongest player with its weakest.</p>
+      <p>Given four players sorted strongest to weakest, a split is just a choice of which two positions team up. <strong>Each mode brings its own list of allowed splits</strong>, tried in order, and that list is the second thing separating Tiered from Spread. A force pair inside the quad short-circuits the list entirely: the pair is locked and the other two become the opposing team.</p>
+      <p>Passes run <strong>strictest first</strong>: pass 1 demands that <em>both</em> partnerships be free of any repeat in the last five rounds, and only once no split can manage that does the ladder shorten its memory. Every pass insists on no nemesis partnership. There is deliberately <strong>no ceiling on the rank gap between partners</strong> &mdash; the quad is already the skill bracket, and the preferred split exists precisely to put its strongest player with its weakest.</p>
     </div>
 
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th class="num">Pass</th><th>No nemesis</th><th>Repeat-partner rule</th><th>Fires?</th></tr>
+          <tr><th>Split</th><th>Teams</th><th>Tiered</th><th>Spread</th></tr>
         </thead>
         <tbody>
-          <tr><td class="num">1</td><td>required</td><td>reject if <em>either</em> pair met within 3 rounds</td><td>yes</td></tr>
-          <tr><td class="num">2</td><td>required</td><td>&hellip; within 2 rounds</td><td>yes</td></tr>
-          <tr><td class="num">3</td><td>required</td><td>&hellip; within 1 round</td><td>yes &mdash; catches the rest</td></tr>
-          <tr class="dead"><td class="num">4</td><td>required</td><td>reject only if <em>both</em> pairs met within 3 rounds</td><td>reset histories only</td></tr>
-          <tr class="dead"><td class="num">5</td><td>required</td><td>&hellip; within 2 rounds</td><td>reset histories only</td></tr>
-          <tr class="dead"><td class="num">6</td><td>required</td><td>&hellip; within 1 round</td><td>reset histories only</td></tr>
-          <tr class="dead"><td class="num">7</td><td>required</td><td>dropped entirely</td><td>reset histories only</td></tr>
+          <tr>
+            <td class="num">[0,3] v [1,2]</td>
+            <td>best+worst against the two middles &mdash; the most even teams</td>
+            <td>1st choice</td>
+            <td><b>only choice</b></td>
+          </tr>
+          <tr>
+            <td class="num">[0,2] v [1,3]</td>
+            <td>best+3rd against 2nd+worst</td>
+            <td>2nd choice</td>
+            <td>&mdash;</td>
+          </tr>
+          <tr>
+            <td class="num">[0,1] v [2,3]</td>
+            <td>the two strongest against the two weakest &mdash; lopsided by construction</td>
+            <td>last resort</td>
+            <td>&mdash;</td>
+          </tr>
         </tbody>
       </table>
     </div>
 
     <div class="prose">
-      <p>Pass 3's window of one round is vacuous, so passes 4&ndash;7 are unreachable in ordinary play &mdash; see <a href="#f-dead">the review notes</a>. If no pass accepts either split, the quad tries a boundary swap (bringing in one of those equally-tied standby players) and, failing that, the whole mode returns <code>null</code> and the switch falls through.</p>
+      <p>Tiered's quads are contiguous, so its four players are already close in strength &mdash; even the lopsided split stays playable, and it is worth having as a last resort when nemesis settings block the other two. Spread's quads deliberately span the full range, so any split other than best-with-worst would hand one team the session's strongest player alongside a middle. Rather than produce that, <strong>Spread fails the quad</strong> and the switch falls through.</p>
+    </div>
+
+    <h3>The pass ladder</h3>
+    <div class="prose">
+      <p>Whichever splits are on the table, they are tried in order inside every pass &mdash; so the preferred split always wins, and a later split is only reached when the preferred one is blocked. The passes themselves relax the repeat-partner rule, strictest first, across a window that shrinks from five rounds to one.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th class="num">Passes</th><th>No nemesis</th><th>Repeat-partner rule</th><th>Fires?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">1&ndash;4</td><td>required</td><td>reject if <em>either</em> pair met within 5, 4, 3 then 2 rounds</td><td>yes &mdash; the working range</td></tr>
+          <tr><td class="num">5</td><td>required</td><td>&hellip; within 1 round</td><td>yes &mdash; catches the rest</td></tr>
+          <tr class="dead"><td class="num">6&ndash;10</td><td>required</td><td>reject only if <em>both</em> pairs met within 5 &hellip; 1 rounds</td><td>reset histories only</td></tr>
+          <tr class="dead"><td class="num">11</td><td>required</td><td>dropped entirely</td><td>reset histories only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>Pass 5's window of one round is vacuous, so passes 6&ndash;11 are unreachable in ordinary play &mdash; see <a href="#f-dead">the review notes</a>. If no pass accepts any split, the quad tries a boundary swap (bringing in one of those equally-tied standby players) and, failing that, the whole mode returns <code>null</code> and the switch falls through.</p>
     </div>
   </section>
 
@@ -745,9 +777,11 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
 
     <h3>Mixed &mdash; strongest with weakest</h3>
     <div class="prose">
-      <p>Force pairs are locked first, then the rest are sorted and folded: first with last, second with second-last, inward. It is the simplest strategy and the only one that cannot fail, which is exactly why it is the end of the fallthrough chain.</p>
+      <p>Force pairs are locked first, then the rest are sorted and folded: strongest takes the weakest, then the next strongest takes the weakest of what is left. It is the simplest strategy and the only one that cannot fail, which is exactly why it is the end of the fallthrough chain.</p>
+
+      <p>The fold now carries its own recency ladder of 3 &rarr; 2 &rarr; 1 rounds. When the natural partner is a repeat within the window (or a nemesis), the walk steps inward for the next-weakest player who is neither, so the top&harr;bottom shape survives while the exact partner rotates from round to round. The whole fold is retried at each window; if none of them can satisfy every pick &mdash; the walk can strand a nemesis pair as the last two &mdash; the plain unconstrained fold runs so the round still happens, and the repair pass cleans up afterwards.</p>
       <p>Because the fold is mechanical, it can seat a nemesis pair together. A repair pass afterwards cross-swaps one member with another pair, keeping the first swap where both resulting partnerships are clean; force pairs are never touched. If the configuration makes the constraint impossible &mdash; two forced players leaving a nemesis pair with nobody else &mdash; the pairing is kept and the conflict logged, rather than dropping players from the round.</p>
-      <p>Mixed applies <strong>no repeat-partner rule at all</strong>. Nothing stops it reproducing last round's partnerships.</p>
+      <p>Its memory is shorter than the quad modes' &mdash; three rounds against five &mdash; and it is given up entirely in the last-resort fold, but Mixed is no longer the mode that forgets.</p>
     </div>
 
     <h3>Novel &mdash; fewest repeats</h3>
@@ -823,7 +857,7 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
             <td class="num b">tiered</td>
             <td>Honoured; partners split across quads are regrouped first</td>
             <td>Hard &mdash; blocks a split, then the quad, then the mode</td>
-            <td>Ladder of passes, window of 3&rarr;2&rarr;1 rounds</td>
+            <td>Ladder of passes, window of 5&rarr;1 rounds</td>
             <td>yes &rarr; spread, on nemesis alone</td>
           </tr>
           <tr>
@@ -831,13 +865,13 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
             <td>Same as tiered</td>
             <td>Same as tiered</td>
             <td>Same as tiered</td>
-            <td>yes &rarr; mixed, on nemesis alone</td>
+            <td>yes &rarr; mixed &mdash; and more readily, with one split to work with</td>
           </tr>
           <tr>
             <td class="num b">mixed</td>
             <td>Locked before the fold; never disturbed by the repair pass</td>
-            <td>Repaired after the fold by cross-swapping pairs</td>
-            <td><span style="color:var(--rose)">none</span></td>
+            <td>Avoided by the fold, then repaired by cross-swapping pairs</td>
+            <td>Fold walks inward, window of 3&rarr;2&rarr;1 rounds</td>
             <td>no &mdash; terminal</td>
           </tr>
           <tr>
@@ -858,7 +892,7 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
 
     <div class="note">
       <span class="note-label">Two different clocks</span>
-      <p>&ldquo;Recently&rdquo; means different things in different modes. Novel's cooldown scales with the pool &mdash; in a twelve-player session it wants roughly eleven rounds between repeat partnerships. The quad modes use a flat window of three, two, then one round, regardless of how many people are playing. In a large session, Tiered and Spread are far more willing to repeat a partnership than Novel is.</p>
+      <p>&ldquo;Recently&rdquo; means different things in different modes. Novel's cooldown scales with the pool &mdash; in a twelve-player session it wants roughly eleven rounds between repeat partnerships. The quad modes use a flat window that starts at five rounds and shrinks to one; Mixed starts at three. In a large session, Tiered, Spread and Mixed are all still more willing to repeat a partnership than Novel is, but the gap has narrowed.</p>
     </div>
   </section>
 
@@ -866,7 +900,7 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
     <p class="eyebrow">read against the code on main-ai</p>
     <h2>Review notes</h2>
     <div class="prose">
-      <p>Six things worth knowing, from reading the current implementation end to end. Only the first was acted on.</p>
+      <p>Six things worth knowing, from reading the current implementation end to end. Three have been acted on; the rest stand.</p>
     </div>
 
     <div class="finding" id="f-fixed">
@@ -882,19 +916,20 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
       <div class="finding-tag tag-dead">vacuous pass</div>
       <div>
         <h3>The tail of the ladder is unreachable in ordinary play</h3>
-        <p>The ladder now runs strict-first, so passes 1&ndash;3 do the real work: a split is taken only when <em>both</em> partnerships are fresh, at a window that shrinks 3 &rarr; 2 &rarr; 1. That was the fix for the previous ordering, where the weak test ran first and made the strict passes dead code outright.</p>
-        <p>What remains is the window of 1. <code>recentWithin(&hellip;, 1)</code> asks whether a pair met <em>less than one round ago</em>, and a pair's last meeting is always at least one round back &mdash; so pass 3 accepts anything the nemesis guard allows, and passes 4&ndash;7 only ever run when a player's teammate history outlives their round counter (history carried over while <code>totalRoundsPlayed</code> resets). An exhaustive check over every combination of pair histories confirms it: with normal counters only <code>either/3</code>, <code>either/2</code> and <code>either/1</code> fire; the full seven only come alive once elapsed rounds can reach zero.</p>
-        <p>Widening the windows &mdash; or simply dropping the vacuous window-of-1 step &mdash; would give the back half of the ladder something to do.</p>
+        <p>The ladder runs strict-first over five windows, so passes 1&ndash;4 do the real work: a split is taken only when <em>both</em> partnerships are free of a repeat within 5, then 4, then 3, then 2 rounds. Widening the windows from three to five gave these passes considerably more to say &mdash; a partnership from four rounds ago is now rejected where it used to sail through.</p>
+        <p>What remains is the window of 1. <code>recentWithin(&hellip;, 1)</code> asks whether a pair met <em>less than one round ago</em>, and a pair's last meeting is always at least one round back &mdash; so pass 5 accepts anything the nemesis guard allows, and passes 6&ndash;11 only ever run when a player's teammate history outlives their round counter (history carried over while <code>totalRoundsPlayed</code> resets). An exhaustive check over every combination of pair histories confirms it: with normal counters only the <code>either</code> passes fire; the full eleven come alive only once elapsed rounds can reach zero.</p>
+        <p>Dropping the vacuous window-of-1 step would give the back half of the ladder something to do.</p>
         <p class="src">match-list.component.ts:818 &middot; <code>formQuadPairs</code></p>
       </div>
     </div>
 
     <div class="finding">
-      <div class="finding-tag tag-note">behaviour</div>
+      <div class="finding-tag tag-fixed">fixed</div>
       <div>
-        <h3>The fallback mode is the one with no memory</h3>
-        <p>Tiered and Spread fall through to Mixed exactly when constraints are tight &mdash; and Mixed is the only mode that never consults <code>teamateHistory</code>. A session that keeps hitting the fallback will keep reproducing the same partnerships, silently, because the fold is deterministic on effective rank. Adding the quad modes' recency check to the fold, or falling through to Novel instead, would close it.</p>
-        <p class="src">match-list.component.ts:904 &middot; <code>shuffleMixed</code></p>
+        <h3>The fallback mode had no memory</h3>
+        <p>Tiered and Spread fall through to Mixed exactly when constraints are tight, and Mixed used to be the only mode that never consulted <code>teamateHistory</code> &mdash; so a session that kept hitting the fallback kept reproducing the same partnerships, silently, because the fold is deterministic on effective rank.</p>
+        <p>The fold now carries a 3 &rarr; 2 &rarr; 1 recency ladder of its own and steps inward past a repeat partner. It still gives recency up in the last-resort fold, which is the right trade for a terminal mode: a repeat partnership beats a round that never happens.</p>
+        <p class="src">match-list.component.ts:904 &middot; <code>shuffleMixed</code> &middot; <code>foldStrongestWithWeakest</code></p>
       </div>
     </div>
 

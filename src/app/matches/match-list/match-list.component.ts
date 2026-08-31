@@ -615,15 +615,21 @@ export class MatchListComponent {
     return { boundaryIn, boundaryOut };
   }
   // === Mode Resolution =============================
+  // Auto rolls between tiered, spread and mixed only — novel ignores rank entirely, so
+  // letting it come up at random can drop a beginner onto a court of regulars mid-session.
+  // It stays available by picking it explicitly in Settings.
+  // The stored novel weight is left untouched but no longer rolled, so the other three are
+  // renormalised against their own total and keep their relative proportions.
   private resolveMode(): 'tiered' | 'spread' | 'mixed' | 'novel' {
     const saved = this.settingService.loadShuffleMode();
     if (saved !== 'auto') return saved;
     const weights = this.settingService.loadShuffleModeWeights();
-    const roll = this.rng.random() * 100;
+    const autoTotal = weights.tiered + weights.spread + weights.mixed;
+    if (autoTotal <= 0) return 'tiered';
+    const roll = this.rng.random() * autoTotal;
     if (roll < weights.tiered) return 'tiered';
     if (roll < weights.tiered + weights.spread) return 'spread';
-    if (roll < weights.tiered + weights.spread + weights.mixed) return 'mixed';
-    return 'novel';
+    return 'mixed';
   }
 
   // === Effective Rank ==============================
@@ -916,25 +922,77 @@ export class MatchListComponent {
 
   // === Mode B — Mixed (top↔bottom) ==================
   // Mixed is also the terminal fallthrough for Tiered/Spread, so it has to be
-  // nemesis-safe: the strict top↔bottom pairing below can land a nemesis pair
-  // together, and repairNemesisPairs breaks those up afterwards.
+  // nemesis-safe and it must always return a pairing.
+  // The fold is tried once per lookback, strictest first: at lookback 5 the strongest
+  // player only accepts a partner they haven't played with in the last 5 rounds, and the
+  // window shrinks until every pick can be satisfied. If none can, the plain fold runs and
+  // repairNemesisPairs cleans up afterwards — a repeat partnership is better than no round.
   private shuffleMixed(players: Player[]): Teammate[] {
+    const RECENCY_LOOKBACKS = [3, 2, 1]; // rounds-back window, regressing pass over pass
+    const totalPlayers = players.length;
     const sorted = [...players].sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
     const forceMap = this.getForceTeamatesMap();
+    const nemesisSet = this.getNemesisSet();
     const used = new Set<string>();
+    const forcePairs: Teammate[] = [];
+
+    this.lockForcePairs(players, forceMap, used, forcePairs);
+    const remaining = sorted.filter(p => !used.has(p.name));
+
+    for (const lookback of RECENCY_LOOKBACKS) {
+      const folded = this.foldStrongestWithWeakest(remaining, nemesisSet, totalPlayers, lookback);
+      if (folded) {
+        return this.repairNemesisPairs([...forcePairs, ...folded], forceMap, nemesisSet);
+      }
+    }
+
+    // Last resort — the plain fold with no constraints at all, so the round always happens
+    // even when the pool strands a nemesis pair as the final two. repairNemesisPairs then
+    // cross-swaps anything illegal; recency is given up for this round.
+    const plain: Teammate[] = [];
+    for (let lo = 0, hi = remaining.length - 1; lo < hi; lo++, hi--) {
+      plain.push({ player1: remaining[lo], player2: remaining[hi] });
+    }
+    return this.repairNemesisPairs([...forcePairs, ...plain], forceMap, nemesisSet);
+  }
+
+  // Fold a strength-sorted pool: strongest takes the weakest, then the next strongest takes
+  // the weakest of what's left. When the natural partner is a nemesis, or a repeat within
+  // `lookback` rounds, walk inward for the next-weakest player who is neither — so the
+  // top↔bottom shape survives while the exact partner rotates round to round.
+  // Returns null when some pick has no acceptable partner at this lookback — including the
+  // case where the walk strands a nemesis pair as the last two players in the pool.
+  private foldStrongestWithWeakest(
+    sortedPool: Player[],
+    nemesisSet: Set<string>,
+    totalPlayers: number,
+    lookback: number
+  ): Teammate[] | null {
+    const pool = [...sortedPool];
     const pairs: Teammate[] = [];
 
-    this.lockForcePairs(players, forceMap, used, pairs);
-
-    const remaining = sorted.filter(p => !used.has(p.name));
-    let lo = 0;
-    let hi = remaining.length - 1;
-    while (lo < hi) {
-      pairs.push({ player1: remaining[lo], player2: remaining[hi] });
-      lo++;
-      hi--;
+    while (pool.length > 1) {
+      const strongest = pool.shift()!;
+      let idx = pool.length - 1;
+      while (idx >= 0 && !this.isFoldPartnerOk(strongest, pool[idx], nemesisSet, totalPlayers, lookback)) {
+        idx--;
+      }
+      if (idx < 0) return null;
+      pairs.push({ player1: strongest, player2: pool[idx] });
+      pool.splice(idx, 1);
     }
-    return this.repairNemesisPairs(pairs, forceMap, this.getNemesisSet());
+    return pairs;
+  }
+
+  private isFoldPartnerOk(
+    player: Player,
+    candidate: Player,
+    nemesisSet: Set<string>,
+    totalPlayers: number,
+    lookback: number
+  ): boolean {
+    if (this.isNemesisPair(player.name, candidate.name, nemesisSet)) return false;
+    return !this.isRecentTeammatePair(player, candidate, totalPlayers, totalPlayers - lookback);
   }
 
   // Break up any nemesis pair by cross-swapping player2 with another pair's player2,

@@ -165,27 +165,6 @@ describe('MatchListComponent', () => {
         expect(result!.map(names)).toContain('B,C');
       });
 
-      it('should rotate partners when preferred [0,3] pairing was used too recently', () => {
-        // rank1A+rank4D have paired repeatedly (recent), so pass 0 skips [0,3]+[1,2]
-        // and should choose [0,2]+[1,3] = rank1A+rank3C, rank2B+rank4D  OR  [0,1]+[2,3]
-        const players = [
-          makePlayerWithHistory('rank1A', 1, 6, ['rank4D','rank2B','rank4D','rank4D','rank4D','rank2B']),
-          makePlayerWithHistory('rank2B', 2, 6, ['rank3C','rank1A','rank3C','rank3C','rank1A','rank3C']),
-          makePlayerWithHistory('rank3C', 3, 6, ['rank2B','rank4D','rank2B','rank2B','rank4D','rank2B']),
-          makePlayerWithHistory('rank4D', 4, 6, ['rank1A','rank3C','rank1A','rank1A','rank3C','rank1A']),
-        ];
-        // effectiveRank sorts as: rank1A, rank2B, rank3C, rank4D (no win-rate adjustment needed)
-        // [0,3] = rank1A+rank4D → lastIdx=4, elapsed=6-4=2, cooldown=max(1,4-1)=3, 2<3 → RECENT → skip
-        // [0,2] = rank1A+rank3C, [1,3] = rank2B+rank4D → check recency for each:
-        //   rank1A+rank3C: not in rank1A history → not recent ✓
-        //   rank2B+rank4D: not in rank2B history → not recent ✓
-        // → should use [0,2]+[1,3]
-        const result = shuffle(players);
-        expect(result).not.toBeNull();
-        const pairNames = result!.map(p => [p.player1.name, p.player2.name].sort().join('+'));
-        expect(pairNames).not.toContain('rank1A+rank4D');
-      });
-
       it('should return null when nemesis constraints block all pairings in a quad', () => {
         // All 3 pairing options blocked by nemesis
         component['nemesisTeamate'] = [
@@ -228,6 +207,43 @@ describe('MatchListComponent', () => {
 
         component['nemesisTeamate'] = []; // cleanup
       });
+    });
+  });
+
+  // A recently-used [0,3] pairing is where the two modes' split tables diverge: Tiered has
+  // somewhere else to go, Spread does not.
+  describe('recent [0,3] pairing — Tiered rotates, Spread cannot', () => {
+    function recentlyPairedQuad(): Player[] {
+      // effectiveRank sorts as rank1A, rank2B, rank3C, rank4D (no win-rate adjustment).
+      // rank1A+rank4D last paired at index 4 of 6 rounds → elapsed 2, so they read as recent
+      // at lookbacks 5, 4 and 3. rank2B+rank3C last paired at index 5 → elapsed 1.
+      return [
+        makePlayerWithHistory('rank1A', 1, 6, ['rank4D','rank2B','rank4D','rank4D','rank4D','rank2B']),
+        makePlayerWithHistory('rank2B', 2, 6, ['rank3C','rank1A','rank3C','rank3C','rank1A','rank3C']),
+        makePlayerWithHistory('rank3C', 3, 6, ['rank2B','rank4D','rank2B','rank2B','rank4D','rank2B']),
+        makePlayerWithHistory('rank4D', 4, 6, ['rank1A','rank3C','rank1A','rank1A','rank3C','rank1A']),
+      ];
+    }
+
+    it('tiered rotates to [0,2]+[1,3] when the preferred [0,3] pairing is too recent', () => {
+      // [0,2] = rank1A+rank3C and [1,3] = rank2B+rank4D are both fresh (neither appears in
+      // the other's history), so the very first pass takes the second split.
+      const result = component['shuffleTiered'](recentlyPairedQuad());
+      expect(result).not.toBeNull();
+      const pairNames = result!.map(p => [p.player1.name, p.player2.name].sort().join('+'));
+      expect(pairNames).not.toContain('rank1A+rank4D');
+      expect(pairNames).toContain('rank1A+rank3C');
+      expect(pairNames).toContain('rank2B+rank4D');
+    });
+
+    it('spread keeps [0,3] because it has no second split to rotate to', () => {
+      // SPREAD_SPLITS holds only best+worst vs the two middles. The ladder relaxes until the
+      // window is short enough for that split to pass, rather than pairing anyone else.
+      const result = component['shuffleSpread'](recentlyPairedQuad());
+      expect(result).not.toBeNull();
+      const pairNames = result!.map(p => [p.player1.name, p.player2.name].sort().join('+'));
+      expect(pairNames).toContain('rank1A+rank4D');
+      expect(pairNames).toContain('rank2B+rank3C');
     });
   });
 
@@ -588,6 +604,171 @@ describe('MatchListComponent', () => {
 
   // Every mode must honour the hard constraint "these two are never teammates",
   // including Mixed — which is also the terminal fallthrough when Tiered/Spread fail.
+  describe('split tables — Tiered has a third option, Spread has none', () => {
+    afterEach(() => { component['nemesisTeamate'] = []; });
+
+    // A(0) is a nemesis of D(3) and C(2), so [0,3] and [0,2] are both blocked. Only
+    // [0,1]+[2,3] — the two strongest against the two weakest — is left.
+    function blockedQuad(): Player[] {
+      return [
+        makeRankedPlayer('A', 1),
+        makeRankedPlayer('B', 2),
+        makeRankedPlayer('C', 3),
+        makeRankedPlayer('D', 4),
+      ];
+    }
+
+    it('tiered falls back to [0,1]+[2,3] when both balanced splits are blocked', () => {
+      component['nemesisTeamate'] = [
+        { player1: 'A', player2: 'D' },
+        { player1: 'A', player2: 'C' },
+      ];
+      const result = component['shuffleTiered'](blockedQuad());
+      expect(result).not.toBeNull();
+      const names = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).toContain('A,B');
+      expect(names).toContain('C,D');
+    });
+
+    it('spread fails the quad instead, because best+worst is its only split', () => {
+      component['nemesisTeamate'] = [
+        { player1: 'A', player2: 'D' },
+        { player1: 'A', player2: 'C' },
+      ];
+      const result = component['shuffleSpread'](blockedQuad());
+      expect(result).toBeNull();
+    });
+
+    it('spread fails on a nemesis in [0,3] alone, where tiered still finds a split', () => {
+      component['nemesisTeamate'] = [{ player1: 'A', player2: 'D' }];
+      expect(component['shuffleSpread'](blockedQuad())).toBeNull();
+
+      const tiered = component['shuffleTiered'](blockedQuad());
+      expect(tiered).not.toBeNull();
+      const names = tiered!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).toContain('A,C'); // [0,2]+[1,3], the second split
+      expect(names).toContain('B,D');
+    });
+  });
+
+  describe('recency lookbacks — window of 5', () => {
+    it('avoids a partnership from 4 rounds ago, which a 3-round window would have allowed', () => {
+      // rank1A + rank4D last paired at index 4 of 8 rounds → elapsed 4. The old ladder topped
+      // out at a 3-round window (4 < 3 is false → "not recent"), so [0,3] would have stood.
+      // At lookback 5 they still read as recent, so the first pass rotates to [0,2]+[1,3].
+      const players = [
+        makePlayerWithHistory('rank1A', 1, 8, ['x','x','x','x','rank4D','x','x','x']),
+        makePlayerWithHistory('rank2B', 2, 8, []),
+        makePlayerWithHistory('rank3C', 3, 8, []),
+        makePlayerWithHistory('rank4D', 4, 8, []),
+      ];
+      const result = component['shuffleTiered'](players);
+      expect(result).not.toBeNull();
+      const names = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).not.toContain('rank1A,rank4D');
+      expect(names).toContain('rank1A,rank3C');
+    });
+
+    it('still takes the preferred split once the partnership is 5 rounds back', () => {
+      // elapsed 5 → not recent at any lookback (5 < 5 is false), so [0,3] stands.
+      const players = [
+        makePlayerWithHistory('rank1A', 1, 8, ['x','x','x','rank4D','x','x','x','x']),
+        makePlayerWithHistory('rank2B', 2, 8, []),
+        makePlayerWithHistory('rank3C', 3, 8, []),
+        makePlayerWithHistory('rank4D', 4, 8, []),
+      ];
+      const result = component['shuffleTiered'](players);
+      expect(result).not.toBeNull();
+      const names = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).toContain('rank1A,rank4D');
+    });
+  });
+
+  describe('resolveMode — auto never rolls novel', () => {
+    afterEach(() => localStorage.removeItem('shuffle-mode'));
+
+    it('returns only tiered, spread or mixed across many rolls', () => {
+      localStorage.setItem('shuffle-mode', 'auto');
+      const seen = new Set<string>();
+      for (let seed = 1; seed <= 200; seed++) {
+        component['rng'] = new XorShift(seed);
+        seen.add(component['resolveMode']());
+      }
+      expect(seen.has('novel')).toBeFalse();
+      expect(seen.has('tiered')).toBeTrue();
+      expect(seen.has('spread')).toBeTrue();
+      expect(seen.has('mixed')).toBeTrue();
+    });
+
+    it('keeps the three remaining weights in proportion after renormalising', () => {
+      // Stored weights 40/20/30 (novel 10) → rolled over a total of 90, so roughly 44/22/33.
+      localStorage.setItem('shuffle-mode', 'auto');
+      localStorage.setItem('shuffle-mode-weights', JSON.stringify({ tiered: 40, spread: 20, mixed: 30, novel: 10 }));
+      const counts = { tiered: 0, spread: 0, mixed: 0 } as Record<string, number>;
+      const rolls = 3000;
+      for (let i = 0; i < rolls; i++) {
+        counts[component['resolveMode']()]++;
+      }
+      expect(counts['tiered'] / rolls).toBeGreaterThan(0.38);
+      expect(counts['tiered'] / rolls).toBeLessThan(0.50);
+      expect(counts['spread'] / rolls).toBeGreaterThan(0.17);
+      expect(counts['spread'] / rolls).toBeLessThan(0.28);
+      expect(counts['mixed'] / rolls).toBeGreaterThan(0.28);
+      expect(counts['mixed'] / rolls).toBeLessThan(0.39);
+      localStorage.removeItem('shuffle-mode-weights');
+    });
+
+    it('still honours novel when it is picked explicitly', () => {
+      localStorage.setItem('shuffle-mode', 'novel');
+      expect(component['resolveMode']()).toBe('novel');
+    });
+  });
+
+  describe('shuffleMixed — recency ladder', () => {
+    it('walks inward for a fresh partner instead of repeating the top<->bottom pair', () => {
+      // Sorted A B C D E F. The natural fold is A+F, but they paired last round, so A takes
+      // the next-weakest fresh partner (E) and the rest fold around that.
+      const players = [
+        makePlayerWithHistory('A', 1, 4, ['x','x','x','F']),
+        makePlayerWithHistory('B', 2, 4, []),
+        makePlayerWithHistory('C', 3, 4, []),
+        makePlayerWithHistory('D', 4, 4, []),
+        makePlayerWithHistory('E', 5, 4, []),
+        makePlayerWithHistory('F', 6, 4, []),
+      ];
+      const result = component['shuffleMixed'](players);
+      const names = result.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).not.toContain('A,F');
+      expect(names).toContain('A,E');
+      expect(result.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
+        .toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    });
+
+    it('keeps the plain top<->bottom fold when nothing is a repeat', () => {
+      const players = ['A', 'B', 'C', 'D', 'E', 'F'].map((name, idx) => makeRankedPlayer(name, idx + 1));
+      const result = component['shuffleMixed'](players);
+      const names = result.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).toContain('A,F');
+      expect(names).toContain('B,E');
+      expect(names).toContain('C,D');
+    });
+
+    it('gives up on recency rather than the round when every fold is blocked', () => {
+      // A has played with everyone last round, so no lookback can be satisfied; the plain
+      // fold still runs and everyone gets a court.
+      const players = [
+        makePlayerWithHistory('A', 1, 4, ['B','C','D','B']),
+        makePlayerWithHistory('B', 2, 4, ['A','A','A','A']),
+        makePlayerWithHistory('C', 3, 4, ['A','A','A','A']),
+        makePlayerWithHistory('D', 4, 4, ['A','A','A','A']),
+      ];
+      const result = component['shuffleMixed'](players);
+      expect(result.length).toBe(2);
+      expect(result.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
+        .toEqual(['A', 'B', 'C', 'D']);
+    });
+  });
+
   describe('nemesis pairs are never teammates — every shuffle mode', () => {
     const modes = ['shuffleTiered', 'shuffleSpread', 'shuffleMixed', 'shuffleNovel'] as const;
 

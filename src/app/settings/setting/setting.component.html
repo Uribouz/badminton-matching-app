@@ -124,10 +124,8 @@
         <div class="mixSeg mixSeg--mixed" [style.width.%]="mixedPct">
           <span *ngIf="mixedPct >= 12">{{mixedPct}}%</span>
         </div>
-        <div class="mixSeg mixSeg--novel" [style.width.%]="novelPct">
-          <span *ngIf="novelPct >= 12">{{novelPct}}%</span>
-        </div>
       </div>
+      <p class="mixNote">Auto rolls Tiered, Spread and Mixed. Novel is available by selecting it directly.</p>
       <div class="mixSliderRow">
         <span class="mixLabel mixLabel--tiered">Tiered</span>
         <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="tieredPct" (ngModelChange)="onTieredPctChange()">
@@ -137,11 +135,6 @@
         <span class="mixLabel mixLabel--spread">Spread</span>
         <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="spreadPct" (ngModelChange)="onSpreadPctChange()">
         <span class="mixPct">{{spreadPct}}%</span>
-      </div>
-      <div class="mixSliderRow">
-        <span class="mixLabel mixLabel--novel">Novel</span>
-        <input type="range" class="mixSlider" min="0" max="100" step="5" [(ngModel)]="novelPct" (ngModelChange)="onNovelPctChange()">
-        <span class="mixPct">{{novelPct}}%</span>
       </div>
       <div class="mixSliderRow mixSliderRowDerived">
         <span class="mixLabel mixLabel--mixed">Mixed</span>

@@ -25,8 +25,9 @@ export class SettingComponent {
   shuffleMode: 'tiered' | 'spread' | 'mixed' | 'novel' | 'auto' = 'auto';
   tieredPct = 40;
   spreadPct = 20;
-  novelPct = 10;
-  get mixedPct() { return 100 - this.tieredPct - this.spreadPct - this.novelPct; }
+  // Auto rolls tiered/spread/mixed only — see resolveMode in MatchListComponent. Mixed is
+  // whatever the other two leave behind, so the three always add up to 100.
+  get mixedPct() { return 100 - this.tieredPct - this.spreadPct; }
   playerNames: string[] = [];
 
   constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService, private authService: AuthService, private router: Router) {
@@ -36,7 +37,11 @@ export class SettingComponent {
       const weights = this.settingService.loadShuffleModeWeights();
       this.tieredPct = weights.tiered;
       this.spreadPct = weights.spread;
-      this.novelPct = weights.novel;
+      // Settings saved before novel left the auto roll still carry a novel weight. Fold it
+      // into mixed once, so what is stored matches the percentages shown on the sliders.
+      if (weights.novel !== 0) {
+        this.saveWeights();
+      }
       this.playerNames = Array.from(this.playerService.loadPlayerList().keys());
   }
 
@@ -46,21 +51,17 @@ export class SettingComponent {
   }
 
   onTieredPctChange() {
-    this.clampOthers(['spreadPct', 'novelPct']);
+    this.clampOthers(['spreadPct']);
     this.saveWeights();
   }
   onSpreadPctChange() {
-    this.clampOthers(['novelPct', 'tieredPct']);
+    this.clampOthers(['tieredPct']);
     this.saveWeights();
   }
-  onNovelPctChange() {
-    this.clampOthers(['spreadPct', 'tieredPct']);
-    this.saveWeights();
-  }
-  // Reduces the listed sliders (in order) so tiered+spread+novel never exceeds 100;
+  // Reduces the listed sliders (in order) so tiered+spread never exceeds 100;
   // mixed is always the remainder.
-  private clampOthers(others: Array<'tieredPct' | 'spreadPct' | 'novelPct'>) {
-    let excess = this.tieredPct + this.spreadPct + this.novelPct - 100;
+  private clampOthers(others: Array<'tieredPct' | 'spreadPct'>) {
+    let excess = this.tieredPct + this.spreadPct - 100;
     for (const key of others) {
       if (excess <= 0) break;
       const reduce = Math.min(this[key], excess);
@@ -69,7 +70,9 @@ export class SettingComponent {
     }
   }
   private saveWeights() {
-    this.settingService.saveShuffleModeWeights({ tiered: this.tieredPct, spread: this.spreadPct, mixed: this.mixedPct, novel: this.novelPct });
+    // novel: 0 — auto never rolls it, so leaving a weight here would only make the stored
+    // numbers disagree with the sliders. Picking Novel explicitly ignores weights entirely.
+    this.settingService.saveShuffleModeWeights({ tiered: this.tieredPct, spread: this.spreadPct, mixed: this.mixedPct, novel: 0 });
   }
 
   onSelectForcePlayer(name: string) {
