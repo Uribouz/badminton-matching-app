@@ -579,6 +579,152 @@ describe('MatchListComponent', () => {
     });
   });
 
+  // Every mode must honour the hard constraint "these two are never teammates",
+  // including Mixed — which is also the terminal fallthrough when Tiered/Spread fail.
+  describe('nemesis pairs are never teammates — every shuffle mode', () => {
+    const modes = ['shuffleTiered', 'shuffleSpread', 'shuffleMixed', 'shuffleNovel'] as const;
+
+    modes.forEach(mode => {
+      it(`${mode} never partners either player of a nemesis pair with the other`, () => {
+        component['forceMatchTeamate'] = [];
+        component['nemesisTeamate'] = [
+          { player1: 'A', player2: 'B' },
+          { player1: 'C', player2: 'D' },
+        ];
+        const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        try {
+          // Rotate the input order + reseed the rng so quad construction, the
+          // top<->bottom walk and the novel attempts all see different arrangements.
+          for (let seed = 1; seed <= 10; seed++) {
+            component['rng'] = new XorShift(seed);
+            const offset = seed % names.length;
+            const players = [...names.slice(offset), ...names.slice(0, offset)]
+              .map(name => makeRankedPlayer(name, 3));
+            const result: Teammate[] | null = (component as any)[mode](players);
+
+            expect(result).not.toBeNull();
+            expect(result!.length).toBe(4);
+            const pairNames = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+            expect(pairNames).not.toContain('A,B');
+            expect(pairNames).not.toContain('C,D');
+            // and nobody got dropped or duplicated while enforcing it
+            expect(result!.flatMap(pair => [pair.player1.name, pair.player2.name]).sort()).toEqual([...names].sort());
+          }
+        } finally {
+          component['nemesisTeamate'] = [];
+        }
+      });
+    });
+  });
+
+  describe('getAvailablePlayers — force pair across the eligible cutoff', () => {
+    // Priority-sorted pool: A plays least, F plays most.
+    function pool(): Player[] {
+      return ['A', 'B', 'C', 'D', 'E', 'F'].map((name, idx) => makePlayerWithHistory(name, 3, idx, []));
+    }
+
+    afterEach(() => { component['forceMatchTeamate'] = []; });
+
+    it('pulls a force partner from outside the cutoff and evicts the lowest-priority member', () => {
+      component['forceMatchTeamate'] = [{ player1: 'A', player2: 'E' }];
+      const result = component['getAvailablePlayers'](pool(), 4);
+      const names = result.map(p => p.name);
+      expect(result.length).toBe(4);
+      expect(names).toContain('A');
+      expect(names).toContain('E');
+      expect(names).not.toContain('D'); // D played the most inside the window, so D sits out
+    });
+
+    it('leaves the window untouched when the forced partner is not eligible at all', () => {
+      component['forceMatchTeamate'] = [{ player1: 'A', player2: 'Z' }];
+      const result = component['getAvailablePlayers'](pool(), 4);
+      expect(result.map(p => p.name)).toEqual(['A', 'B', 'C', 'D']);
+    });
+
+    it('leaves the window untouched when both force partners already made the cutoff', () => {
+      component['forceMatchTeamate'] = [{ player1: 'A', player2: 'B' }];
+      const result = component['getAvailablePlayers'](pool(), 4);
+      expect(result.map(p => p.name)).toEqual(['A', 'B', 'C', 'D']);
+    });
+  });
+
+  describe('force pairs split across quads — Tiered & Spread', () => {
+    // A is the strongest and H the weakest, so rank-based quad building puts them in
+    // different quads under both strategies; the regroup pass must pull them together.
+    function pool(): Player[] {
+      return [
+        makeRankedPlayer('A', 1), makeRankedPlayer('B', 2),
+        makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
+        makeRankedPlayer('E', 3), makeRankedPlayer('F', 3),
+        makeRankedPlayer('G', 3), makeRankedPlayer('H', 4),
+      ];
+    }
+
+    afterEach(() => { component['forceMatchTeamate'] = []; });
+
+    (['shuffleTiered', 'shuffleSpread'] as const).forEach(mode => {
+      it(`${mode} still pairs a force pair whose ranks land them in different quads`, () => {
+        component['forceMatchTeamate'] = [{ player1: 'A', player2: 'H' }];
+        const result = component[mode](pool());
+
+        expect(result).not.toBeNull();
+        expect(result!.length).toBe(4);
+        const pairNames = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+        expect(pairNames).toContain('A,H');
+        // the displaced player must still be in the round exactly once
+        expect(result!.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
+          .toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+      });
+    });
+  });
+
+  describe('shuffleMixed — nemesis repair', () => {
+    afterEach(() => {
+      component['forceMatchTeamate'] = [];
+      component['nemesisTeamate'] = [];
+    });
+
+    it('breaks up the nemesis pair the top<->bottom walk would otherwise create', () => {
+      // Equal ranks keep the sort stable, so the walk pairs [0,3] and [1,2]: A+B and C+D.
+      component['nemesisTeamate'] = [{ player1: 'A', player2: 'B' }];
+      const players = ['A', 'C', 'D', 'B'].map(name => makeRankedPlayer(name, 3));
+      const result = component['shuffleMixed'](players);
+
+      const pairNames = result.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(pairNames).not.toContain('A,B');
+      expect(result.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
+        .toEqual(['A', 'B', 'C', 'D']);
+    });
+
+    it('keeps a force pair intact while repairing a separate nemesis pair', () => {
+      // E+F are locked first, leaving [A,C,D,B] → the walk pairs A+B (nemesis) and C+D.
+      // The repair may only cross-swap with the non-forced pair, never with E+F.
+      component['forceMatchTeamate'] = [{ player1: 'E', player2: 'F' }];
+      component['nemesisTeamate'] = [{ player1: 'A', player2: 'B' }];
+      const players = ['A', 'C', 'D', 'B', 'E', 'F'].map(name => makeRankedPlayer(name, 3));
+      const result = component['shuffleMixed'](players);
+
+      const pairNames = result.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(pairNames).toContain('E,F');
+      expect(pairNames).not.toContain('A,B');
+      expect(result.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
+        .toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    });
+
+    it('leaves an unsatisfiable pairing alone instead of dropping players', () => {
+      // Force C+D in a 4-player pool leaves A and B with nobody else to pair with —
+      // the nemesis constraint is impossible to honour, so keep a complete round.
+      component['forceMatchTeamate'] = [{ player1: 'C', player2: 'D' }];
+      component['nemesisTeamate'] = [{ player1: 'A', player2: 'B' }];
+      const players = ['A', 'C', 'D', 'B'].map(name => makeRankedPlayer(name, 3));
+      const result = component['shuffleMixed'](players);
+
+      expect(result.length).toBe(2);
+      expect(result.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
+        .toEqual(['A', 'B', 'C', 'D']);
+    });
+  });
+
   xit('should test calculateTeamates with spy calculateTeamatesPoint', () => {
     const input: Player[] = [
       NewPlayer('ball', 1, ['nice']),

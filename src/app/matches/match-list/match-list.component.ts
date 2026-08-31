@@ -525,27 +525,50 @@ export class MatchListComponent {
     this.log('totalAvailableSlots: ', currentTotalAvailableSlot);
     return currentTotalAvailableSlot;
   }
+  // Take the top-N slice by priority, then pull in any force-teammate partner who
+  // landed just outside the cutoff: without this a force pair split across the
+  // boundary is silently broken, because every mode only ever sees the sliced window.
+  // The partner takes the slot of the window's lowest-priority (most rounds played)
+  // member who isn't themselves half of a force pair that's present.
   private getAvailablePlayers(players: Player[], totalAvailableSlots: number) {
-    let returnPlayerList = [...players];
-    // let playerNameList = players.map(each => each.name);
-    // let selectedPlayers = players.slice(0, totalAvailableSlots);
-    // this.forceMatchTeamate.forEach(each => {
-    //   let indexPlayer1 = playerNameList.indexOf(each.player1);
-    //   let indexPlayer2 = playerNameList.indexOf(each.player2);
-    //   if (indexPlayer1 < 0 || indexPlayer2 < 0) {
-    //     return;
-    //   }
-    //   if (indexPlayer1 >= totalAvailableSlots && indexPlayer2 >= totalAvailableSlots) {
-    //     return;
-    //   }
-    //   if ((indexPlayer1 >= totalAvailableSlots) || (indexPlayer2 >= totalAvailableSlots)) {
-    //     let player1 = players[indexPlayer1];
-    //     let player2 = players[indexPlayer2];
-    //     returnPlayerList = returnPlayerList.filter(player => (player.name != each.player1) && (player.name != each.player2));
-    //     returnPlayerList = [player1, player2, ...returnPlayerList.slice(0,totalAvailableSlots-1)];
-    //   }
-    // })
-    return returnPlayerList.slice(0, totalAvailableSlots);
+    const eligibleWindow = players.slice(0, totalAvailableSlots);
+    const outside = players.slice(totalAvailableSlots);
+    const forceMap = this.getForceTeamatesMap();
+    if (forceMap.size === 0) return eligibleWindow;
+
+    const inWindow = new Set(eligibleWindow.map(p => p.name));
+    // Protected = would break an already-satisfied force pair if evicted.
+    const isProtected = (player: Player) => {
+      const partner = forceMap.get(player.name);
+      return !!partner && inWindow.has(partner);
+    };
+
+    for (const player of [...eligibleWindow]) {
+      const partnerName = forceMap.get(player.name);
+      if (!partnerName || inWindow.has(partnerName)) continue;
+      const partnerIdx = outside.findIndex(p => p.name === partnerName);
+      if (partnerIdx < 0) continue; // partner isn't eligible at all (playing or on break)
+
+      const partner = outside[partnerIdx];
+      eligibleWindow.push(partner);
+      inWindow.add(partner.name);
+
+      // Window stays priority-sorted, so scan from the back for the least-deserving evictee.
+      let evictIdx = -1;
+      for (let i = eligibleWindow.length - 2; i >= 0; i--) {
+        if (!isProtected(eligibleWindow[i])) { evictIdx = i; break; }
+      }
+      if (evictIdx < 0) { // nobody evictable — undo and leave the window as it was
+        eligibleWindow.pop();
+        inWindow.delete(partner.name);
+        continue;
+      }
+      const [evicted] = eligibleWindow.splice(evictIdx, 1);
+      inWindow.delete(evicted.name);
+      outside.splice(partnerIdx, 1, evicted);
+      this.log(`force pair pulled ${partner.name} into the round, ${evicted.name} sits out`);
+    }
+    return eligibleWindow;
   }
   // Players tied on priority point at the cutoff: boundaryIn (made the slice) vs
   // boundaryOut (just missed it). Both groups share the exact same priority point,
@@ -676,8 +699,13 @@ export class MatchListComponent {
     const boundaryInNames = new Set((swapPool?.boundaryIn ?? []).map(p => p.name));
     const availableOut = [...(swapPool?.boundaryOut ?? [])];
 
+    const quads: Player[][] = [];
     for (let quadIndex = 0; quadIndex < numQuads; quadIndex++) {
-      const q = buildQuad(sorted, numQuads, quadIndex);
+      quads.push(buildQuad(sorted, numQuads, quadIndex));
+    }
+    this.regroupForcePairsIntoSameQuad(quads, forceMap);
+
+    for (const q of quads) {
       let quadPair = this.formQuadPairs(q, forceMap, nemesisSet, totalPlayers);
       if (!quadPair) {
         quadPair = this.rescueQuadWithSwap(q, forceMap, nemesisSet, totalPlayers, boundaryInNames, availableOut);
@@ -687,6 +715,43 @@ export class MatchListComponent {
       pairs.push(quadPair[0], quadPair[1]);
     }
     return pairs;
+  }
+
+  // buildQuad groups purely by effectiveRank, so a force pair can land in two different
+  // quads — formQuadPairs only ever sees one quad at a time and would silently break them.
+  // Pull the partner over by swapping them with a member of the other quad who isn't
+  // force-paired to someone present. Quad sizes are preserved; each quad is re-sorted by
+  // effectiveRank afterwards because formQuadPairs' [0,3]/[1,2] splits assume best→worst.
+  private regroupForcePairsIntoSameQuad(quads: Player[][], forceMap: Map<string, string>) {
+    if (forceMap.size === 0) return;
+    const quadOf = new Map<string, number>();
+    quads.forEach((q, idx) => q.forEach(p => quadOf.set(p.name, idx)));
+    const hasPresentPartner = (name: string) => {
+      const partner = forceMap.get(name);
+      return !!partner && quadOf.has(partner);
+    };
+
+    quads.forEach((quad, i) => {
+      for (const player of [...quad]) {
+        const partnerName = forceMap.get(player.name);
+        if (!partnerName) continue;
+        const j = quadOf.get(partnerName);
+        if (j === undefined || j === i) continue;
+
+        const partnerIdx = quads[j].findIndex(p => p.name === partnerName);
+        const swapIdx = quads[i].findIndex(p => p.name !== player.name && !hasPresentPartner(p.name));
+        if (partnerIdx < 0 || swapIdx < 0) continue;
+
+        const moving = quads[i][swapIdx];
+        quads[i][swapIdx] = quads[j][partnerIdx];
+        quads[j][partnerIdx] = moving;
+        quadOf.set(partnerName, i);
+        quadOf.set(moving.name, j);
+        this.log(`force pair regrouped into one quad: ${player.name}+${partnerName}`);
+      }
+    });
+
+    quads.forEach(q => q.sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b)));
   }
 
   // When a quad has no nemesis/rank-safe split, try swapping one boundary-tied member
@@ -830,6 +895,9 @@ export class MatchListComponent {
   }
 
   // === Mode B — Mixed (top↔bottom) ==================
+  // Mixed is also the terminal fallthrough for Tiered/Spread, so it has to be
+  // nemesis-safe: the strict top↔bottom pairing below can land a nemesis pair
+  // together, and repairNemesisPairs breaks those up afterwards.
   private shuffleMixed(players: Player[]): Teammate[] {
     const sorted = [...players].sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
     const forceMap = this.getForceTeamatesMap();
@@ -845,6 +913,38 @@ export class MatchListComponent {
       pairs.push({ player1: remaining[lo], player2: remaining[hi] });
       lo++;
       hi--;
+    }
+    return this.repairNemesisPairs(pairs, forceMap, this.getNemesisSet());
+  }
+
+  // Break up any nemesis pair by cross-swapping player2 with another pair's player2,
+  // keeping the first swap where BOTH resulting pairs are nemesis-free. Force pairs are
+  // never touched (a force pair that is also a nemesis pair is a contradictory setting).
+  private repairNemesisPairs(
+    pairs: Teammate[],
+    forceMap: Map<string, string>,
+    nemesisSet: Set<string>
+  ): Teammate[] {
+    if (nemesisSet.size === 0) return pairs;
+    const isForced = (t: Teammate) => forceMap.get(t.player1.name) === t.player2.name;
+    const isNemesis = (a: Player, b: Player) => this.isNemesisPair(a.name, b.name, nemesisSet);
+
+    for (let i = 0; i < pairs.length; i++) {
+      if (isForced(pairs[i]) || !isNemesis(pairs[i].player1, pairs[i].player2)) continue;
+      let repaired = false;
+      for (let j = 0; j < pairs.length && !repaired; j++) {
+        if (i === j || isForced(pairs[j])) continue;
+        const swappedI: Teammate = { player1: pairs[i].player1, player2: pairs[j].player2 };
+        const swappedJ: Teammate = { player1: pairs[j].player1, player2: pairs[i].player2 };
+        if (isNemesis(swappedI.player1, swappedI.player2)) continue;
+        if (isNemesis(swappedJ.player1, swappedJ.player2)) continue;
+        pairs[i] = swappedI;
+        pairs[j] = swappedJ;
+        repaired = true;
+      }
+      if (!repaired) {
+        this.log(`could not break nemesis pair ${pairs[i].player1.name}+${pairs[i].player2.name}`);
+      }
     }
     return pairs;
   }
