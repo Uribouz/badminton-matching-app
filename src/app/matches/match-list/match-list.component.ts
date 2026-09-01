@@ -646,8 +646,9 @@ export class MatchListComponent {
     return rank * 1000 - (winRate - 0.5) * 2000 * confidence - 1000;
   }
 
-  // Convenience accessor: effectiveRank back on the same tier scale as raw `rank`,
-  // so team strengths can be summed and compared for court rank-sums.
+  // Convenience accessor: effectiveRank divided back down to tier units. Note it sits one
+  // tier below raw `rank` (effectiveRank subtracts a flat 1000), which is harmless because
+  // the offset cancels in the differences and sums calculateMatchInCourtsRankBased takes.
   private effectiveRankScore(player: Player): number {
     return this.effectiveRank(player) / 1000;
   }
@@ -698,7 +699,9 @@ export class MatchListComponent {
       const forcedName = forceMap.get(player.name);
       if (!forcedName) continue;
       const partner = players.find(p => p.name === forcedName);
-      if (partner && !used.has(partner.name)) {
+      // A player forced with themselves would be seated twice and push someone else out of
+      // the round. The Settings UI cannot create one, but settings synced from Supabase can.
+      if (partner && partner.name !== player.name && !used.has(partner.name)) {
         pairs.push({ player1: player, player2: partner });
         used.add(player.name);
         used.add(partner.name);
@@ -808,6 +811,11 @@ export class MatchListComponent {
       for (let outIdx = 0; outIdx < availableOut.length; outIdx++) {
         const swappedQuad = [...q];
         swappedQuad[idx] = availableOut[outIdx];
+        // Boundary candidates are tied on rounds played, not rank, so the player swapped in
+        // can sit anywhere on the skill scale. Re-sort before pairing: the splits address
+        // quad positions and assume best→worst, so an unsorted quad would silently pair the
+        // wrong people — [0,3] would stop meaning "strongest with weakest".
+        swappedQuad.sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
         const result = this.formQuadPairs(swappedQuad, forceMap, nemesisSet, totalPlayers, splits);
         if (result) {
           availableOut.splice(outIdx, 1);
@@ -842,7 +850,7 @@ export class MatchListComponent {
   // strictest first so the freshest legal pairing always wins:
   // Pass 0-4:  reject if EITHER pair is recent, lookback 5 → 1 rounds (strong: both pairs must be fresh).
   // Pass 5-9:  reject only if BOTH pairs are recent, lookback 5 → 1 rounds (weak: one fresh pair is enough).
-  // Pass 10:   recency dropped entirely (not-nemesis only).
+  // Pass 10:  recency dropped entirely (not-nemesis only) — multi-split modes only.
   // Splits are tried in the caller's order within every pass, so the preferred split always
   // wins a tie — a later split is only reached when the preferred one is blocked.
   // Partner rank distance is deliberately unbounded: the quad is already the skill
@@ -855,7 +863,7 @@ export class MatchListComponent {
     totalPlayers: number,
     splits: QuadSplit[]
   ): [Teammate, Teammate] | null {
-    const RECENCY_LOOKBACKS = [5, 4, 3, 2, 1]; // rounds-back window, regressing pass over pass
+    const RECENCY_LOOKBACKS = [5, 4, 3, 2]; // rounds-back window, regressing pass over pass
 
     // Detect any force pair inside this quad
     for (let a = 0; a < 4; a++) {
@@ -905,19 +913,29 @@ export class MatchListComponent {
       return null;
     };
 
-    for (const lookback of RECENCY_LOOKBACKS) {
+    // A mode holding several splits should take its least-bad option rather than fail, so its
+    // ladder ends in a catch-all that ignores recency. A mode holding a single split has
+    // nothing to choose between: if it accepted unconditionally too, recency could never
+    // influence it and it would hand out the same partnerships every single round. Its ladder
+    // therefore stops at the last window that can actually reject — a window of 1 never can,
+    // since a pair's last meeting is always at least one round ago — and a failed quad falls
+    // through to a mode that can still rotate. See SPREAD_SPLITS.
+    const mustPair = splits.length > 1;
+    const lookbacks = mustPair ? RECENCY_LOOKBACKS : RECENCY_LOOKBACKS.filter(each => each > 1);
+
+    for (const lookback of lookbacks) {
       const result = tryOptions((ai, bi, ci, di) =>
         nemesisOk(ai, bi, ci, di) && !eitherRecentWithin(ai, bi, ci, di, lookback)
       );
       if (result) return result;
     }
-    for (const lookback of RECENCY_LOOKBACKS) {
+    for (const lookback of lookbacks) {
       const result = tryOptions((ai, bi, ci, di) =>
         nemesisOk(ai, bi, ci, di) && !bothRecentWithin(ai, bi, ci, di, lookback)
       );
       if (result) return result;
     }
-    return tryOptions(nemesisOk);
+    return mustPair ? tryOptions(nemesisOk) : null;
   }
 
   // === Mode B — Mixed (top↔bottom) ==================

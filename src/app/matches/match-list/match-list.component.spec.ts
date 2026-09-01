@@ -183,30 +183,6 @@ describe('MatchListComponent', () => {
         component['nemesisTeamate'] = []; // cleanup
       });
 
-      it('rescues an otherwise-deadlocked quad by swapping in a boundary-tied standby player', () => {
-        // Same nemesis deadlock as above (A blocked from every partner in the quad),
-        // but now a boundary-tied standby player E is available to swap in for D.
-        component['nemesisTeamate'] = [
-          { player1: 'A', player2: 'B' },
-          { player1: 'A', player2: 'C' },
-          { player1: 'A', player2: 'D' },
-        ];
-        const A = makeRankedPlayer('A', 1);
-        const B = makeRankedPlayer('B', 2);
-        const C = makeRankedPlayer('C', 3);
-        const D = makeRankedPlayer('D', 4);
-        const E = makeRankedPlayer('E', 2);
-
-        const swapPool = { boundaryIn: [D], boundaryOut: [E] };
-        const result = component[methodName]([A, B, C, D], swapPool);
-
-        expect(result).not.toBeNull();
-        const allNames = result!.flatMap(p => [p.player1.name, p.player2.name]);
-        expect(allNames).toContain('E');
-        expect(allNames).not.toContain('D');
-
-        component['nemesisTeamate'] = []; // cleanup
-      });
     });
   });
 
@@ -343,9 +319,10 @@ describe('MatchListComponent', () => {
       expect(rank4Pairs.length).toBeGreaterThan(0);
     });
 
-    it('contiguous slicing keeps tightly-grouped quads rank-valid for an 8-player pool', () => {
+    it('contiguous slicing keeps each rank tier inside one quad for an 8-player pool', () => {
       // Sorted: rank1,rank1,rank2,rank2, rank5,rank5,rank6,rank6
-      // Contiguous quads = [rank1,rank1,rank2,rank2] and [rank5,rank5,rank6,rank6] — trivially ≤3.
+      // Contiguous quads = [A,B,C,D] and [E,F,G,H]; each takes its [0,3]+[1,2] split, so the
+      // strong four never meet the weak four.
       const players = [
         makeRankedPlayer('A', 1), makeRankedPlayer('B', 1),
         makeRankedPlayer('C', 2), makeRankedPlayer('D', 2),
@@ -355,8 +332,11 @@ describe('MatchListComponent', () => {
       const result = component['shuffleTiered'](players);
       expect(result).not.toBeNull();
       expect(result!.length).toBe(4);
-      const rankDiff = (p: Teammate) => Math.abs((p.player1.rank ?? 5) - (p.player2.rank ?? 5));
-      result!.forEach(pair => expect(rankDiff(pair)).toBeLessThanOrEqual(3));
+      const names = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).toContain('A,D');
+      expect(names).toContain('B,C');
+      expect(names).toContain('E,H');
+      expect(names).toContain('F,G');
     });
   });
 
@@ -766,6 +746,109 @@ describe('MatchListComponent', () => {
       expect(result.length).toBe(2);
       expect(result.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
         .toEqual(['A', 'B', 'C', 'D']);
+    });
+  });
+
+  describe('rescueQuadWithSwap — the substituted quad is re-sorted', () => {
+    afterEach(() => { component['nemesisTeamate'] = []; });
+
+    it('pairs the rescued quad best-with-worst rather than by stale positions', () => {
+      // Quad [A1, B4, C6, D9]; A and D are nemeses, so spread's only split is blocked and the
+      // boundary-tied D is swapped out for standby E (rank 2). E belongs SECOND on skill, but
+      // she arrives at D's old index 3 — the "weakest" slot. Unsorted, [0,3] would pair A+E
+      // (strength 3) against B+C (10). Re-sorted the quad is [A, E, B, C] and the split gives
+      // A+C (7) against E+B (6), which is what best-with-worst is supposed to mean.
+      component['nemesisTeamate'] = [{ player1: 'A', player2: 'D' }];
+      const A = makeRankedPlayer('A', 1);
+      const B = makeRankedPlayer('B', 4);
+      const C = makeRankedPlayer('C', 6);
+      const D = makeRankedPlayer('D', 9);
+      const E = makeRankedPlayer('E', 2);
+
+      const result = component['shuffleSpread']([A, B, C, D], { boundaryIn: [D], boundaryOut: [E] });
+
+      expect(result).not.toBeNull();
+      const names = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).toContain('A,C');
+      expect(names).toContain('B,E');
+      const strength = (pair: Teammate) => (pair.player1.rank ?? 5) + (pair.player2.rank ?? 5);
+      expect(result!.map(strength).sort()).toEqual([6, 7]); // not the 3 / 10 an unsorted quad gives
+    });
+
+    it('tiered rescues a quad where A is blocked from every original partner', () => {
+      // A is a nemesis of B, C and D, so all three tiered splits fail; standby E swaps in for
+      // the boundary-tied D. Spread cannot be rescued here — once the quad is re-sorted to
+      // [A, B, E, C] its only split is A+C, which is a nemesis, so it falls through to mixed.
+      component['nemesisTeamate'] = [
+        { player1: 'A', player2: 'B' },
+        { player1: 'A', player2: 'C' },
+        { player1: 'A', player2: 'D' },
+      ];
+      const A = makeRankedPlayer('A', 1);
+      const B = makeRankedPlayer('B', 2);
+      const C = makeRankedPlayer('C', 3);
+      const D = makeRankedPlayer('D', 4);
+      const E = makeRankedPlayer('E', 2);
+      const swapPool = { boundaryIn: [D], boundaryOut: [E] };
+
+      const tiered = component['shuffleTiered']([A, B, C, D], swapPool);
+      expect(tiered).not.toBeNull();
+      const allNames = tiered!.flatMap(pair => [pair.player1.name, pair.player2.name]);
+      expect(allNames).toContain('E');
+      expect(allNames).not.toContain('D');
+
+      expect(component['shuffleSpread']([A, B, C, D], swapPool)).toBeNull();
+    });
+  });
+
+  describe('lockForcePairs — a player forced with themselves', () => {
+    afterEach(() => { component['forceMatchTeamate'] = []; });
+
+    it('is ignored rather than seating that player twice', () => {
+      // Not reachable from the Settings UI, but settings synced from Supabase can carry one.
+      component['forceMatchTeamate'] = [{ player1: 'A', player2: 'A' }];
+      const players = ['A', 'B', 'C', 'D'].map((name, idx) => makeRankedPlayer(name, idx + 1));
+
+      const result = component['shuffleMixed'](players);
+
+      expect(result.length).toBe(2);
+      expect(result.flatMap(pair => [pair.player1.name, pair.player2.name]).sort())
+        .toEqual(['A', 'B', 'C', 'D']);
+      result.forEach(pair => expect(pair.player1.name).not.toBe(pair.player2.name));
+    });
+  });
+
+  describe('spread — fails a stale quad instead of repeating it forever', () => {
+    // With one split, accepting unconditionally would mean spread hands out the same
+    // partnerships every round. It now fails the quad so the chain falls through to mixed.
+    function lastRoundsPairing(): Player[] {
+      return [
+        makePlayerWithHistory('P1', 1, 4, ['x', 'x', 'x', 'P7']),
+        makePlayerWithHistory('P3', 3, 4, ['x', 'x', 'x', 'P5']),
+        makePlayerWithHistory('P5', 5, 4, ['x', 'x', 'x', 'P3']),
+        makePlayerWithHistory('P7', 7, 4, ['x', 'x', 'x', 'P1']),
+      ];
+    }
+
+    it('returns null when its only split repeats last round exactly', () => {
+      expect(component['shuffleSpread'](lastRoundsPairing())).toBeNull();
+    });
+
+    it('tiered rotates through the same quad instead of failing', () => {
+      const result = component['shuffleTiered'](lastRoundsPairing());
+      expect(result).not.toBeNull();
+      const names = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).not.toContain('P1,P7');
+      expect(names).not.toContain('P3,P5');
+    });
+
+    it('still pairs a quad whose players have not met recently', () => {
+      const fresh = ['P1', 'P3', 'P5', 'P7'].map((name, idx) => makeRankedPlayer(name, idx * 2 + 1));
+      const result = component['shuffleSpread'](fresh);
+      expect(result).not.toBeNull();
+      const names = result!.map(pair => [pair.player1.name, pair.player2.name].sort().join(','));
+      expect(names).toContain('P1,P7');
+      expect(names).toContain('P3,P5');
     });
   });
 

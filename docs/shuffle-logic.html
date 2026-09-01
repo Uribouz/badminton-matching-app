@@ -310,6 +310,7 @@
     <a href="#mixed-novel">Mixed &amp; Novel</a>
     <a href="#courts">Courts</a>
     <a href="#constraints">Constraints</a>
+    <a href="#functions">Functions</a>
     <a href="#notes">Review notes</a>
   </div>
 </nav>
@@ -745,6 +746,8 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
 
     <div class="prose">
       <p>Tiered's quads are contiguous, so its four players are already close in strength &mdash; even the lopsided split stays playable, and it is worth having as a last resort when nemesis settings block the other two. Spread's quads deliberately span the full range, so any split other than best-with-worst would hand one team the session's strongest player alongside a middle. Rather than produce that, <strong>Spread fails the quad</strong> and the switch falls through.</p>
+
+      <p>That single split has a second consequence. A mode with alternatives can always fall back on its least-bad option, so its ladder ends in a catch-all that ignores recency. If Spread did the same it would accept its one split unconditionally &mdash; recency could never influence it, and it would deal the same partnerships every round for as long as the pool held steady. So <strong>a single-split mode's ladder is allowed to end in failure</strong>: it stops at the last window that can actually reject, and a stale quad falls through to a mode that can still rotate. In a settled group this means Spread hands off to Mixed fairly often, which the court's mode label will show.</p>
     </div>
 
     <h3>The pass ladder</h3>
@@ -759,9 +762,10 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
         </thead>
         <tbody>
           <tr><td class="num">1&ndash;4</td><td>required</td><td>reject if <em>either</em> pair met within 5, 4, 3 then 2 rounds</td><td>yes &mdash; the working range</td></tr>
-          <tr><td class="num">5</td><td>required</td><td>&hellip; within 1 round</td><td>yes &mdash; catches the rest</td></tr>
+          <tr><td class="num">5</td><td>required</td><td>&hellip; within 1 round</td><td>multi-split modes only &mdash; catches the rest</td></tr>
           <tr class="dead"><td class="num">6&ndash;10</td><td>required</td><td>reject only if <em>both</em> pairs met within 5 &hellip; 1 rounds</td><td>reset histories only</td></tr>
-          <tr class="dead"><td class="num">11</td><td>required</td><td>dropped entirely</td><td>reset histories only</td></tr>
+          <tr class="dead"><td class="num">11</td><td>required</td><td>dropped entirely</td><td>multi-split modes, reset histories only</td></tr>
+          <tr><td class="num">&mdash;</td><td>required</td><td colspan="2">Spread stops after pass 4 and returns <code>null</code>: with one split, passes 5 and 11 could only ever rubber-stamp a repeat.</td></tr>
         </tbody>
       </table>
     </div>
@@ -864,8 +868,8 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
             <td class="num b">spread</td>
             <td>Same as tiered</td>
             <td>Same as tiered</td>
-            <td>Same as tiered</td>
-            <td>yes &rarr; mixed &mdash; and more readily, with one split to work with</td>
+            <td>Same as tiered, but a repeat it cannot avoid fails the quad</td>
+            <td>yes &rarr; mixed, on nemesis <em>or</em> an unavoidable repeat</td>
           </tr>
           <tr>
             <td class="num b">mixed</td>
@@ -896,11 +900,188 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
     </div>
   </section>
 
+  <section id="functions">
+    <p class="eyebrow">match-list.component.ts &middot; every function on the shuffle path</p>
+    <h2>Function reference</h2>
+    <div class="prose">
+      <p>Thirty-odd small functions make up the shuffle. Grouped by the phase they belong to, here is what each one is handed, what it decides, and how it can fail. Line numbers are current as of this revision.</p>
+    </div>
+
+    <h3>Entry point</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="num b">shufflePlayersIntoCourt</td><td class="num">204</td>
+            <td>The only public entry. Runs the five phases in order, logs the resolved mode, and writes the finished courts. Returns immediately if no court is <code>available</code> &mdash; the one early exit in the whole pipeline. Everything below is called from here.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Phase 1 &mdash; who is in the round</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr><td class="num b">getAvailablePlayerList</td><td class="num">490</td>
+            <td>Collects everyone who is neither seated on a <code>playing</code> court nor marked <code>break</code>. Players sitting on an unconfirmed court are still included, which is why re-shuffling re-deals them.</td></tr>
+          <tr><td class="num b">getTotalAvailableSlotsInCourts</td><td class="num">510</td>
+            <td>Counts four slots per <code>available</code> court. Zero here ends the shuffle.</td></tr>
+          <tr><td class="num b">getSortedPlayerList</td><td class="num">520</td>
+            <td>Puts the pool in queue order and logs each player's priority point. Thin wrapper over <code>sortByPoint</code>.</td></tr>
+          <tr><td class="num b">calculatePlayerPriorityPoint</td><td class="num">532</td>
+            <td>The sort key, and the whole of the fairness policy: <code>-1</code> for a <code>selected</code> player so they jump the queue, otherwise <code>totalRoundsPlayed</code>. Rank, win rate and waiting time are deliberately not consulted.</td></tr>
+          <tr><td class="num b">sortByPoint</td><td class="num">1213</td>
+            <td>Sorts by that key, breaking exact ties with a random value drawn once per shuffle per player &mdash; so tied players don't alternate in a fixed order round after round.</td></tr>
+          <tr><td class="num b">recalculateTotalAvailableSlots</td><td class="num">539</td>
+            <td>Rounds the slot count down to a whole number of courts: ten waiting players fill two courts, not two and a half.</td></tr>
+          <tr><td class="num b">getAvailablePlayers</td><td class="num">552</td>
+            <td>Takes the top N of the queue, then repairs force pairs that straddle the cutoff: for each player in the window whose forced partner is outside it, the partner is pulled in and the window's lowest-priority member who isn't already half of a satisfied pair is evicted. Reverts the pull if nobody is evictable, so the window is always exactly N players.</td></tr>
+          <tr><td class="num b">getBoundaryTieGroup</td><td class="num">596</td>
+            <td>Splits the players tied on the cutoff's priority point into those who made the round and those who didn't &mdash; the pool a deadlocked quad may trade between. Works by membership, not by position, so a player the force pull-in moved across the line is classified correctly.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Phase 2 &mdash; which strategy runs</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr><td class="num b">resolveMode</td><td class="num">623</td>
+            <td>Returns the saved mode unless it is <code>auto</code>, in which case it rolls tiered / spread / mixed against their stored weights, renormalised over their own total. Novel is never rolled. Falls back to <code>tiered</code> if the weights total zero or less.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Strength and constraints &mdash; used by every mode</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr><td class="num b">effectiveRank</td><td class="num">642</td>
+            <td>Manual rank nudged by Laplace-smoothed win rate, damped by a confidence ramp over the first three games. Lower is stronger. Every strength comparison in the shuffle goes through it.</td></tr>
+          <tr><td class="num b">effectiveRankScore</td><td class="num">652</td>
+            <td>The same value in tier units rather than thousands, for summing team strengths. Sits one tier below raw <code>rank</code>; the offset is uniform and cancels in every comparison taken from it.</td></tr>
+          <tr><td class="num b">getForceTeamatesMap</td><td class="num">657</td>
+            <td>Flattens the force-pair list into a two-way name&rarr;name map. A player named in two different pairs keeps only the last one.</td></tr>
+          <tr><td class="num b">getNemesisSet</td><td class="num">666</td>
+            <td>Flattens the nemesis list into a set holding both <code>a:b</code> and <code>b:a</code>, so lookups need no ordering.</td></tr>
+          <tr><td class="num b">isNemesisPair</td><td class="num">675</td>
+            <td>One set lookup. Nemesis is always a hard exclusion &mdash; never a penalty, in any mode.</td></tr>
+          <tr><td class="num b">isRecentTeammatePair</td><td class="num">682</td>
+            <td>Finds when two players last partnered by scanning <code>teamateHistory</code> backwards, and compares the rounds elapsed against a caller-supplied window. The single definition of &ldquo;recently&rdquo; for every mode.</td></tr>
+          <tr><td class="num b">lockForcePairs</td><td class="num">695</td>
+            <td>Seats every force pair whose members are both present before any mode starts pairing, marking them used. Ignores a player forced with themselves, which would otherwise seat one person twice and push somebody else out of the round.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Phase 3a &mdash; the quad modes</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr><td class="num b">shuffleTiered</td><td class="num">832</td>
+            <td>Two lines: build quads from contiguous blocks of four, and offer all three splits. Everything else is <code>shuffleByQuads</code>.</td></tr>
+          <tr><td class="num b">shuffleSpread</td><td class="num">842</td>
+            <td>The same, but striding through the sorted list so each quad spans the full range, and offering only the best-with-worst split.</td></tr>
+          <tr><td class="num b">shuffleByQuads</td><td class="num">719</td>
+            <td>The shared engine. Sorts by <code>effectiveRank</code>, builds every quad through the callback, regroups split force pairs, then pairs each quad &mdash; trying a rescue swap before giving up. One failed quad fails the whole mode: it returns <code>null</code> and the caller falls through.</td></tr>
+          <tr><td class="num b">regroupForcePairsIntoSameQuad</td><td class="num">758</td>
+            <td>Quads are built on rank alone, so a force pair can land in two of them. This swaps the partner over &mdash; trading with a quad member who isn't force-paired to someone present &mdash; and re-sorts every quad afterwards, because the splits address positions and assume best&rarr;worst.</td></tr>
+          <tr><td class="num b">rescueQuadWithSwap</td><td class="num">795</td>
+            <td>Last chance for a quad no split can pair. Swaps one boundary-tied member for an equally-tied standby, re-sorts, and retries; consumes the standby so a later quad can't reuse them. Force-paired players are never swapped out.</td></tr>
+          <tr><td class="num b">formQuadPairs</td><td class="num">859</td>
+            <td>The heart of it. A force pair inside the quad short-circuits everything. Otherwise the caller's splits are tried in order inside each pass of a ladder that relaxes the repeat-partner rule from a five-round memory down to one. Returns <code>null</code> when nothing is acceptable &mdash; on nemesis for any mode, and additionally on an unavoidable repeat for a single-split mode.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Phase 3b &mdash; Mixed, the terminal mode</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr><td class="num b">shuffleMixed</td><td class="num">948</td>
+            <td>Locks force pairs, then folds the rest strongest-with-weakest, retrying the whole fold at a memory of three, two, then one round. If no window can satisfy every pick it runs the fold unconstrained, because a repeat partnership beats a round that never happens. Always returns a pairing.</td></tr>
+          <tr><td class="num b">foldStrongestWithWeakest</td><td class="num">983</td>
+            <td>Takes the strongest player left and walks inward from the weakest until it finds an acceptable partner, then repeats. Returns <code>null</code> if any pick runs out of candidates &mdash; including when the walk strands a nemesis pair as the final two.</td></tr>
+          <tr><td class="num b">isFoldPartnerOk</td><td class="num">1005</td>
+            <td>The per-candidate test for that walk: not a nemesis, and not a repeat inside the current window.</td></tr>
+          <tr><td class="num b">repairNemesisPairs</td><td class="num">1019</td>
+            <td>Safety net over the finished pairing. Cross-swaps partners between two pairs to break up a nemesis pairing, keeping the first swap where both results are clean. Never touches a force pair, and logs rather than dropping anyone when the settings make it impossible.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Phase 3c &mdash; Novel</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr><td class="num b">shuffleNovel</td><td class="num">1068</td>
+            <td>Ten attempts, keeping the lowest-scoring one. Each locks force pairs, shuffles the rest, and greedily takes the best-scoring partner for each player, hard-excluding nemeses and anyone paired too recently &mdash; dropping the recency filter for a pick when it empties the candidate list. The cooldown relaxes in phases across the attempts.</td></tr>
+          <tr><td class="num b">fisherYatesShuffle</td><td class="num">1051</td>
+            <td>A real uniform shuffle, used to vary the greedy walk's starting order between attempts.</td></tr>
+          <tr><td class="num b">noveltyScore</td><td class="num">1128</td>
+            <td>What &ldquo;novel&rdquo; means numerically: a teammate penalty that scales with pool size and decays as rounds pass, plus a smaller penalty for having faced each other recently. Zero once they haven't partnered in a full cycle of the pool.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Phase 4 &mdash; onto the courts</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Function</th><th class="num">Line</th><th>What happens inside</th></tr></thead>
+        <tbody>
+          <tr><td class="num b">calculateMatchInCourtsRankBased</td><td class="num">1143</td>
+            <td>Matches pairs into courts greedily: take the first pair, find the closest combined strength, seat them, remove both, repeat. Ties break on similarity of win rate, then on who has faced whom least recently. The pairs left at the end simply take each other.</td></tr>
+          <tr><td class="num b">calculateOppositePlayerPoint</td><td class="num">1184</td>
+            <td>Scores how recently two players were opponents, from the running opponent history. Only ever a tie-breaker.</td></tr>
+          <tr><td class="num b">putPlayerIntoCourts</td><td class="num">1197</td>
+            <td>Writes the teams onto the free courts in order, stamps each with the mode that actually produced it, and saves. Courts already <code>playing</code> are skipped.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section id="notes">
     <p class="eyebrow">read against the code on main-ai</p>
     <h2>Review notes</h2>
     <div class="prose">
-      <p>Six things worth knowing, from reading the current implementation end to end. Three have been acted on; the rest stand.</p>
+      <p>Findings from reading the implementation end to end, and from a per-commit review of the four commits that produced it. Five have been fixed; the rest stand as things to know.</p>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-fixed">fixed</div>
+      <div>
+        <h3>A rescued quad was paired by stale positions</h3>
+        <p>When a deadlocked quad is rescued, the standby player is substituted straight into the departing player's slot. Boundary candidates are tied on <em>rounds played</em>, not rank, so that slot rarely matches their strength &mdash; and the splits address positions, assuming best&rarr;worst. The quad was not re-sorted after the substitution, so <code>[0,3]</code> stopped meaning &ldquo;strongest with weakest&rdquo;.</p>
+        <p>Concretely, for a quad of ranks 1, 4, 6 and 9 rescued by a rank-2 standby: unsorted the split produced teams of strength 3 against 10; re-sorted it produces 7 against 6. One line, and the same sort <code>regroupForcePairsIntoSameQuad</code> already did for the same reason.</p>
+        <p class="src">match-list.component.ts:809 &middot; <code>rescueQuadWithSwap</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-fixed">fixed</div>
+      <div>
+        <h3>Spread dealt the same partnerships every round</h3>
+        <p>Giving Spread a single split made its outcome fully determined by the quad: the ladder could only accept that split or fail, and its final pass accepted unconditionally &mdash; so recency could never influence it. A twelve-round simulation on a settled eight-player pool produced <b>two</b> distinct pairing sets, with two partnerships repeating every single round.</p>
+        <p>A single-split mode's ladder may now end in failure instead: it stops after the last window that can actually reject, and the stale quad falls through to a mode that can rotate. The trade is that Spread hands off to Mixed more often in a settled group, which the court's mode label makes visible.</p>
+        <p class="src">match-list.component.ts:859 &middot; <code>formQuadPairs</code>, and <code>SPREAD_SPLITS</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-fixed">fixed</div>
+      <div>
+        <h3>A player forced to partner themselves was seated twice</h3>
+        <p><code>lockForcePairs</code> looked up the forced partner by name and found the player themselves, pairing them with themselves and pushing somebody else out of the round. The Settings screen cannot create such a pair, but settings synced from Supabase are not validated on the way in.</p>
+        <p class="src">match-list.component.ts:695 &middot; <code>lockForcePairs</code></p>
+      </div>
     </div>
 
     <div class="finding" id="f-fixed">
@@ -943,7 +1124,7 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
     </div>
 
     <div class="finding">
-      <div class="finding-tag tag-note">fairness</div>
+      <div class="finding-tag tag-note">design</div>
       <div>
         <h3>Waiting time is tracked but never used</h3>
         <p><code>roundsWaited</code> is incremented every round a non-break player sits out, and reset on break, but <code>calculatePlayerPriorityPoint</code> only reads <code>totalRoundsPlayed</code>. Someone who arrives late has a low round count and jumps the queue ahead of people who have been waiting through several rounds. That may well be the intent &mdash; it equalises games played &mdash; but the waiting counter currently costs bookkeeping and buys nothing.</p>
@@ -952,10 +1133,29 @@ confidence  = min(1, gamesPlayed / 3)                 full weight only from the 
     </div>
 
     <div class="finding">
+      <div class="finding-tag tag-note">test gap</div>
+      <div>
+        <h3>The pipeline itself has no test</h3>
+        <p>Every strategy and helper is covered, but <code>shufflePlayersIntoCourt</code> is never called from a spec. The fallthrough chain, the mode stamped on each court, and the hand-off from the eligible window into the modes are all verified only by reading. That gap widened when Spread began failing on repeats, since the fallthrough is now a routine path rather than an edge case.</p>
+        <p class="src">match-list.component.ts:204 &middot; <code>shufflePlayersIntoCourt</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-tag tag-note">design</div>
+      <div>
+        <h3>Combined rank is a weaker proxy for team strength than it was</h3>
+        <p>Courts are matched by the <em>sum</em> of both players' effective rank, which read as a fair proxy while partners were capped three tiers apart. With that cap gone, a rank&nbsp;1 paired with a rank&nbsp;9 sums to the same 10 as two rank&nbsp;5s, and the two are seated against each other as a perfectly even match &mdash; on court, the strong player simply covers everything. The win-rate tie-break only engages when the sums are within one, so it does not catch this either.</p>
+        <p>Nothing is broken; the metric just carries less information than it used to. Comparing the stronger halves of two pairs, or the spread within each pair, would distinguish these cases.</p>
+        <p class="src">match-list.component.ts:1143 &middot; <code>calculateMatchInCourtsRankBased</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
       <div class="finding-tag tag-note">docs</div>
       <div>
         <h3>The written docs describe an older algorithm</h3>
-        <p>Both <code>CLAUDE.md</code> and <code>docs/architecture-overview.html</code> still describe three modes &mdash; <code>balanced</code>, <code>mixed</code>, <code>novel</code> &mdash; with weights of 60/30/10 and a fallback from balanced straight to novel. The code has four modes, weights of 40/20/30/10, and a different fallthrough chain. Anyone reading either file will reason about the wrong algorithm.</p>
+        <p>Both <code>CLAUDE.md</code> and <code>docs/architecture-overview.html</code> still describe three modes &mdash; <code>balanced</code>, <code>mixed</code>, <code>novel</code> &mdash; with weights of 60/30/10, a partner rank cap of three tiers, and a fallback from balanced straight to novel. None of that survives: there are four modes, novel is excluded from the auto roll, the rank cap is gone, and the fallthrough chain is different. Anyone reading either file will reason about an algorithm that no longer exists.</p>
         <p class="src">CLAUDE.md &middot; docs/architecture-overview.html</p>
       </div>
     </div>
