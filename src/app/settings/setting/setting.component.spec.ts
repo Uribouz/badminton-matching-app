@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SettingComponent } from './setting.component';
+import { SettingService } from '../setting.service';
+import { PlayerService } from '../../players/player.service';
+import { MatchService } from '../../matches/match.service';
 
 describe('SettingComponent', () => {
   let component: SettingComponent;
@@ -70,6 +73,21 @@ describe('SettingComponent', () => {
 
       expect(setting.spreadPct).toBe(10);
       expect(setting.mixedPct).toBe(0);
+    });
+  });
+
+  describe('clearAllData', () => {
+    it('clears cached bill settings', () => {
+      const settingService = TestBed.inject(SettingService);
+      spyOn(TestBed.inject(PlayerService), 'clearAllData');
+      spyOn(TestBed.inject(MatchService), 'clearAllData');
+      spyOn(settingService, 'saveForceTeamates');
+      spyOn(settingService, 'saveNemesisTeamates');
+      localStorage.setItem('bill-settings', JSON.stringify({ totalCourts: 9 }));
+
+      component.clearAllData();
+
+      expect(localStorage.getItem('bill-settings')).toBeNull();
     });
   });
 });

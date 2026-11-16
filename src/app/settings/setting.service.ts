@@ -1,5 +1,15 @@
 import { Injectable } from '@angular/core';
 import { AuthService } from '../auth/auth.service';
+import * as billDefaults from '../bill/constant';
+
+const BILL_SETTINGS_KEY = 'bill-settings';
+
+export interface BillSettings {
+  totalCourts: number;
+  courtPrice: number;
+  totalShuttleUsed: number;
+  shuttlePrice: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -74,6 +84,43 @@ export class SettingService {
       } catch {}
     }
     return { tiered: 40, spread: 20, mixed: 30, novel: 10 };
+  }
+
+  saveBillSettings(settings: BillSettings) {
+    try {
+      localStorage.setItem(BILL_SETTINGS_KEY, JSON.stringify(settings));
+    } catch {}
+  }
+  loadBillSettings(): BillSettings {
+    const fallback: BillSettings = {
+      totalCourts: billDefaults.DEFAULT_TOTAL_COURTS,
+      courtPrice: billDefaults.DEFAULT_COURT_PRICE,
+      totalShuttleUsed: billDefaults.DEFAULT_TOTAL_SHUTTLE_USED,
+      shuttlePrice: billDefaults.DEFAULT_SHUTTLE_PRICE,
+    };
+    try {
+      const raw = localStorage.getItem(BILL_SETTINGS_KEY);
+      if (!raw) return fallback;
+      const cached = JSON.parse(raw) as Partial<Record<keyof BillSettings, unknown>>;
+      const pick = (key: keyof BillSettings): number => {
+        const v = cached?.[key];
+        const n = Number(v);
+        return v !== null && v !== undefined && v !== '' && Number.isFinite(n) ? n : fallback[key];
+      };
+      return {
+        totalCourts: pick('totalCourts'),
+        courtPrice: pick('courtPrice'),
+        totalShuttleUsed: pick('totalShuttleUsed'),
+        shuttlePrice: pick('shuttlePrice'),
+      };
+    } catch {
+      return fallback;
+    }
+  }
+  clearBillSettings() {
+    try {
+      localStorage.removeItem(BILL_SETTINGS_KEY);
+    } catch {}
   }
 
   deleteNemesisTeamate(deleteNemesisTeamate: {player1:string, player2: string}){

@@ -122,6 +122,7 @@ export class SettingComponent {
     this.matchService.clearAllData();
     this.settingService.saveForceTeamates([]);
     this.settingService.saveNemesisTeamates([]);
+    this.settingService.clearBillSettings();
     this.forceTeamates = [];
     this.nemesisTeamates = [];
     this.forceTeamatePlayer1 = '';

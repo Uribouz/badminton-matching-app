@@ -1,9 +1,10 @@
-import { Component, input, computed, signal, ViewChild, ElementRef } from '@angular/core';
+import { Component, input, computed, signal, effect, inject, ViewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Player } from '../players/player';
 import { CommonModule } from '@angular/common';
-import * as defaults from './constant';
+import { SettingService } from '../settings/setting.service';
 import html2canvas from 'html2canvas';
+
 @Component({
   selector: 'app-bill',
   standalone: true,
@@ -14,10 +15,24 @@ import html2canvas from 'html2canvas';
 export class BillComponent {
   @ViewChild('captureRef') captureRef!: ElementRef;
   players = input<Player[]>([]);
-  totalCourts = signal<number>(defaults.DEFAULT_TOTAL_COURTS);
-  courtPrice = signal<number>(defaults.DEFAULT_COURT_PRICE);
-  totalShuttleUsed = signal<number>(defaults.DEFAULT_TOTAL_SHUTTLE_USED);
-  shuttlePrice = signal<number>(defaults.DEFAULT_SHUTTLE_PRICE);
+  private readonly settingService = inject(SettingService);
+  private readonly cachedSettings = this.settingService.loadBillSettings();
+  totalCourts = signal<number>(this.cachedSettings.totalCourts);
+  courtPrice = signal<number>(this.cachedSettings.courtPrice);
+  totalShuttleUsed = signal<number>(this.cachedSettings.totalShuttleUsed);
+  shuttlePrice = signal<number>(this.cachedSettings.shuttlePrice);
+
+  constructor() {
+    // Persist whenever any value changes (covers both ngModel and the update* handlers).
+    effect(() => {
+      this.settingService.saveBillSettings({
+        totalCourts: this.totalCourts(),
+        courtPrice: this.courtPrice(),
+        totalShuttleUsed: this.totalShuttleUsed(),
+        shuttlePrice: this.shuttlePrice(),
+      });
+    });
+  }
 
   totalCourtPrice = computed(() => Math.round(this.courtPrice() * this.totalCourts() *100)/100);
   totalShuttlePrice = computed(
