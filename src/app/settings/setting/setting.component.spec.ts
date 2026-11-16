@@ -77,17 +77,23 @@ describe('SettingComponent', () => {
   });
 
   describe('clearAllData', () => {
-    it('clears cached bill settings', () => {
+    afterEach(() => localStorage.removeItem('bill-settings'));
+
+    it('resets only total shuttle used in cached bill settings', () => {
       const settingService = TestBed.inject(SettingService);
       spyOn(TestBed.inject(PlayerService), 'clearAllData');
       spyOn(TestBed.inject(MatchService), 'clearAllData');
       spyOn(settingService, 'saveForceTeamates');
       spyOn(settingService, 'saveNemesisTeamates');
-      localStorage.setItem('bill-settings', JSON.stringify({ totalCourts: 9 }));
+      localStorage.setItem('bill-settings', JSON.stringify({
+        totalCourts: 9, courtPrice: 300, totalShuttleUsed: 12, shuttlePrice: 85,
+      }));
 
       component.clearAllData();
 
-      expect(localStorage.getItem('bill-settings')).toBeNull();
+      expect(JSON.parse(localStorage.getItem('bill-settings')!)).toEqual({
+        totalCourts: 9, courtPrice: 300, totalShuttleUsed: 0, shuttlePrice: 85,
+      });
     });
   });
 });

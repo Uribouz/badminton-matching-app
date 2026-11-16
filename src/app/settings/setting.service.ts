@@ -117,10 +117,11 @@ export class SettingService {
       return fallback;
     }
   }
-  clearBillSettings() {
-    try {
-      localStorage.removeItem(BILL_SETTINGS_KEY);
-    } catch {}
+  resetBillShuttleUsed() {
+    this.saveBillSettings({
+      ...this.loadBillSettings(),
+      totalShuttleUsed: billDefaults.DEFAULT_TOTAL_SHUTTLE_USED,
+    });
   }
 
   deleteNemesisTeamate(deleteNemesisTeamate: {player1:string, player2: string}){
