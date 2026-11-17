@@ -86,6 +86,14 @@ export class SettingService {
     return { tiered: 40, spread: 20, mixed: 30, novel: 10 };
   }
 
+  // Local only (like the auto-mode weights): the Supabase settings table has no column for it.
+  saveCourtFormat(format: 'single' | 'double') {
+    localStorage.setItem('court-format', format);
+  }
+  loadCourtFormat(): 'single' | 'double' {
+    return localStorage.getItem('court-format') === 'single' ? 'single' : 'double';
+  }
+
   saveBillSettings(settings: BillSettings) {
     try {
       localStorage.setItem(BILL_SETTINGS_KEY, JSON.stringify(settings));

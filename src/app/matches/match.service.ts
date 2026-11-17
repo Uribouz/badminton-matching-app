@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Match } from './match';
+import { Match, teamPlayerNames } from './match';
 import { Constants } from '../shared/constants';
 import { AuthService } from '../auth/auth.service';
 import { EventService } from '../events/event.service';
@@ -68,19 +68,15 @@ export class MatchService {
   loadPlayerOpponents():Map<string, string[]>{
     let result = new Map<string, string[]>();
     let history: Match[] = this.loadMatchHistory();
-    let setEachResult = function (currentPlayer: string, oppositePlayer1: string,oppositePlayer2: string):string[] {
-      let oldVal = result.get(currentPlayer);
-      let nowResult = [oppositePlayer1, oppositePlayer2];
-      if (oldVal) {
-        nowResult = [...oldVal, ...nowResult]
-      }
-      return nowResult;
-    }
+    // Empty names are skipped so a singles match adds exactly one opponent per player.
+    const addOpponents = (players: string[], opponents: string[]) => {
+      players.forEach(name => result.set(name, [...(result.get(name) ?? []), ...opponents]));
+    };
     history.forEach( each => {
-      result.set(each.teamA.player1.name, setEachResult(each.teamA.player1.name, each.teamB.player1.name,each.teamB.player2.name));
-      result.set(each.teamA.player2.name, setEachResult(each.teamA.player2.name, each.teamB.player1.name,each.teamB.player2.name));
-      result.set(each.teamB.player1.name, setEachResult(each.teamB.player1.name, each.teamA.player1.name,each.teamA.player2.name));
-      result.set(each.teamB.player2.name, setEachResult(each.teamB.player2.name, each.teamA.player1.name,each.teamA.player2.name));
+      const teamA = teamPlayerNames(each.teamA);
+      const teamB = teamPlayerNames(each.teamB);
+      addOpponents(teamA, teamB);
+      addOpponents(teamB, teamA);
     })
     return result
   }

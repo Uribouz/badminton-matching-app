@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Match, Teammate } from '../match';
+import { CourtFormat, Match, Teammate, isSingles, teamPlayerNames } from '../match';
 import { Player } from '../../players/player';
 import { CommonModule } from '@angular/common';
 import { PlayerService } from '../../players/player.service';
@@ -20,7 +20,8 @@ enum PLAYER_STATUS {
   BREAK = 'break',
   SELECTED = 'selected',
 }
-const PLAYERS_PER_COURT = 4;
+const PLAYERS_PER_DOUBLES_COURT = 4;
+const PLAYERS_PER_SINGLES_COURT = 2;
 const TEAMS_PER_COURT = 2;
 const DEFAULT_TOTAL_COURT = 2;
 const DEFAULT_PLAYER_POINT = 0.5;
@@ -71,11 +72,13 @@ export class MatchListComponent {
   courtStatus = COURT_STATUS;
   forceMatchTeamate: {player1:string, player2: string}[] = [];
   nemesisTeamate: {player1:string, player2: string}[] = [];
+  courtFormat: CourtFormat = 'double';
 
   constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService) {
     this.playersMap = this.playerService.loadPlayerList();
     this.log('playersMap: ', this.playersMap);
     this.matchHistory = this.matchService.loadMatchHistory();
+    this.courtFormat = this.settingService.loadCourtFormat();
     this.playersOpponents = this.matchService.loadPlayerOpponents();
     this.log(`playersOpponents:`);
     this.log(this.playersOpponents);
@@ -87,6 +90,7 @@ export class MatchListComponent {
         this.addCourt();
       }
     }
+    this.applyCourtFormat();
     this.reloadStandbyList();
     this.status = this.playerService.loadPlayerStatus();
     this.rng = new XorShift();
@@ -107,6 +111,12 @@ export class MatchListComponent {
   }
   getMatchTime(match: Match): String {
     return new Date(match.matchTime).toLocaleTimeString();
+  }
+  isSingles(match: Match): boolean {
+    return isSingles(match);
+  }
+  teamLabel(team: Teammate): string {
+    return teamPlayerNames(team).join(', ');
   }
   getOpponentHistory(): {name: string, opponents: string[]}[] {
     return Array.from(this.playersOpponents.entries()).map(([key, values]) => ({name: key, opponents: values})) 
@@ -162,6 +172,7 @@ export class MatchListComponent {
   }
   swapTeamates(match: Match) {
     if (match.status == COURT_STATUS.PLAYING) return;
+    if (isSingles(match)) return; // no teammates to swap
     let tmpTeamBPlayer2 = match.teamB.player2;
     match.teamB.player2 = match.teamA.player2;
     match.teamA.player2 = match.teamB.player1;
@@ -209,6 +220,12 @@ export class MatchListComponent {
     if (totalAvailableSlots <= 0) return;
 
     const sortedPlayerList = this.getSortedPlayerList(availablePlayerList);
+    if (this.courtFormat === 'single') {
+      this.shuffleSinglesIntoCourts(sortedPlayerList, totalAvailableSlots);
+      this.reloadStandbyList();
+      this.log('SHUFFLE end.');
+      return;
+    }
     totalAvailableSlots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length);
     const eligiblePlayers = this.getAvailablePlayers(sortedPlayerList, totalAvailableSlots);
     const swapPool = this.getBoundaryTieGroup(sortedPlayerList, eligiblePlayers, totalAvailableSlots);
@@ -254,54 +271,28 @@ export class MatchListComponent {
     match.whoWon = whichTeam;
     console.log(`Winning team of a match ${wonMatchId} is ${whichTeam}`)
 
-    let playerName1 = whichTeam === 'teamA'? match.teamA.player1.name: match.teamB.player1.name;
-    let playerName2 = whichTeam === 'teamA'? match.teamA.player2.name: match.teamB.player2.name;
-    let player1 = this.playersMap.get(playerName1);
-    let player2 = this.playersMap.get(playerName2);
-    if(!player1) {
-      this.log(`error not found player ${playerName1}`);
-      return;
+    // Loops over the actual names on each side, so a singles court (player2 empty) is handled
+    // the same as doubles. lastWonMatch makes re-clicking idempotent, and flipping the winner
+    // takes the win back from the side that previously had it.
+    const winners = teamPlayerNames(whichTeam === 'teamA' ? match.teamA : match.teamB);
+    const losers = teamPlayerNames(whichTeam === 'teamA' ? match.teamB : match.teamA);
+    for (const name of winners) {
+      const player = this.playersMap.get(name);
+      if (!player) { this.log(`error not found player ${name}`); continue; }
+      if (player.lastWonMatch !== wonMatchId) {
+        player.roundsWon += 1;
+        player.lastWonMatch = wonMatchId;
+      }
     }
-    if(!player2) {
-      this.log(`error not found player ${playerName2}`);
-      return;
+    for (const name of losers) {
+      const player = this.playersMap.get(name);
+      if (!player) { this.log(`error not found lost player ${name}`); continue; }
+      if (player.lastWonMatch === wonMatchId) {
+        player.roundsWon -= 1;
+        player.lastWonMatch = '';
+      }
     }
-    if (player1.lastWonMatch !== wonMatchId) {
-      player1.roundsWon += 1
-      player1.lastWonMatch = wonMatchId;
-      this.playersMap.set(playerName1, player1);
-    }
-    if (player2.lastWonMatch !== wonMatchId) {
-      player2.roundsWon += 1
-      player2.lastWonMatch = wonMatchId;
-      this.playersMap.set(playerName2, player2);
-     }
-    console.log(`Won: ${player1.name}: ${player1.roundsWon}, ${player2.name}: ${player2.roundsWon}`);
-
-
-    let lostPlayerName1 = whichTeam === 'teamB'? match.teamA.player1.name: match.teamB.player1.name;
-    let lostPlayerName2 = whichTeam === 'teamB'? match.teamA.player2.name: match.teamB.player2.name;
-    let lostPlayer1 = this.playersMap.get(lostPlayerName1);
-    let lostPlayer2 = this.playersMap.get(lostPlayerName2);
-    if(!lostPlayer1) {
-      this.log(`error not found lost player ${lostPlayerName1}`);
-      return;
-    }
-    if(!lostPlayer2) {
-      this.log(`error not found lost player ${lostPlayerName2}`);
-      return;
-    }
-    if (lostPlayer1.lastWonMatch === wonMatchId) {
-      lostPlayer1.roundsWon -= 1;
-      lostPlayer1.lastWonMatch = '';
-      this.playersMap.set(lostPlayerName1, lostPlayer1);
-    }
-    if (lostPlayer2.lastWonMatch === wonMatchId) {
-      lostPlayer2.roundsWon -= 1;
-      lostPlayer2.lastWonMatch = '';
-      this.playersMap.set(lostPlayerName2, lostPlayer2);
-    }
-    console.log(`Lost: ${lostPlayer1.name}: ${lostPlayer1.roundsWon}, ${lostPlayer2.name}: ${lostPlayer2.roundsWon}`);
+    console.log(`Won: ${winners.join(', ')} / Lost: ${losers.join(', ')}`);
 
     this.playerService.savePlayerList(this.playersMap);
     this.matchService.saveMatchList(this.matchList);
@@ -314,7 +305,7 @@ export class MatchListComponent {
     const courtLines = this.matchList
       .filter((match) => match.teamA.player1.name && match.teamB.player1.name)
       .map((match) =>
-        `Court ${match.courtNo}: ${match.teamA.player1.name} & ${match.teamA.player2.name} vs ${match.teamB.player1.name} & ${match.teamB.player2.name}`
+        `Court ${match.courtNo}: ${teamPlayerNames(match.teamA).join(' & ')} vs ${teamPlayerNames(match.teamB).join(' & ')}`
       );
     const title = courtLines.length ? `🏸 ${courtLines.join(' | ')}` : '🏸 Badminton Match';
     const text = courtLines.length ? courtLines.join('\n') : 'Badminton Match';
@@ -343,12 +334,7 @@ export class MatchListComponent {
 
   // === Stand by list reload =================
   private reloadStandbyList() {
-    let playingPlayers = this.matchList.flatMap((each) => [
-      each.teamA.player1?.name || '',
-      each.teamA.player2?.name || '',
-      each.teamB.player1?.name || '',
-      each.teamB.player2?.name || '',
-    ]);
+    let playingPlayers = this.matchList.flatMap((each) => this.courtPlayerNames(each));
     this.log(`reloadStandbyList: ${this.matchList[0]}: ${this.matchList[1]}`);
     this.standbyList = Array.from(this.playersMap.values()).filter(
       (each) => !playingPlayers.includes(each.name)
@@ -365,6 +351,32 @@ export class MatchListComponent {
     currentCourt.teamB.player1 = new Player('');
     currentCourt.teamB.player2 = new Player('');
     currentCourt.whoWon = '';
+    currentCourt.format = this.courtFormat;
+  }
+
+  // Bring every court that isn't mid-game in line with the format chosen in Settings. A court
+  // still assigned players for the other format is cleared (those players go back to standby);
+  // a PLAYING court finishes in its own format and converts when freed (see clearCourt).
+  private applyCourtFormat() {
+    let changed = false;
+    this.matchList.forEach((court) => {
+      if (court.status === COURT_STATUS.PLAYING) return;
+      if ((court.format ?? 'double') === this.courtFormat) return;
+      this.clearCourt(court);
+      changed = true;
+    });
+    if (changed) this.matchService.saveMatchList(this.matchList);
+  }
+
+  private playersPerCourt(format: CourtFormat | undefined): number {
+    return format === 'single' ? PLAYERS_PER_SINGLES_COURT : PLAYERS_PER_DOUBLES_COURT;
+  }
+  private slotsPerCourt(court: Match): number {
+    return this.playersPerCourt(court.format);
+  }
+
+  private courtPlayerNames(court: Match): string[] {
+    return [...teamPlayerNames(court.teamA), ...teamPlayerNames(court.teamB)];
   }
 
   // === Confirm Court Operations =============
@@ -373,12 +385,7 @@ export class MatchListComponent {
     if (court.status === COURT_STATUS.PLAYING) {
       return;
     }
-    if (
-      !court.teamA.player1.name ||
-      !court.teamA.player2.name ||
-      !court.teamB.player1.name ||
-      !court.teamB.player2.name
-    ) {
+    if (this.courtPlayerNames(court).length < this.slotsPerCourt(court)) {
       this.log('error: court is not full');
       return;
     }
@@ -386,12 +393,7 @@ export class MatchListComponent {
     court.status = COURT_STATUS.PLAYING;
     this.log('set court.status to playing', court);
 
-    let confirmedPlayerNames = [
-      court.teamA.player1?.name || '',
-      court.teamA.player2?.name || '',
-      court.teamB.player1?.name || '',
-      court.teamB.player2?.name || '',
-    ];
+    let confirmedPlayerNames = this.courtPlayerNames(court);
     this.playersMap = this.confirmPlayersPlay(
       this.playersMap,
       confirmedPlayerNames
@@ -401,12 +403,7 @@ export class MatchListComponent {
   private confirmPlayersWait() {
     let playingPlayersName = this.matchList
       .filter((each) => each.status === COURT_STATUS.PLAYING)
-      .flatMap((each) => [
-        each.teamA.player1.name,
-        each.teamA.player2.name,
-        each.teamB.player1.name,
-        each.teamB.player2.name,
-      ]);
+      .flatMap((each) => this.courtPlayerNames(each));
     let currentStandbyList = Array.from(this.playersMap.values())
       .filter((each) => !playingPlayersName.includes(each.name))
       .map((each) => each.name);
@@ -449,6 +446,7 @@ export class MatchListComponent {
     playerMap: Map<string, Player>,
     court: Match
   ): Map<string, Player> {
+    if (isSingles(court)) return playerMap; // no partner to record
     playerMap = this.confirmPlayersTeamate(playerMap, court.teamA);
     playerMap = this.confirmPlayersTeamate(playerMap, court.teamB);
     this.playerService.savePlayerList(playerMap);
@@ -490,12 +488,7 @@ export class MatchListComponent {
   private getAvailablePlayerList() {
     let playingPlayers = this.matchList
       .filter((each) => each.status === COURT_STATUS.PLAYING)
-      .flatMap((each) => [
-        each.teamA.player1.name,
-        each.teamA.player2.name,
-        each.teamB.player1.name,
-        each.teamB.player2.name,
-      ]);
+      .flatMap((each) => this.courtPlayerNames(each));
     this.log('playingPlayers:', playingPlayers);
     let initialPlayerList: Player[] = Array.from(this.playersMap.values())
       .filter((each) => !playingPlayers.includes(each.name))
@@ -511,7 +504,7 @@ export class MatchListComponent {
     let totalAvailableSlots = 0;
     this.matchList.forEach((each) => {
       if (each.status === COURT_STATUS.AVAILABLE) {
-        totalAvailableSlots += PLAYERS_PER_COURT;
+        totalAvailableSlots += this.slotsPerCourt(each);
       }
     });
     this.log('totalAvailableSlots: ', totalAvailableSlots);
@@ -537,7 +530,9 @@ export class MatchListComponent {
     return (multiplier_rounds_played * player.totalRoundsPlayed || 0) - 0;
   }
   private recalculateTotalAvailableSlots(currentTotalAvailableSlot:number, sortedPlayerListLength: number) {
-    let maxPlayersCanBePutIntoCourt = Math.floor(sortedPlayerListLength / PLAYERS_PER_COURT) * PLAYERS_PER_COURT;
+    // Only free courts are filled, and applyCourtFormat keeps every free court on courtFormat.
+    const perCourt = this.playersPerCourt(this.courtFormat);
+    let maxPlayersCanBePutIntoCourt = Math.floor(sortedPlayerListLength / perCourt) * perCourt;
     if (currentTotalAvailableSlot > maxPlayersCanBePutIntoCourt) {
       currentTotalAvailableSlot = maxPlayersCanBePutIntoCourt;
     }
@@ -1137,6 +1132,143 @@ export class MatchListComponent {
     return teammatePenalty + opponentPenalty;
   }
 
+  // === Singles ======================================
+  // A 1v1 court has no teammates, so quads, splits, the top↔bottom fold and the force/nemesis
+  // teammate rules don't apply. Singles cares about three things only:
+  //   1. who plays — the same rounds-played priority as doubles (getSortedPlayerList),
+  //   2. a competitive match — opponents close in effectiveRank,
+  //   3. variety — not facing the same opponent round after round.
+  // Tiered/Spread/Mixed/Auto all map to Balanced (strongest-vs-weakest in 1v1 is just a
+  // blowout); Novel keeps its meaning and favours opponents faced least recently.
+  private shuffleSinglesIntoCourts(sortedPlayerList: Player[], totalAvailableSlots: number) {
+    const slots = this.recalculateTotalAvailableSlots(totalAvailableSlots, sortedPlayerList.length);
+    const eligiblePlayers = sortedPlayerList.slice(0, slots);
+    const mode = this.settingService.loadShuffleMode() === 'novel' ? 'novel' : 'balanced';
+    this.log(`SHUFFLE singles mode: ${mode}`);
+
+    const matchups = mode === 'novel'
+      ? this.pairSinglesNovel(eligiblePlayers)
+      : this.pairSinglesBalanced(eligiblePlayers);
+    // Strongest match on the first free court, so placement is predictable.
+    const rankSum = (m: [Player, Player]) => this.effectiveRank(m[0]) + this.effectiveRank(m[1]);
+    matchups.sort((a, b) => rankSum(a) - rankSum(b));
+    this.log('resultCourt', matchups.map(([a, b]) => `[${a.name}] vs [${b.name}]`));
+    this.putSinglesIntoCourts(matchups, mode);
+  }
+
+  // Sort by effectiveRank and pair each player with someone at most SINGLES_MAX_RANK_STEP
+  // places away, so avoiding a rematch never turns into a mismatch. The strongest unpaired player
+  // is always resolved first, trying the nearest-ranked candidate first, and the search
+  // backtracks: a greedy pass could pair P1–P2 and strand a P3–P4 rematch when P1–P3 / P2–P4
+  // was fine. "No rematch" means not among either player's last `lookback` opponents, and the
+  // window shrinks 3 → 2 → 1. Only if no rematch-free pairing exists at all does plain
+  // neighbour pairing run — a rematch is better than no round.
+  private pairSinglesBalanced(players: Player[]): [Player, Player][] {
+    const SINGLES_LOOKBACKS = [3, 2, 1];
+    const SINGLES_MAX_RANK_STEP = 3;
+    const sorted = [...players].sort((a, b) => this.effectiveRank(a) - this.effectiveRank(b));
+
+    // Candidates are tried in rank order, so the first complete pairing found is the one
+    // closest to plain neighbour pairing. Pools are a few courts' worth of players and the
+    // branching is capped at SINGLES_MAX_RANK_STEP, so the search stays tiny.
+    const search = (pool: Player[], lookback: number): [Player, Player][] | null => {
+      if (pool.length < 2) return [];
+      const [player, ...rest] = pool;
+      const reach = Math.min(rest.length, SINGLES_MAX_RANK_STEP);
+      for (let idx = 0; idx < reach; idx++) {
+        const opponent = rest[idx];
+        if (this.facedRecently(player, opponent, lookback) || this.facedRecently(opponent, player, lookback)) continue;
+        const tail = search(rest.filter((_, i) => i !== idx), lookback);
+        if (tail) return [[player, opponent], ...tail];
+      }
+      return null;
+    };
+
+    for (const lookback of SINGLES_LOOKBACKS) {
+      const pairs = search(sorted, lookback);
+      if (pairs) return pairs;
+    }
+
+    const plain: [Player, Player][] = [];
+    for (let i = 0; i + 1 < sorted.length; i += 2) plain.push([sorted[i], sorted[i + 1]]);
+    return plain;
+  }
+
+  // Random order, each player greedily takes the candidate with the lowest opponent penalty
+  // (rank gap breaks ties); best of 10 attempts wins.
+  private pairSinglesNovel(players: Player[]): [Player, Player][] {
+    const maxRetries = 10;
+    const score = (a: Player, b: Player) =>
+      this.singlesOpponentPenalty(a, b) + Math.abs(this.effectiveRankScore(a) - this.effectiveRankScore(b));
+    let bestPairs: [Player, Player][] = [];
+    let bestScore = Infinity;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const pool = this.fisherYatesShuffle(players);
+      const pairs: [Player, Player][] = [];
+      let total = 0;
+      while (pool.length > 1) {
+        const player = pool.shift()!;
+        let bestIdx = 0;
+        let best = score(player, pool[0]);
+        for (let i = 1; i < pool.length; i++) {
+          const candidate = score(player, pool[i]);
+          if (candidate < best) { best = candidate; bestIdx = i; }
+        }
+        total += best;
+        pairs.push([player, pool[bestIdx]]);
+        pool.splice(bestIdx, 1);
+      }
+      if (total < bestScore) {
+        bestScore = total;
+        bestPairs = pairs;
+      }
+    }
+    return bestPairs;
+  }
+
+  // True when `b` is among `a`'s last `lookback` opponents. playersOpponents is
+  // chronological; a singles match adds one entry per player (see loadPlayerOpponents).
+  private facedRecently(a: Player, b: Player, lookback: number): boolean {
+    const opponents = this.playersOpponents.get(a.name) ?? [];
+    return opponents.slice(-lookback).includes(b.name);
+  }
+
+  // 0 for a never-faced opponent. Otherwise a heavy penalty for a recent meeting (last
+  // opponent = 400, fading to 0 after 4 matches) plus a light one per past meeting.
+  private singlesOpponentPenalty(a: Player, b: Player): number {
+    const opponents = this.playersOpponents.get(a.name) ?? [];
+    const lastIdx = opponents.lastIndexOf(b.name);
+    if (lastIdx < 0) return 0;
+    const matchesAgo = opponents.length - lastIdx; // 1 = most recent
+    const timesFaced = opponents.filter(name => name === b.name).length;
+    return Math.max(0, 5 - matchesAgo) * 100 + timesFaced * 10;
+  }
+
+  // A reshuffle can produce fewer matches than there are free courts (someone went on break).
+  // Without this, the spare court keeps the previous unconfirmed shuffle's players — who may
+  // have just been seated on another court too, or be on break — and confirm would count them.
+  private clearLeftoverCourt(court: Match) {
+    this.clearCourt(court);
+    court.mode = '';
+  }
+
+  private putSinglesIntoCourts(matchups: [Player, Player][], mode: string) {
+    const queue = [...matchups];
+    this.matchList.forEach((court) => {
+      if (court.status === COURT_STATUS.PLAYING) return;
+      const next = queue.shift();
+      if (!next) { this.clearLeftoverCourt(court); return; }
+      court.format = 'single';
+      court.teamA.player1 = next[0];
+      court.teamA.player2 = new Player('');
+      court.teamB.player1 = next[1];
+      court.teamB.player2 = new Player('');
+      court.mode = mode;
+    });
+    this.matchService.saveMatchList(this.matchList);
+  }
+
   // === Court Pairing (rank-sum balanced) ============
   // Rank-sums use effectiveRank (rank + win-rate), so a team's recent form — not just
   // their assigned ranks — determines which courts are considered "evenly matched".
@@ -1198,7 +1330,7 @@ export class MatchListComponent {
     this.matchList.map((each) => {
       each.matchTime
       if (each.status === COURT_STATUS.PLAYING) return;
-      if (teamateList.length <= 0) return;
+      if (teamateList.length <= 0) { this.clearLeftoverCourt(each); return; }
       let currentTeam = teamateList[0]
       each.teamA.player1 = currentTeam.team1.player1;
       each.teamA.player2 = currentTeam.team1.player2;

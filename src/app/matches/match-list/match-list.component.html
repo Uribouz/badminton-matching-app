@@ -13,6 +13,7 @@
             class="modeBadge"
             [class]="'modeBadge--' + match.mode"
           >{{ match.mode }}</span>
+          <span *ngIf="isSingles(match)" class="formatBadge">Singles</span>
         </div>
         <div class="court">
           <button
@@ -31,10 +32,10 @@
               courtStatusAvailable: true
             }"
           >
-            <div class="player">
+            <div class="player" [class.playerSingle]="isSingles(match)">
               <h3>{{ match.teamA.player1.name }}</h3>
             </div>
-            <div class="player">
+            <div class="player" *ngIf="!isSingles(match)">
               <h3>{{ match.teamA.player2.name }}</h3>
             </div>
           </div>
@@ -46,10 +47,10 @@
               courtStatusAvailable: true
             }"
           >
-            <div class="player">
+            <div class="player" [class.playerSingle]="isSingles(match)">
               <h3>{{ match.teamB.player1.name }}</h3>
             </div>
-            <div class="player">
+            <div class="player" *ngIf="!isSingles(match)">
               <h3>{{ match.teamB.player2.name }}</h3>
             </div>
           </div>
@@ -72,6 +73,7 @@
             (click)="freeCourt(match)"
           ></button>
           <button
+            *ngIf="!isSingles(match)"
             class="btn btn_court_team_swap"
             (click)="swapTeamates(match)"
           ></button>
@@ -152,7 +154,7 @@
             [class.matchTeamLoss]="match.whoWon === 'teamB'">
           <span class="matchResult" *ngIf="match.whoWon === 'teamA'">W</span>
           <span class="matchResult matchResultLoss" *ngIf="match.whoWon === 'teamB'">L</span>
-          [{{ match.teamA.player1.name }}, {{ match.teamA.player2.name }}]
+          [{{ teamLabel(match.teamA) }}]
         </td>
         <td class="vs-separator">vs</td>
         <td class="matchTeam"
@@ -160,7 +162,7 @@
             [class.matchTeamLoss]="match.whoWon === 'teamA'">
           <span class="matchResult" *ngIf="match.whoWon === 'teamB'">W</span>
           <span class="matchResult matchResultLoss" *ngIf="match.whoWon === 'teamA'">L</span>
-          [{{ match.teamB.player1.name }}, {{ match.teamB.player2.name }}]
+          [{{ teamLabel(match.teamB) }}]
         </td>
       </tr>
     </table>

@@ -22,6 +22,7 @@ export class SettingComponent {
   nemesisTeamatePlayer1: string = "";
   nemesisTeamatePlayer2: string = "";
 
+  courtFormat: 'single' | 'double' = 'double';
   shuffleMode: 'tiered' | 'spread' | 'mixed' | 'novel' | 'auto' = 'auto';
   tieredPct = 40;
   spreadPct = 20;
@@ -33,6 +34,7 @@ export class SettingComponent {
   constructor(private playerService: PlayerService, private matchService: MatchService, private settingService: SettingService, private authService: AuthService, private router: Router) {
       this.forceTeamates = this.settingService.loadForceTeamates();
       this.nemesisTeamates = this.settingService.loadNemesisTeamates();
+      this.courtFormat = this.settingService.loadCourtFormat();
       this.shuffleMode = this.settingService.loadShuffleMode();
       const weights = this.settingService.loadShuffleModeWeights();
       this.tieredPct = weights.tiered;
@@ -43,6 +45,11 @@ export class SettingComponent {
         this.saveWeights();
       }
       this.playerNames = Array.from(this.playerService.loadPlayerList().keys());
+  }
+
+  setCourtFormat(format: 'single' | 'double') {
+    this.courtFormat = format;
+    this.settingService.saveCourtFormat(format);
   }
 
   setShuffleMode(mode: 'tiered' | 'spread' | 'mixed' | 'novel' | 'auto') {

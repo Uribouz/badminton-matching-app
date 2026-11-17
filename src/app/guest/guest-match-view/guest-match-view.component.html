@@ -17,12 +17,12 @@
           <div class="court courtStatusPlaying">
             <div class="team">
               <div class="player"><h3>{{ match.teamAPlayer1 }}</h3></div>
-              <div class="player"><h3>{{ match.teamAPlayer2 }}</h3></div>
+              <div class="player" *ngIf="match.teamAPlayer2"><h3>{{ match.teamAPlayer2 }}</h3></div>
             </div>
             <div class="vl"></div>
             <div class="team">
               <div class="player"><h3>{{ match.teamBPlayer1 }}</h3></div>
-              <div class="player"><h3>{{ match.teamBPlayer2 }}</h3></div>
+              <div class="player" *ngIf="match.teamBPlayer2"><h3>{{ match.teamBPlayer2 }}</h3></div>
             </div>
           </div>
         </div>
@@ -50,12 +50,12 @@
           <td class="match-time">{{ i + 1 }}) {{ getMatchTime(match) }}</td>
           <td class="matchTeam">
             <span class="winBadge" *ngIf="match.whoWon === 'teamA'">W</span>
-            [{{ match.teamAPlayer1 }}, {{ match.teamAPlayer2 }}]
+            [{{ match.teamAPlayer1 }}<ng-container *ngIf="match.teamAPlayer2">, {{ match.teamAPlayer2 }}</ng-container>]
           </td>
           <td class="vs-separator">vs</td>
           <td class="matchTeam">
             <span class="winBadge" *ngIf="match.whoWon === 'teamB'">W</span>
-            [{{ match.teamBPlayer1 }}, {{ match.teamBPlayer2 }}]
+            [{{ match.teamBPlayer1 }}<ng-container *ngIf="match.teamBPlayer2">, {{ match.teamBPlayer2 }}</ng-container>]
           </td>
         </tr>
       </table>

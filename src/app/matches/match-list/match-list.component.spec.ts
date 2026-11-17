@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 
 import { MatchListComponent } from './match-list.component';
 import { Player, NewPlayer } from '../../players/player';
-import { Teammate } from '../match';
+import { Match, Teammate } from '../match';
 import { XorShift } from '../../shared/random/xorshift';
 
 function makeRankedPlayer(name: string, rank: number): Player {
@@ -1071,6 +1071,159 @@ describe('MatchListComponent', () => {
       // We're mainly checking the function doesn't crash with equal points
     } finally {
     }
+  });
+
+  describe('singles format', () => {
+    function singlesCourt(courtNo: number): Match {
+      const court = new Match();
+      court.courtNo = courtNo;
+      court.format = 'single';
+      return court;
+    }
+    function seatedNames(): string[] {
+      return component.matchList.flatMap(m =>
+        [m.teamA.player1.name, m.teamA.player2.name, m.teamB.player1.name, m.teamB.player2.name]);
+    }
+
+    beforeEach(() => {
+      // Keep these tests from leaking courts/players into localStorage for other specs.
+      spyOn(component['matchService'], 'saveMatchList');
+      spyOn(component['matchService'], 'addMatchHistory').and.returnValue([]);
+      spyOn(component['playerService'], 'savePlayerList');
+      component.courtFormat = 'single';
+      component.matchList = [singlesCourt(1), singlesCourt(2)];
+      component.playersOpponents = new Map();
+      component.rng = new XorShift(7);
+    });
+    afterEach(() => localStorage.removeItem('shuffle-mode'));
+
+    it('seats 1v1 on every free court, player2 empty, nobody twice', () => {
+      component.playersMap = new Map(['a', 'b', 'c', 'd', 'e'].map((n, i) => [n, makeRankedPlayer(n, i + 1)]));
+      component.shufflePlayersIntoCourt();
+
+      for (const court of component.matchList) {
+        expect(court.teamA.player1.name).not.toBe('');
+        expect(court.teamB.player1.name).not.toBe('');
+        expect(court.teamA.player2.name).toBe('');
+        expect(court.teamB.player2.name).toBe('');
+      }
+      const seated = seatedNames().filter(n => n);
+      expect(seated.length).toBe(4);
+      expect(new Set(seated).size).toBe(4);
+    });
+
+    it('selects the players who have played the fewest rounds', () => {
+      const players = ['a', 'b', 'c', 'd', 'e', 'f'].map((n, i) => makePlayerWithHistory(n, 3, 0, []));
+      players[4].totalRoundsPlayed = 5; // e
+      players[5].totalRoundsPlayed = 5; // f
+      component.playersMap = new Map(players.map(p => [p.name, p]));
+      component.shufflePlayersIntoCourt();
+      expect(seatedNames().filter(n => n).sort()).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('balanced pairs neighbours by rank', () => {
+      const players = [makeRankedPlayer('p1', 1), makeRankedPlayer('p2', 2), makeRankedPlayer('p5', 5), makeRankedPlayer('p6', 6)];
+      const pairs = component['pairSinglesBalanced'](players).map(([x, y]: Player[]) => [x.name, y.name].sort().join('v'));
+      expect(pairs.sort()).toEqual(['p1vp2', 'p5vp6']);
+    });
+
+    it('balanced avoids an immediate rematch when another close opponent exists', () => {
+      const players = ['p1', 'p2', 'p3', 'p4'].map((n, i) => makeRankedPlayer(n, i + 1));
+      component.playersOpponents = new Map([['p1', ['p2']], ['p2', ['p1']]]);
+      const pairs = component['pairSinglesBalanced'](players).map(([x, y]: Player[]) => [x.name, y.name].sort().join('v'));
+      expect(pairs).not.toContain('p1vp2');
+    });
+
+    it('balanced backtracks instead of stranding a rematch at the bottom', () => {
+      // Greedy would take p1–p2 and leave p3–p4, who just played each other.
+      const players = ['p1', 'p2', 'p3', 'p4'].map((n, i) => makeRankedPlayer(n, i + 1));
+      component.playersOpponents = new Map([['p3', ['p4']], ['p4', ['p3']]]);
+      const pairs = component['pairSinglesBalanced'](players).map(([x, y]: Player[]) => [x.name, y.name].sort().join('v'));
+      expect(pairs).not.toContain('p3vp4');
+      expect(pairs.length).toBe(2);
+    });
+
+    it('a reshuffle with fewer players empties the spare court instead of keeping old names', () => {
+      const players = ['a', 'b', 'c', 'd'].map((n, i) => makeRankedPlayer(n, i + 1));
+      component.playersMap = new Map(players.map(p => [p.name, p]));
+      component.shufflePlayersIntoCourt();
+      expect(seatedNames().filter(n => n).length).toBe(4);
+
+      component.setPlayerStatus('d', 'break' as any);
+      component.shufflePlayersIntoCourt();
+      const seated = seatedNames().filter(n => n);
+      expect(seated.length).toBe(2);
+      expect(new Set(seated).size).toBe(2);
+      expect(seated).not.toContain('d');
+      expect(component.matchList[1].mode).toBe('');
+    });
+
+    it('novel prefers an opponent never faced', () => {
+      const players = ['p1', 'p2', 'p3', 'p4'].map((n) => makeRankedPlayer(n, 3));
+      component.playersOpponents = new Map([
+        ['p1', ['p2', 'p3']], ['p2', ['p1', 'p4']], ['p3', ['p4', 'p1']], ['p4', ['p3', 'p2']],
+      ]);
+      const pairs = component['pairSinglesNovel'](players).map(([x, y]: Player[]) => [x.name, y.name].sort().join('v'));
+      expect(pairs.sort()).toEqual(['p1vp4', 'p2vp3']);
+    });
+
+    it('labels the court balanced unless novel is chosen', () => {
+      component.playersMap = new Map(['a', 'b'].map((n, i) => [n, makeRankedPlayer(n, i + 1)]));
+      localStorage.setItem('shuffle-mode', 'tiered');
+      component.shufflePlayersIntoCourt();
+      expect(component.matchList[0].mode).toBe('balanced');
+    });
+
+    it('confirms a full singles court and credits the single winner', () => {
+      const a = makeRankedPlayer('a', 1);
+      const b = makeRankedPlayer('b', 2);
+      component.playersMap = new Map([['a', a], ['b', b]]);
+      component.shufflePlayersIntoCourt();
+      component.confirmCourts();
+      const court = component.matchList.find(m => m.status === 'playing')!;
+      expect(court).toBeTruthy();
+      expect(a.teamateHistory).toEqual([]);
+
+      const winner = court.teamA.player1;
+      const loser = court.teamB.player1;
+      component.onClickConfirmWinningTeam(court, 'teamA');
+      expect(winner.roundsWon).toBe(1);
+      expect(loser.roundsWon).toBe(0);
+      expect(component['playerService'].savePlayerList).toHaveBeenCalled();
+
+      // Flipping the result moves the win across.
+      component.onClickConfirmWinningTeam(court, 'teamB');
+      expect(winner.roundsWon).toBe(0);
+      expect(loser.roundsWon).toBe(1);
+    });
+
+    it('converts free courts to the saved format but leaves a playing court alone', () => {
+      component.courtFormat = 'double';
+      const playing = singlesCourt(1);
+      playing.status = 'playing';
+      playing.teamA.player1 = makeRankedPlayer('a', 1);
+      playing.teamB.player1 = makeRankedPlayer('b', 1);
+      const free = singlesCourt(2);
+      free.teamA.player1 = makeRankedPlayer('c', 1);
+      component.matchList = [playing, free];
+      component['applyCourtFormat']();
+      expect(playing.format).toBe('single');
+      expect(playing.teamA.player1.name).toBe('a');
+      expect(free.format).toBe('double');
+      expect(free.teamA.player1.name).toBe('');
+    });
+  });
+
+  describe('SettingService court format', () => {
+    afterEach(() => localStorage.removeItem('court-format'));
+    it('defaults to doubles', () => {
+      localStorage.removeItem('court-format');
+      expect(component['settingService'].loadCourtFormat()).toBe('double');
+    });
+    it('round-trips singles', () => {
+      component['settingService'].saveCourtFormat('single');
+      expect(component['settingService'].loadCourtFormat()).toBe('single');
+    });
   });
 
 });

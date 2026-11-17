@@ -101,7 +101,19 @@
 
 
 <div class="shuffleModeContainer">
+    <h3>Court Format</h3>
+    <div class="shuffleModeButtons">
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="courtFormat === 'double'" (click)="setCourtFormat('double')">Doubles</button>
+        <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="courtFormat === 'single'" (click)="setCourtFormat('single')">Singles</button>
+    </div>
+    <p class="shuffleModeDesc" *ngIf="courtFormat === 'double'">Every court is 2 vs 2.</p>
+    <p class="shuffleModeDesc" *ngIf="courtFormat === 'single'">Every court is 1 vs 1.</p>
+    <p class="mixNote">Applies to all courts. A court that is already playing keeps its format until it is freed.</p>
+</div>
+
+<div class="shuffleModeContainer">
     <h3>Shuffle Mode</h3>
+    <p class="mixNote" *ngIf="courtFormat === 'single'">Singles: Novel pairs players who have faced each other least; every other mode matches players of similar rank (Balanced). Force/Nemesis teammate rules don't apply.</p>
     <div class="shuffleModeButtons">
         <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'tiered'" (click)="setShuffleMode('tiered')">Tiered</button>
         <button class="shuffleModeBtn" [class.shuffleModeBtnActive]="shuffleMode === 'spread'" (click)="setShuffleMode('spread')">Spread</button>
